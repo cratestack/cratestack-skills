@@ -38,6 +38,30 @@ Works with Claude Code, Cursor, OpenCode, Codex and the rest of the agents
 **Start with `cratestack`.** It is the router: it picks the right facade for the
 crate you are in and points at the specific skill for the task.
 
+### Upgrading
+
+Installed skills are copied into your agent's skills directory, so they do not
+update themselves.
+
+```bash
+npx skills check      # what has a newer version upstream
+npx skills update     # upgrade everything installed
+npx skills list       # what you have, and where it came from
+npx skills remove cratestack-studio   # drop one
+```
+
+`npx skills add cratestack/cratestack-skills` again also works and overwrites in
+place.
+
+**Upgrade deliberately, not reflexively.** These skills track the newest
+CrateStack release. If you are pinned to an older one, the newer skills will
+describe a surface you do not have — and that is the exact failure they exist to
+prevent, just pointed the other way. Check the banner at the top of each skill
+against your own `cratestack --version` and the `cratestack-*` version in your
+`Cargo.toml`. When they diverge, the
+[feature-to-release map](skills/cratestack/references/version-history.md) is what
+tells you which facts do not apply to you yet.
+
 ## What's here
 
 | Skill | Load it when |
