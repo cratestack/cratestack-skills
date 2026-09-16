@@ -1,0 +1,28 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  skills:
+    name: skill manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # No dependencies on purpose: the validator is plain Node, so this job
+      # cannot break because of a lockfile.
+      - name: Validate SKILL.md frontmatter, links and coverage table
+        run: node scripts/validate-skills.mjs
+
+      # Proves the tree in THIS pull request is discoverable by the installer
+      # people are told to use. A local path is deliberate — pointing at the
+      # GitHub URL would resolve `main` and green-light a broken PR.
+      - name: Resolve as an installable skills source
+        run: npx --yes skills add . --list
