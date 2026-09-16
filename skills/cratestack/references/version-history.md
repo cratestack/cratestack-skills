@@ -194,3 +194,10 @@ version**. As of this writing that includes:
   accepted `isNull` and string patterns but returned **HTTP 400** for
   `verificationId=value` — even though the typed Rust `Where` path already
   supported it.
+- **Breaking:** `part` and `import` are **reserved identifiers** in every
+  `.cstack` identifier position — declaration names, fields, enum variants,
+  procedure and query parameters (#922). A schema using either word as a name
+  stops parsing. The reservation is exact and case-sensitive (`of`, `Import`,
+  `partOf` are unaffected), and `cratestack-lsp`'s rename now refuses them too.
+  Reserved ahead of the multi-file grammar (`part` / `part of` / `import`,
+  epic #910) so that landing it is not a migration.

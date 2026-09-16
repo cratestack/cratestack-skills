@@ -60,7 +60,11 @@ owning declaration, so `User.id` and `Post.id` are distinct symbols.
 
 Rename refuses rather than guesses: builtins are unrenameable, the new name must
 be a non-keyword non-builtin identifier, collisions are rejected, and it refuses
-entirely while the file has a syntax error.
+entirely while the file has a syntax error. The keyword list it checks includes
+the reserved multi-file words `part` and `import` *(unreleased)*, queried from
+`cratestack_parser::reserved_multi_file_keywords()` rather than copied — so a
+rename to `import` is refused with a message instead of rewriting the buffer into
+a file that no longer parses.
 
 ### Pointing an editor at it
 
