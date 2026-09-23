@@ -121,6 +121,13 @@ so a mistyped `@@` model attribute is still silently inert.
 **`cannot be represented as a Rust identifier`** — only `self`, `Self`, `super`
 and `crate` are unusable. Every other Rust keyword is fine, escaped as `r#type`.
 
+**`uses reserved '.cstack' keyword 'part' … reserved for multi-file schemas`**
+*(unreleased)* — `part` and `import` are refused in every identifier position,
+not because codegen cannot spell them but because the multi-file grammar is
+going to claim them (#922). Rename the declaration, field, variant or parameter.
+The match is exact and case-sensitive, so `Import`, `partOf` and `of` all still
+parse.
+
 **`both normalize to …`** — a snake_case collision. `myField` and `my_field` on
 one model; `model Foo` and `model foo`; a `type` and a `model` normalising
 together. The route variant catches `model Bus` plus `model Buse`, which both

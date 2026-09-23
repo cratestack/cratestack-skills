@@ -13,7 +13,12 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
 One file, one schema. **There is no `import` and no `part`** — multi-service
-setups keep separate `.cstack` files and separate macro invocations.
+setups keep separate `.cstack` files and separate macro invocations. Both words
+are nonetheless **reserved identifiers** *(unreleased)*: `model import`,
+`part String` and every other identifier position is rejected at parse time, so
+the multi-file grammar those words are earmarked for can land without breaking
+schemas written today (#922). The reservation is exact and case-sensitive — `of`,
+`Import` and `partOf` are all still available.
 
 Validate with `cratestack check --schema schema.cstack`. Errors are precise and
 worth reading literally; most of this skill is about the ones that are not
@@ -259,6 +264,9 @@ actually catch people:
 
 - **`self`, `Self`, `super`, `crate`** are unusable as any identifier. Every
   *other* Rust keyword is fine (escaped as `r#type` at codegen).
+- **`part`, `import`** are unusable as any identifier *(unreleased)* — reserved
+  for the future multi-file grammar, not for codegen. Exact and case-sensitive:
+  `Import` and `partOf` are fine.
 - **snake_case collisions**: `myField` and `my_field` on one model both normalize
   to the same column. So do `model Foo` and `model foo`.
 - **Route collisions**: `model Bus` and `model Buse` both route to `/buses`.
