@@ -156,9 +156,15 @@ peer, and refuses with 412 when it has neither. Serve via
 `.with_principal_fingerprint(...)`.
 
 **`@no_idempotency` or `@no_rate_limit` does nothing.** Under a nested router you
-need the `_with_prefix` resolver variants — and there is **no `_with_prefix`
-variant of the rate-limit filters at all**, so a nested `/api/rpc/...` mount
-fails closed and makes `@no_rate_limit` inert.
+need the `_with_prefix` resolver variants. The rate-limit *filters*
+(`build_rest_ops_filter` / `build_rpc_ops_filter`) have no prefix variant, so a
+nested `/api/rpc/...` mount wired through them fails closed and makes
+`@no_rate_limit` inert. Fix *(unreleased, cratestack#877)*: give
+`RateLimitLayer::with_op_resolver` its own
+`cratestack_axum::idempotency::build_rpc_op_resolver_with_prefix("/api", OPS)`
+(REST: `build_rest_op_resolver_with_prefix`) instead of a filter to
+`with_should_rate_limit_fn`. Call the builder once per layer — the returned
+resolver is not `Clone`, so one instance cannot be passed to both.
 
 **A generated TypeScript RPC client gets 406 or 415.** It defaults to native
 CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)` or regenerate with

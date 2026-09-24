@@ -194,6 +194,11 @@ version**. As of this writing that includes:
   accepted `isNull` and string patterns but returned **HTTP 400** for
   `verificationId=value` — even though the typed Rust `Where` path already
   supported it.
+- Rate-limit admission moved into the L3 `OpExecutor` (ADR 0015 slice 2, #877),
+  with no wire change. New `RateLimitLayer::with_op_resolver` takes resolvers from
+  the `cratestack_axum::idempotency` builders, including `_with_prefix`, so `@no_rate_limit` finally works under
+  `Router::nest`. The `build_*_ops_filter` predicates are unchanged and still cannot
+  see through a nest.
 - **Breaking:** `part` and `import` are **reserved identifiers** in every
   `.cstack` identifier position — declaration names, fields, enum variants,
   procedure and query parameters (#922). A schema using either word as a name

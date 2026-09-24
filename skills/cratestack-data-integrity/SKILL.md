@@ -112,11 +112,31 @@ would hand an attacker a deterministic global outage. IPv6 is aggregated to /64;
 IPv4 is not. Redis Cluster is not a supported deployment for this store (three
 un-hash-tagged keys give `CROSSSLOT`).
 
+Honouring `@no_rate_limit` is opt-in: `RateLimitLayer` rate-limits everything
+until told which op a request is. Either install a predicate,
+`.with_should_rate_limit_fn(build_rpc_ops_filter(OPS))` (REST:
+`build_rest_ops_filter(ROUTE_TRANSPORTS)`), or, *(unreleased, cratestack#877)*,
+a resolver from the same builders idempotency uses:
+`.with_op_resolver(cratestack_axum::idempotency::build_rpc_op_resolver(OPS))`.
+Prefer the resolver: it has a `_with_prefix` variant. The builders live in
+`idempotency`, not `ratelimit`, and return a non-`Clone` value — call the
+builder once per layer. `with_op_resolver` and `with_should_rate_limit_fn`
+replace each other.
+
 Two gaps: **`/rpc/batch` is always rate-limited wholesale**, regardless of the
-ops inside — the filter runs before the body is decoded, and that is an accepted
-tradeoff, not a bug. And there is **no `_with_prefix` variant of the rate-limit
-filters**, so a nested `/api/rpc/...` mount fails closed and silently makes
-`@no_rate_limit` inert.
+ops inside — the lookup runs before the body is decoded, and that is an accepted
+tradeoff, not a bug. And the **filters have no `_with_prefix` variant**, so a
+nested `/api/rpc/...` mount wired through a filter fails closed and silently makes
+`@no_rate_limit` inert. Use
+`with_op_resolver(cratestack_axum::idempotency::build_rpc_op_resolver_with_prefix("/api", OPS))`
+there *(unreleased)*.
+
+The admission decision itself lives in `cratestack-exec`
+(`OpExecutor::admit_rate_limit`, *unreleased*). An op nobody could identify is
+**charged** — the same "apply the protection" answer idempotency gives by
+reserving. Key
+derivation, the store-error policy, the lookup timeout and the `429` stay in
+`cratestack-axum`.
 
 ## Optimistic locking
 
