@@ -278,7 +278,10 @@ Three things bite:
    serve via `into_make_service_with_connect_info::<SocketAddr>()`.
 2. **A nested router needs the `_with_prefix` resolver variants**
    (`build_rest_op_resolver_with_prefix`, `build_rpc_op_resolver_with_prefix`), or
-   every descriptor lookup misses and `@no_idempotency` silently no-ops.
+   every descriptor lookup misses and `@no_idempotency` silently no-ops. Give
+   `RateLimitLayer::with_op_resolver` its own instance from the same builder
+   *(unreleased, #877)* so `@no_rate_limit` survives the nest too — the
+   resolver is not `Clone`, so call the builder once per layer.
 3. **Rate-limit store failure is nuanced by design**: a transport-class failure
    (Redis connection dropped) fails **open** with a warning; a store that is
    reachable and refusing (OOM) fails **closed** under every policy.
