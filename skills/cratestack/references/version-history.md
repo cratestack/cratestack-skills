@@ -206,3 +206,10 @@ version**. As of this writing that includes:
   `partOf` are unaffected), and `cratestack-lsp`'s rename now refuses them too.
   Reserved ahead of the multi-file grammar (`part` / `part of` / `import`,
   epic #910) so that landing it is not a migration.
+- **Security:** a `@server_only` model field is never read from a request
+  (#1051). A procedure argument that names a model, directly or through a
+  `type`, used to decode a value the client sent for such a field and hand it to
+  the implementation, because the field was `skip_serializing, default` and
+  `default` only fills an absent key. It is now serde-`skip`ped: the
+  implementation sees the field's default, and a wrong-typed value is ignored,
+  not rejected. Create and update inputs never had the field and are unchanged.

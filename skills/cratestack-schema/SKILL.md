@@ -115,7 +115,7 @@ Note the has-many side carries `@relation` too. That is mandatory.
 | `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. |
 | `@unique` | Single-column unique index. |
 | `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. |
-| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses. Mutually exclusive, and neither may sit on the PK. |
+| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses and is ignored in a procedure argument that decodes the model *(unreleased, #1051)*. Mutually exclusive, and neither may sit on the PK. |
 | `@pii` / `@sensitive` | Audit redaction only; no effect on inputs or outputs. |
 | `@version` | Optimistic locking. Required `Int`, at most one, never the PK. |
 | `@computed` / `@computed(params: T?)` | Resolver-backed response field. |
