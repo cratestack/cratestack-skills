@@ -12,7 +12,7 @@ When this file and `cratestack check` disagree, the checker is right — report 
 | `@unique` | bare or `@unique(...)` | Parser does not validate it; `cratestack-migrate` emits the constraint. |
 | `@relation(...)` | `fields: [x], references: [y], onDelete: A, onUpdate: A` | See the SKILL. Unknown key → `unsupported @relation key`. Both `fields` and `references` are mandatory. |
 | `@readonly` | bare | Out of Create + Update inputs; visible in responses and audit snapshots. |
-| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. |
+| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(unreleased, #1051)*. Before that, a client could set it that way. |
 | `@pii` | bare | Audit redaction as `"[redacted-pii]"`. No effect on inputs or outputs. |
 | `@sensitive` | bare | Audit redaction as `"[redacted-sensitive]"`. |
 | `@version` | bare | Required `Int`. At most one per model. Never the PK, never inside `@@id([...])`. |

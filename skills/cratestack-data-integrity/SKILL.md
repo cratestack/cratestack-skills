@@ -174,7 +174,7 @@ Redaction markers, exactly:
 | --- | --- |
 | `@pii` | `[redacted-pii]` |
 | `@sensitive` | `[redacted-sensitive]` |
-| `@server_only` | omitted entirely (the field is `skip_serializing`) |
+| `@server_only` | omitted entirely (serde skips the field) |
 
 **The docs site says `<redacted: pii>` and `<redacted: sensitive>`. Both are
 wrong.** Match on the bracket forms. Redaction happens before the row is written,
