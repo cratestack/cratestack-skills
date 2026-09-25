@@ -22,6 +22,7 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | [skills/cratestack-embedded/](skills/cratestack-embedded/) | `include_embedded_schema!`, `RusqliteRuntime`, `ModelDelegate`, transactions, wasm32 + OPFS, and the Flutter / Expo / Tauri / async-host integrations. |
 | [skills/cratestack-clients/](skills/cratestack-clients/) | `include_client_schema!`, `generate-dart`, `generate-typescript` and their layer flags, the npm and pub.dev packages, the wire contract and revival, WireMock stubs, client state stores, drift checking. |
 | [skills/cratestack-rpc/](skills/cratestack-rpc/) | `transport rpc`, the three endpoints, op IDs, frames, batch semantics, SSE subscriptions, `@stream` and cbor-seq, client batching links, and the transport-parity rule. |
+| [skills/cratestack-mcp/](skills/cratestack-mcp/) | The MCP operator *(unreleased)*: the `mcp { }` block, `@mcp(tool ...)` and `@@mcp(resource ...)`, the `mcp` facade feature, `StdioServer` and `StreamableHttpServer`, the HTTP guard and audience checks, `cratestack://` resource URIs, errors and fail-closed behaviour. |
 | [skills/cratestack-migrations/](skills/cratestack-migrations/) | `migrate diff` and `migrate baseline`, the snapshot model, destructive classification, `up.pre.sql`, rename markers, the Postgres-only applier, SQLite differences. |
 | [skills/cratestack-cli/](skills/cratestack-cli/) | Every subcommand and flag, installation, exit codes, `--check` drift mode, JSON diagnostics, `diff` severities, CI recipes. |
 | [skills/cratestack-studio/](skills/cratestack-studio/) | `studio.toml`, `init` / `run` / `eject`, the read and write API, the tools, UI bundling, and the security posture of `rw` database targets. |
@@ -43,6 +44,7 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | `cratestack-auth` (Ed25519, SD-JWT, JWKS) | `cratestack-policy-auth` |
 | REST routes and query parameters | `cratestack-server` |
 | `transport rpc`, `/rpc/batch`, subscriptions, `@stream` | `cratestack-rpc` |
+| MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
 | `@version`, `@@audit`, `@@soft_delete`, upsert, `@@paged`, `@isolation` | `cratestack-data-integrity` |
