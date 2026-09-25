@@ -194,7 +194,6 @@ version**. As of this writing that includes:
   `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)
   (#1005). The new `cratestack-cose` crate (#1005, #1069) implements ADR 0006's
   unary COSE envelope, but no router or client calls it yet (#1006/#1007).
-
 - **The MCP operator** (ADR 0002, epic #1033): `mcp { name, expose }`, `@mcp(tool ...)`,
   `@@mcp(resource ...)`, the `mcp` feature on `cratestack-pg` / `cratestack-api`, and
   `cratestack-mcp`'s `StdioServer` / `StreamableHttpServer`. See
