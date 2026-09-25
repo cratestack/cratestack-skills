@@ -189,6 +189,15 @@ before believing this list.
 Facts marked *(unreleased)* in a skill are on `main` and in **no published
 version**. As of this writing that includes:
 
+- **Fix, with a behaviour change:** generated clients honour `@api_version`
+  (cratestack/cratestack#1076). The server always mounted a versioned procedure
+  at `/<version>/$procs/<name>`. On 0.12.0 the Rust, TypeScript and Dart clients
+  and WireMock stubs called `/$procs/<name>` (a 404), and the `ROUTE_TRANSPORTS`
+  descriptor named that path too, so `@no_idempotency` / `@no_rate_limit` were
+  ignored on a versioned REST procedure. All of them now share
+  `cratestack_core::procedure_route::procedure_rest_route_path`. RPC op ids were
+  never versioned and are unchanged.
+
 - **Breaking:** `DeviceKeyResolver` gains the required
   `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
   `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)

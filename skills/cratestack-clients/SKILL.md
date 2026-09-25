@@ -53,7 +53,14 @@ let out   = client.procedures().my_procedure(&args, headers).await?;
 ```
 
 The model accessor is the **pluralised snake_case model name**. REST routes are
-`/<plural>` and `/$procs/<ProcedureName>`.
+`/<plural>` and `/$procs/<ProcedureName>`, or `/<version>/$procs/<ProcedureName>`
+for a procedure declared `@api_version("<version>")`: the path the server
+mounts. **On 0.12.0 every generated client (Rust, TypeScript, Dart) ignores
+`@api_version`**. It calls the unversioned path, which the server never
+registers, so the call is a 404. Fixed *(unreleased)*: all three clients and
+the server derive the path from `cratestack_core::procedure_route::procedure_rest_route_path`.
+Regenerate TypeScript/Dart clients and rebuild `include_client_schema!` crates
+after upgrading.
 
 Under `transport rpc` the outer shape is identical so call sites need not know
 the transport, but: the envelopes (`RpcListInput`, `RpcPkInput`,
@@ -208,7 +215,9 @@ through a separate `RpcStreamLink` chain. See `cratestack-rpc`.
 ## WireMock stubs
 
 `cratestack generate-wiremock` emits one stub per procedure and five per model,
-for contract tests without a live server.
+for contract tests without a live server. A REST stub for an `@api_version`
+procedure matches `/<version>/$procs/<name>` *(unreleased)*. On 0.12.0 it
+matched the unversioned path, the same wrong path the 0.12.0 clients called.
 
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have
 **no per-record statefulness** — they always answer the same synthesised example
