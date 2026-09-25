@@ -189,6 +189,11 @@ before believing this list.
 Facts marked *(unreleased)* in a skill are on `main` and in **no published
 version**. As of this writing that includes:
 
+- **The MCP operator** (ADR 0002, epic #1033): `mcp { name, expose }`, `@mcp(tool ...)`,
+  `@@mcp(resource ...)`, the `mcp` feature on `cratestack-pg` / `cratestack-api`, and
+  `cratestack-mcp`'s `StdioServer` / `StreamableHttpServer`. See
+  [cratestack-mcp](../../cratestack-mcp/SKILL.md). On 0.12.0 an `mcp { }` block does not
+  compile.
 - Optional scalars exposing `eq` / `ne` / `in` query filters on generated list
   routes (#953). Before it, an optional field such as `verificationId String?`
   accepted `isNull` and string patterns but returned **HTTP 400** for
