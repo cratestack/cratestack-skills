@@ -189,8 +189,8 @@ before believing this list.
 Facts marked *(unreleased)* in a skill are on `main` and in **no published
 version**. As of this writing that includes:
 
-- **Fix, with a behaviour change:** generated clients honour `@api_version` (cratestack/cratestack#1079)
- . The server always mounted a versioned procedure
+- **Fix, with a behaviour change:** generated clients honour `@api_version` on REST
+  (cratestack/cratestack#1079). The server always mounted a versioned procedure
   at `/<version>/$procs/<name>`. On 0.12.0 the Rust, TypeScript and Dart clients
   and WireMock stubs called `/$procs/<name>` (a 404), and the `ROUTE_TRANSPORTS`
   descriptor named that path too, so `@no_idempotency` / `@no_rate_limit` were
