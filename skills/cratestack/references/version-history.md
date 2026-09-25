@@ -189,6 +189,12 @@ before believing this list.
 Facts marked *(unreleased)* in a skill are on `main` and in **no published
 version**. As of this writing that includes:
 
+- **Breaking:** `DeviceKeyResolver` gains the required
+  `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
+  `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)
+  (#1005). The new `cratestack-cose` crate (#1005, #1069) implements ADR 0006's
+  unary COSE envelope, but no router or client calls it yet (#1006/#1007).
+
 - Optional scalars exposing `eq` / `ne` / `in` query filters on generated list
   routes (#953). Before it, an optional field such as `verificationId String?`
   accepted `isNull` and string patterns but returned **HTTP 400** for

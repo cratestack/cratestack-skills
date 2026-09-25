@@ -152,6 +152,27 @@ Optional, and broad. The pieces you are most likely to want:
 `canonical_signature_base` / `canonical_query` / `content_sha256_base64url` if
 you need to reproduce the canonicalisation on a client.
 
+`DeviceKeyResolver` has **two required methods** *(unreleased, cratestack#1005)*:
+`lookup_device_verifying_key(key_id: &str)` →
+`Result<Option<VerifyingKey>, AuthError>`, and
+`lookup_device_verifying_keys_by_thumbprint(kid_prefix: &[u8])` →
+`Result<Vec<VerifyingKey>, AuthError>`. The second one returns every **active**
+device key whose RFC 9679 thumbprint starts with the 8-byte COSE `kid`, and
+`Ok(vec![])` for unknown or revoked keys. Filtering on status is your job
+alone: a revoked key you return can still sign. When you enrol a key, store
+`cratestack_cose::thumbprint::kid_from_thumbprint(&cratestack_cose::thumbprint::okp_ed25519_thumbprint(vk.as_bytes()))`
+next to it. That needs the `cratestack-cose` crate, but not its `auth`
+feature. A service with no COSE traffic can return `Ok(Vec::new())`. The
+method has no default on purpose, so a one-method implementation no longer
+compiles.
+
+The COSE enrolment challenge functions `build_cose_enroll_response` /
+`parse_cose_enroll_response` are **no longer in `cratestack-auth`**
+*(unreleased, cratestack#1005)*. Import them from `cratestack_cose::auth`, with
+`cratestack-cose = { …, features = ["auth"] }`. `EnrollResponse`,
+`ENROLL_CHALLENGE_COSE_KID` and `CHALLENGE_SIGNING_KEY_ENV` stay in
+`cratestack-auth`.
+
 Bridge it in with
 `SignedRequestAuthProvider::new(verifier).allow_transport_callers(mode)`, where
 mode is `Never`, `SafeReadOnly` or `AllMethods`.
