@@ -12,9 +12,10 @@ description: Serving a CrateStack schema to AI agents over the Model Context Pro
 > the full feature-to-release map is in
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
-**Everything on this page is *(unreleased)*.** The MCP operator is on `main` and in no
-published version. On 0.12.0 an `mcp { }` block is a compile error, and `@mcp` /
-`@@mcp` do not exist. Do not generate MCP code for a project pinned to a release.
+**The MCP operator is *(since 0.13.0)*.** Before 0.13.0 there is no MCP runtime: on
+0.12.0 an `mcp { }` block parses and does nothing, and nothing serves `@mcp` /
+`@@mcp`. Do not generate MCP code for a project pinned below 0.13.0. A few behaviours
+changed in 0.13.1 and are marked *(since 0.13.1)* below.
 
 The design is ADR 0002 (`cratestack-docs/internals/mcp-operator-adr.md`); the working
 example is `examples/mcp-operator/` in the framework repo.
@@ -107,11 +108,12 @@ ignored.
 
 The macro generates `cratestack_schema::mcp`; `tools(db, registry, resolvers)` is the
 tool table. **You must name the caller.** There is no default identity, and an
-anonymous context is refused: `StdioServer::new` (and `McpServer::new`, the
-`rmcp` handler it wraps) return `Err(StdioConfigError::AnonymousContext)` for a
-context that isn't authenticated (`crates/cratestack-mcp/src/fixed_caller.rs`).
-Never pass `CratestackContext::anonymous()` (or `::default()`, which is the same
-value):
+anonymous context is refused *(since 0.13.1)*: `StdioServer::new` (and
+`McpServer::new`, the `rmcp` handler it wraps) return
+`Err(StdioConfigError::AnonymousContext)` for a context that isn't authenticated
+(`crates/cratestack-mcp/src/fixed_caller.rs`). On 0.13.0 both accepted it, returned
+`ToolTableError`, and served every call as nobody. Never pass
+`CratestackContext::anonymous()` (or `::default()`, which is the same value):
 
 ```rust
 let ctx = cratestack::SystemContext::for_service("support-agent").into_context();
@@ -155,7 +157,10 @@ bucket is keyed by the caller's `id` claim (the stdio context you passed, or the
 your provider built per HTTP request), so a caller's MCP calls draw on their own
 budget, separate from its REST budget (`crates/cratestack-mcp/src/idempotency.rs`,
 `namespace`). A context without an `id` claim gets `PRECONDITION_FAILED` on a
-rate-limited or keyed call.
+rate-limited or keyed call. The key holds a SHA-256 of the id, never the id itself
+*(since 0.13.1)*; on 0.13.0 it held the id verbatim, so after upgrading with a shared
+store, MCP idempotency records written by 0.13.0 stop replaying and MCP rate-limit
+buckets start fresh.
 
 ## Behaviour to rely on
 
@@ -180,7 +185,7 @@ rate-limited or keyed call.
   exactly.
 - **Caller checks.** Every method that answers (`server/discover`,
   `completion/complete`, every list method, `tools/call`, `resources/read`, and a legacy
-  `initialize`) fails closed without the HTTP guard's caller.
+  `initialize` *(since 0.13.1)*) fails closed without the HTTP guard's caller.
 - **Protocol.** Only `2026-07-28`. A legacy `initialize` gets `-32022`. With the MCP
   Inspector CLI, pass `--protocol-era modern`.
 

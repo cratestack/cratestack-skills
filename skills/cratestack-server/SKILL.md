@@ -282,7 +282,7 @@ Three things bite:
    `ConnectInfo<SocketAddr>`. With neither, the request is refused with 412.**
    Cookie or mTLS deployments must supply `.with_principal_fingerprint(…)`, or
    serve via `into_make_service_with_connect_info::<SocketAddr>()`.
-   *(unreleased, cratestack#1006)* A `VerifiedPrincipal` extension now comes
+   *(since 0.13.1, cratestack#1006)* A `VerifiedPrincipal` extension now comes
    first (`princ:<sha256>`), which is what the envelope layer below inserts; see
    `cratestack-data-integrity` for the upgrade note.
 2. **A nested router needs the `_with_prefix` resolver variants**
@@ -304,10 +304,9 @@ layer underneath — you rarely name it directly.
 
 ## Signed transport (envelope layer)
 
-*(unreleased, cratestack#1006 — on `main`, in no published release; not in
-0.13.0.)* `EnvelopeLayer` opens signed requests (COSE_Sign1 / COSE_Mac0 bodies)
-and seals every response of a generated REST or RPC router (ADR 0006). It is
-off unless you enable a facade feature:
+*(since 0.13.1, cratestack#1006)* `EnvelopeLayer` opens signed requests (COSE_Sign1 /
+COSE_Mac0 bodies) and seals every response of a generated REST or RPC router (ADR 0006).
+It is off unless you enable a facade feature:
 
 - `envelope` — `cratestack::envelope_layer` (the layer, its traits) and a
   generated `cratestack_schema::axum::envelope_layer(envelope, policy, audience)`.

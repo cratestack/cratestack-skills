@@ -25,11 +25,17 @@ into it, not a replacement.
 
 ---
 
-## Unreleased on `main`, after 0.13.0
+## Unreleased on `main`, after 0.13.1
 
-In no published release. Skills mark these *(unreleased, cratestack#NNN)*.
+In no published release. Skills mark these *(unreleased, cratestack#NNN)*. None
+recorded yet.
 
-- **The COSE envelope layer** (cratestack#1006, ADR 0006): `EnvelopeLayer`
+## 0.13.1 (2026-09-26)
+
+**Partial.** Only these entries have been checked against the 0.13.1 release. Skills
+mark them *(since 0.13.1)*.
+
+- **The COSE envelope layer** (cratestack#1006, ADR 0006), **breaking**: `EnvelopeLayer`
   opens signed requests and seals every response of the generated REST and
   RPC routers, behind the new `envelope` / `cose` features of `cratestack-pg`
   and `cratestack-api`, with a generated
@@ -43,10 +49,29 @@ In no published release. Skills mark these *(unreleased, cratestack#NNN)*.
   `cratestack-cose`'s `RequestNonce::random()` is gone
   (`cratestack_cose::random_request_nonce()`). The Rust client does not sign
   yet (cratestack#1007).
+- **MCP follow-ups** (epic cratestack#1033; ADR 0002 F1, F2, F5). See
+  [cratestack-mcp](../../cratestack-mcp/SKILL.md).
+  - **Breaking:** `StdioServer::new` and `McpServer::new` refuse a context that is
+    not authenticated with `Err(StdioConfigError::AnonymousContext)`, and return
+    `StdioConfigError` instead of `ToolTableError` (cratestack#1084). On 0.13.0 they
+    served an anonymous context as nobody.
+  - The MCP idempotency namespace and rate-limit bucket hold a SHA-256 of the
+    principal id (`mcp:<hex>` / `mcp-system:<hex>`), never the id itself
+    (cratestack#1085). A caller's MCP and REST budgets stay separate. After
+    upgrading from 0.13.0 with a shared store, MCP idempotency records written by
+    0.13.0 no longer replay and MCP rate-limit buckets start fresh.
+  - A legacy `initialize` below the HTTP guard fails closed with `-32603`, like
+    every other method (cratestack#1087). Through the guard and over stdio it is
+    still `-32022` with the supported-version list.
+- **Fix:** `cratestack-rusqlite` 0.13.0 does not build for `wasm32-unknown-unknown`
+  (`unresolved import sqlite_wasm_vfs::sahpool`, after the `sqlite-wasm-vfs` 0.3 bump,
+  cratestack#1048). 0.13.1 stays on 0.3 with its `sahpool` feature and an adapter to
+  the SQLite rusqlite links. A browser or OPFS build must skip 0.13.0; native builds
+  were never affected, and existing OPFS databases keep working.
 
 ## 0.13.0 (2026-09-26)
 
-**Partial.** Only this entry has been re-checked against the 0.13.0 release so
+**Partial.** Only these entries have been re-checked against the 0.13.0 release so
 far. Everything else 0.13.0 shipped is still listed under "Unreleased at the
 time of verification" below, until the 0.13.0 re-verification pass moves it
 here and bumps the skill banners.
@@ -60,6 +85,12 @@ here and bumps the skill banners.
   share `cratestack_core::procedure_route::procedure_rest_route_path`. RPC op
   ids were never versioned and are unchanged. Regenerate clients and stubs
   after upgrading.
+- **The MCP operator** (ADR 0002, epic #1033): `mcp { name, expose }`, `@mcp(tool ...)`,
+  `@@mcp(resource ...)`, the `mcp` feature on `cratestack-pg` / `cratestack-api`, and
+  `cratestack-mcp`'s `StdioServer` / `StreamableHttpServer`. See
+  [cratestack-mcp](../../cratestack-mcp/SKILL.md). **Breaking:** on 0.12.0 an
+  `mcp { }` block parsed and did nothing; from 0.13.0 it is validated, and the
+  embedded macro refuses it.
 
 ## 0.12.0 (2026-09-06)
 
@@ -236,11 +267,6 @@ entry itself calls still pending (for example the routers and clients of
   `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)
   (#1005). The new `cratestack-cose` crate (#1005, #1069) implements ADR 0006's
   unary COSE envelope, but no router or client calls it yet (#1006/#1007).
-- **The MCP operator** (ADR 0002, epic #1033): `mcp { name, expose }`, `@mcp(tool ...)`,
-  `@@mcp(resource ...)`, the `mcp` feature on `cratestack-pg` / `cratestack-api`, and
-  `cratestack-mcp`'s `StdioServer` / `StreamableHttpServer`. See
-  [cratestack-mcp](../../cratestack-mcp/SKILL.md). On 0.12.0 an `mcp { }` block does not
-  compile.
 - Optional scalars exposing `eq` / `ne` / `in` query filters on generated list
   routes (#953). Before it, an optional field such as `verificationId String?`
   accepted `isNull` and string patterns but returned **HTTP 400** for
