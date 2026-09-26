@@ -106,7 +106,12 @@ ignored.
 ## Serving over stdio
 
 The macro generates `cratestack_schema::mcp`; `tools(db, registry, resolvers)` is the
-tool table. **You must name the caller.** There is no default identity:
+tool table. **You must name the caller.** There is no default identity, and an
+anonymous context is refused: `StdioServer::new` (and `McpServer::new`, the
+`rmcp` handler it wraps) return `Err(StdioConfigError::AnonymousContext)` for a
+context that isn't authenticated (`crates/cratestack-mcp/src/fixed_caller.rs`).
+Never pass `CratestackContext::anonymous()` (or `::default()`, which is the same
+value):
 
 ```rust
 let ctx = cratestack::SystemContext::for_service("support-agent").into_context();
@@ -145,7 +150,12 @@ let app = Router::new()
 
 Both servers take `with_executor(OpExecutor)` for L3 admission (rate limiting, then
 idempotency) and `with_store_error_policy(StoreErrorPolicy)`. The policy is the same
-type `RateLimitLayer` uses. Pass `Deny` to MCP too if you chose it on HTTP.
+type `RateLimitLayer` uses. Pass `Deny` to MCP too if you chose it on HTTP. The MCP
+bucket is keyed by the caller's `id` claim (the stdio context you passed, or the one
+your provider built per HTTP request), so a caller's MCP calls draw on their own
+budget, separate from its REST budget (`crates/cratestack-mcp/src/idempotency.rs`,
+`namespace`). A context without an `id` claim gets `PRECONDITION_FAILED` on a
+rate-limited or keyed call.
 
 ## Behaviour to rely on
 
@@ -169,8 +179,8 @@ type `RateLimitLayer` uses. Pass `Deny` to MCP too if you chose it on HTTP.
 - **URI matching.** The scheme is case-insensitive; the name, segment and id are matched
   exactly.
 - **Caller checks.** Every method that answers (`server/discover`,
-  `completion/complete`, every list method, `tools/call`, `resources/read`) fails closed
-  without the HTTP guard's caller.
+  `completion/complete`, every list method, `tools/call`, `resources/read`, and a legacy
+  `initialize`) fails closed without the HTTP guard's caller.
 - **Protocol.** Only `2026-07-28`. A legacy `initialize` gets `-32022`. With the MCP
   Inspector CLI, pass `--protocol-era modern`.
 
