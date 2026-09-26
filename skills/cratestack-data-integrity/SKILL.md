@@ -50,7 +50,7 @@ Wire behaviour, with `IdempotencyLayer` installed:
 | Same key, different body | **422**, code `idempotency_key_conflict` |
 | Reservation still in flight | **409** plus `Retry-After: 1` |
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
-| No `Authorization` and no `ConnectInfo` | **412** |
+| No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
 
 The fingerprint is SHA-256 over `method \0 path_and_query \0 content_type \0 body`.
 **The query string is included on purpose** — `POST /transfer?dry_run=true` must
@@ -66,6 +66,11 @@ Three traps:
    example in the repo serves via `into_make_service_with_connect_info`, so a
    cookie- or mTLS-authenticated deployment 412s every request until you supply
    `.with_principal_fingerprint(...)`.
+   *(unreleased, cratestack#1006)* A `VerifiedPrincipal` request extension now
+   comes **first**, keyed `princ:<sha256 hex>` (the rate limiter already did
+   this); the COSE envelope layer inserts one for every signed request, so a
+   COSE-only client is no longer 412'd. See "Upgrading past cratestack#1006"
+   below.
 2. **A nested router needs `build_rest_op_resolver_with_prefix` /
    `build_rpc_op_resolver_with_prefix`.** Otherwise every lookup misses and
    `@no_idempotency` silently does nothing.
@@ -79,6 +84,39 @@ Store contract worth knowing if you implement one: `reserve_or_fetch` must be
 concurrent-safe (two simultaneous callers see exactly one `Reserved`), and
 reclaiming an expired row **must rotate the reservation token**. `complete`
 freezes the outcome — a 5xx replays as the same 5xx until a fresh key is used.
+
+### Upgrading past cratestack#1006 *(unreleased)*
+
+The default order is now `VerifiedPrincipal` → `Authorization` → `ConnectInfo`
+→ 412. **Breaking** for an app that already inserts `VerifiedPrincipal` in
+front of `IdempotencyLayer` (its own middleware, or the envelope layer): it
+moves to the `princ:` namespace, so a key whose first attempt landed before the
+deploy and whose retry lands after it **runs again**. Keep the old namespace
+for the deploy, and drop the call once the idempotency TTL has passed:
+
+```rust
+let idempotency = IdempotencyLayer::new(store, ttl).with_legacy_principal_fingerprint();
+// or, inside your own fingerprint fn (returns Result<String, CratestackError>):
+// cratestack::idempotency::legacy_principal_fingerprint(&request)
+```
+
+Custom `.with_principal_fingerprint(..)` functions are unaffected.
+
+### Idempotency under the envelope layer *(unreleased, cratestack#1006)*
+
+With `EnvelopeLayer` as the router's last `.layer(..)` (see `cratestack-server`),
+this layer sees the **opened** request, so the body hash covers the CBOR
+payload, not the COSE bytes. A client that re-seals a retry (fresh `cti`, same
+payload, same `Idempotency-Key`) gets the stored response, sealed afresh for
+the new request. The signature binds `Idempotency-Key` **exactly as sent**
+(untrimmed), so:
+
+- the client must include the key in what it signs, or the call is the
+  envelope's unsigned **401**;
+- a proxy that strips or alters the key breaks the signature (**401**), instead
+  of turning a replay into a second execution;
+- sending `Idempotency-Key` (or `If-Match`) **twice** is an unsigned **400**
+  before anything is verified.
 
 ## Rate limiting
 
@@ -106,6 +144,15 @@ Bucket cardinality is bounded atomically in the store, not in the layer
 | `Authorization` only | `auth:<sha>` | `global` | 8192 | `overflow` |
 | `ConnectInfo` only | `ip:<addr>` | — | none | — |
 | neither | **refused, 412** | | | |
+
+*(unreleased, cratestack#1006)* The COSE envelope layer is what produces a
+`VerifiedPrincipal` for signed traffic (`cose:<hex thumbprint>` by default,
+`ThumbprintPrincipal::with_prefix(..)` or a custom `PrincipalMapper` to change
+it), so a signed client lands in its own `princ:` bucket. That requires the
+envelope **outside** `RateLimitLayer` (its last `.layer(..)`), which means
+signature verification, with its key and nonce lookups, runs before the rate
+limit: put an IP-level limiter outside the envelope layer. A `429` answered to
+a signed request is sealed.
 
 Past the cap it **collapses into the fallback bucket, never refuses** — refusing
 would hand an attacker a deterministic global outage. IPv6 is aggregated to /64;
@@ -146,6 +193,12 @@ is fine and normal — "exactly one per model" is a docs-site error.
 Flow: read, capture the `ETag` (a strong validator, `"7"`), send it back as
 `If-Match` on `PATCH` or `DELETE`, retry on 412. **Omitting `If-Match` on a
 versioned model is itself a 412.** `If-Match: *` is a 400.
+
+Under the COSE envelope layer *(unreleased, cratestack#1006)*, `If-Match` is
+**signature-bound** exactly as sent: a client must sign it, a proxy that strips
+or alters it gets the unsigned 401, and sending it twice is a 400. The
+response's **`ETag` is not bound** (no response header is): don't treat it as
+authenticated.
 
 On a version mismatch the runtime re-reads the row **through the read policy**
 before answering. If you can see it and the version differs, you get 412 with

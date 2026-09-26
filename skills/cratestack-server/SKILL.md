@@ -1,6 +1,6 @@
 ---
 name: cratestack-server
-description: Building a CrateStack HTTP server — include_server_schema! with db = Postgres or db = None, the generated Cratestack runtime and Axum routers, AuthProvider wiring, the REST query-parameter contract, error envelope, codecs, events and the transactional outbox, idempotency and rate-limit layers. Load when working in a crate that depends on package = "cratestack-pg" or "cratestack-api", or when a question concerns generated routes, 403/404/422 behaviour, list filters, or router() arguments.
+description: Building a CrateStack HTTP server — include_server_schema! with db = Postgres or db = None, the generated Cratestack runtime and Axum routers, AuthProvider wiring, the REST query-parameter contract, error envelope, codecs, events and the transactional outbox, idempotency and rate-limit layers, and the signed-transport EnvelopeLayer (envelope / cose features, COSE-signed requests, envelope_layer). Load when working in a crate that depends on package = "cratestack-pg" or "cratestack-api", or when a question concerns generated routes, 403/404/422 behaviour, list filters, or router() arguments.
 ---
 
 # Server (`include_server_schema!`)
@@ -282,6 +282,9 @@ Three things bite:
    `ConnectInfo<SocketAddr>`. With neither, the request is refused with 412.**
    Cookie or mTLS deployments must supply `.with_principal_fingerprint(…)`, or
    serve via `into_make_service_with_connect_info::<SocketAddr>()`.
+   *(unreleased, cratestack#1006)* A `VerifiedPrincipal` extension now comes
+   first (`princ:<sha256>`), which is what the envelope layer below inserts; see
+   `cratestack-data-integrity` for the upgrade note.
 2. **A nested router needs the `_with_prefix` resolver variants**
    (`build_rest_op_resolver_with_prefix`, `build_rpc_op_resolver_with_prefix`), or
    every descriptor lookup misses and `@no_idempotency` silently no-ops. Give
@@ -298,6 +301,126 @@ key with a different body is a **422** with code `idempotency_key_conflict`.
 Redis-backed stores live in `cratestack-redis`; the Postgres idempotency store is
 in `cratestack-sqlx`. `cratestack-exec`'s `OpExecutor` is the transport-neutral
 layer underneath — you rarely name it directly.
+
+## Signed transport (envelope layer)
+
+*(unreleased, cratestack#1006 — on `main`, in no published release; not in
+0.13.0.)* `EnvelopeLayer` opens signed requests (COSE_Sign1 / COSE_Mac0 bodies)
+and seals every response of a generated REST or RPC router (ADR 0006). It is
+off unless you enable a facade feature:
+
+- `envelope` — `cratestack::envelope_layer` (the layer, its traits) and a
+  generated `cratestack_schema::axum::envelope_layer(envelope, policy, audience)`.
+  No crypto crate; bring your own `ServerEnvelope`.
+- `cose` — `envelope` plus `cratestack::cose` (a re-export of `cratestack-cose`),
+  whose `CoseEnvelope` is the default envelope.
+
+Both are on `cratestack-pg` and `cratestack-api`. The generated function exists
+only for schemas compiled through a facade with `envelope` on. The Rust client
+does **not** sign yet (cratestack#1007).
+
+```rust
+use std::sync::Arc;
+use cratestack::cose::{CoseEnvelope, CoseMode, StaticVerifierResolver};
+use cratestack::envelope_layer::EnvelopeMode;
+use cratestack::InMemoryNonceStore;
+
+let envelope = CoseEnvelope::server(
+    CoseMode::Sign1,
+    Arc::new(server_signer),                                   // any CoseSigner
+    Arc::new(StaticVerifierResolver::new().with_key(client_key)),
+    Arc::new(InMemoryNonceStore::new()),                       // per-process replay cache
+)
+.build()?;
+
+let envelope_layer =
+    cratestack_schema::axum::envelope_layer(envelope, EnvelopeMode::Required, "payments")
+        .mount_prefix("/api")            // only if the router is nested under /api
+        .build()?;
+
+let router = generated_router
+    .layer(idempotency_layer)
+    .layer(rate_limit_layer)
+    .layer(envelope_layer);             // LAST .layer(), so it runs first
+let app = axum::Router::new().nest("/api", router);
+```
+
+The generated function picks the schema's transport, `ROUTE_TRANSPORTS` and
+`SCHEMA_SHA256_BYTES`, and returns the builder: `.mount_prefix(..)`,
+`.allow_unresolved([..])`, `.unresolved_mode(..)`, `.principal_mapper(..)`,
+`.response_seal_policy(..)`, `.max_body_bytes(..)`, then `.build()?`. The calls
+commute. The hand-rolled form is `EnvelopeLayer::builder(envelope, audience,
+cratestack_schema::SCHEMA_SHA256_BYTES).policy(..).rest(prefix, ROUTE_TRANSPORTS)`
+(or `.rpc(prefix)`); there is no default policy and no default transport.
+Source: `crates/cratestack-axum/src/envelope_layer/` and
+`crates/cratestack-api/tests/cose_envelope_*.rs`.
+
+**Placement.** Last `.layer(..)` on the generated router, applied **before**
+`nest` / `merge` (through `Router::layer`, so `MatchedPath` is set; wrapped
+around the whole app with a `ServiceBuilder` it sees no route, so plain traffic
+passes **unprotected** and every COSE body is a 415). It inserts
+`VerifiedPrincipal("cose:<hex thumbprint>")`, which the rate limiter and the
+idempotency layer key on. Verification (key and nonce lookups) now runs before
+rate limiting, so put an IP-level limiter **outside** the envelope layer.
+
+**Modes** (`EnvelopePolicy`, per op; `EnvelopeMode` itself, or a closure over
+`&PolicyRequest<'_>`, which sees the op and no header):
+
+- `Required` — every request signed, `GET`/`HEAD`/`DELETE` included (empty
+  payload); unsigned is the unsigned `401`; every response sealed, errors
+  included (a handler's `404`, the `429`, `412`, `422`; a plain request to an
+  unmatched path still gets the router's plain `404`). Prefer `GET` over `HEAD`: a signed
+  `HEAD`'s body may be dropped by an intermediary.
+- `Optional` — a signed request is opened and **always** answered sealed (its
+  `Accept` forced to CBOR); an unsigned one runs, sealed only with a valid
+  `Cratestack-Nonce` and an `Accept` naming `application/cose`. That seal binds
+  the nonce and payload, **not the caller**.
+- `Off` — plain traffic untouched.
+- In every mode an `application/cose` body is opened or refused (`415`), never
+  forwarded. A bodiless `OPTIONS` passes. `/rpc/batch` runs under the strictest
+  mode of `batch` and every frame's op.
+
+**Bound by the signature:** audience, method, route (REST template or RPC op
+id), path parameters (a parameterised mount's too), the canonical query,
+the schema digest, the payload type, and `Idempotency-Key` / `If-Match` exactly
+as sent. **Response headers (`ETag`, `Retry-After`) are not bound.**
+
+`Required` is opt-in on purpose: the schema digest hashes the raw `.cstack`
+text, so a comment-only edit breaks every signed client (cratestack#1065).
+
+Traps:
+
+1. **A wrong or missing `.mount_prefix(..)` is a `500`, not a pass-through.**
+   Under a `Required` `unresolved_mode` (the default for `EnvelopeMode::Required`
+   and for every closure policy), a route the router matched but the layer
+   cannot bind is an unsigned `500`; the log says `envelope misconfigured`.
+   Hand-written routes on the same router (`/health`) go in
+   `.allow_unresolved(["/health"])`, relative to the mount prefix.
+   `.unresolved_mode(EnvelopeMode::Optional)` is the explicit, looser opt-out.
+   Another method on a generated path is the layer's own `405`.
+2. **Closure plug-ins need a typed parameter**:
+   `|r: &PolicyRequest<'_>| …`, `|v: &VerifiedRequest<'_>| Ok(…)`,
+   `|r: &UnsignedRequest<'_>| …`. The builder methods take `impl EnvelopePolicy`
+   (etc.), not an `Fn` bound, so nothing tells the compiler the argument type.
+   (Every example in the crate annotates it; not separately compile-tested.)
+3. **Wrapping `CoseEnvelope` in your own `ServerEnvelope`**: delegate with
+   `ServerEnvelope::open_request(&self.inner, body, bind).await` (same for
+   `seal_response` / `media_type`). `self.inner.open_request(..)` picks
+   `CoseEnvelope`'s inherent typed method and does not type-check (E0308).
+4. **Streams cannot be sealed yet** (ADR 0006 P1). A signed RPC subscription is
+   a **sealed `406`** before its handler runs, in `Required` and `Optional` alike;
+   give subscriptions `Optional` or `Off` in the policy
+   (`request.is_subscription()`). A signed `@stream` call is answered as **one
+   sealed CBOR array**, not a stream.
+5. **The envelope does not authenticate.** The `AuthProvider` sees the opened
+   CBOR payload (plus a `VerifiedSigner` in the request extensions), and
+   generated handlers record the `VerifiedSigner` on the context
+   (`ctx.verified_signer()`). It is a recorded fact, not an identity; mapping a
+   signer to an identity is cratestack#1077. Keep authenticating in your
+   `AuthProvider`.
+6. **Responses are re-buffered** to be sealed, up to
+   `MAX_RESPONSE_REBUFFER_BYTES` (8 MiB); longer is a sealed `500`. A
+   `Router::fallback` handler is **not** protected (no `MatchedPath`).
 
 ## Service scaffolding and observability
 

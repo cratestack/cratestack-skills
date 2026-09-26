@@ -25,6 +25,25 @@ into it, not a replacement.
 
 ---
 
+## Unreleased on `main`, after 0.13.0
+
+In no published release. Skills mark these *(unreleased, cratestack#NNN)*.
+
+- **The COSE envelope layer** (cratestack#1006, ADR 0006): `EnvelopeLayer`
+  opens signed requests and seals every response of the generated REST and
+  RPC routers, behind the new `envelope` / `cose` features of `cratestack-pg`
+  and `cratestack-api`, with a generated
+  `cratestack_schema::axum::envelope_layer(envelope, policy, audience)`. See
+  [cratestack-server](../../cratestack-server/SKILL.md). Also **breaking**: the
+  AAD gains `bound_headers` (`Idempotency-Key`, `If-Match`; binding v1 is not
+  frozen, cratestack#1082); `IdempotencyLayer`'s default fingerprint checks
+  `VerifiedPrincipal` first (`princ:`; `with_legacy_principal_fingerprint()`
+  for the deploy, see
+  [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md));
+  `cratestack-cose`'s `RequestNonce::random()` is gone
+  (`cratestack_cose::random_request_nonce()`). The Rust client does not sign
+  yet (cratestack#1007).
+
 ## 0.13.0 (2026-09-26)
 
 **Partial.** Only this entry has been re-checked against the 0.13.0 release so

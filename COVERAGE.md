@@ -47,6 +47,7 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
+| COSE envelope layer *(unreleased, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) |
 | `@version`, `@@audit`, `@@soft_delete`, upsert, `@@paged`, `@isolation` | `cratestack-data-integrity` |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |
