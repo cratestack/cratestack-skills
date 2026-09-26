@@ -105,7 +105,7 @@ Exactly one `@@sql` body is required.
 | `@no_idempotency` | bare only | `@no_idempotency(false)` is rejected — it would read as re-enabling while doing the opposite. No extension gate. |
 | `@no_rate_limit` | bare only | Requires `extension rate_limit { }`. |
 | `@isolation("serializable")` | quoted | |
-| `@api_version("v1")` | quoted, `[A-Za-z0-9._-]` | Mounts at `/<version>/$procs/<name>`. |
+| `@api_version("v1")` | quoted, `[A-Za-z0-9._-]` | Mounts at `/<version>/$procs/<name>` on REST. Under `transport rpc` the op id is still `procedure.<name>`, so to version an RPC operation give it a new procedure name. On 0.12.0 the generated clients and WireMock stubs call the unversioned path (404), and `@no_idempotency`/`@no_rate_limit` are ignored on a versioned REST procedure; both fixed *(unreleased)*. |
 | `@deprecated` / `@deprecated("msg")` | bare or one quoted string | Adds `Deprecation: true` and `X-Deprecation: <msg>` response headers. |
 | `@status(202)` | bare integer, 200..=299 | **Rejected under `transport rpc`.** `@status(204)` is accepted but the encoder still attaches a body — do not use it. |
 | `@authorize(Model, action, args.path)` | three parts | Actions `detail`/`read`, `update`, `delete` only. The path's type must match the model's PK type. Parsed at macro time. |

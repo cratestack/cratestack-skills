@@ -142,7 +142,12 @@ outermost `DefaultBodyLimit` and **cannot be overridden by re-layering**.
 
 Procedures: `POST /$procs/<procedureName>` — the procedure name **verbatim**, not
 snake-cased — or `POST /<version>/$procs/<name>` with `@api_version`. The request
-body is `{"args": {…}}`.
+body is `{"args": {…}}`. On 0.12.0 the generated `ROUTE_TRANSPORTS` descriptor
+for a versioned procedure still names `/$procs/<name>`. The REST op resolvers
+match `MatchedPath` against it, so for that procedure every lookup misses,
+`@no_idempotency` and `@no_rate_limit` silently do nothing, and the generated
+clients 404. All of this is fixed *(unreleased)*: the router, the descriptor
+and every client share `cratestack_core::procedure_route::procedure_rest_route_path`.
 
 A verb suppressed with `@@internal("create")` is never registered, so it is a
 plain axum 404 with no fallback.

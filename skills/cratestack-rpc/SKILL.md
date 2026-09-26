@@ -57,7 +57,9 @@ transformation anywhere** — the model name and the procedure name appear exact
 as declared in the schema, so `procedure flakyTicks` is `procedure.flakyTicks`.
 Snake-casing is applied only to derive Rust handler identifiers, never to the op
 id. Mutation-ness is not in the id: `procedure foo` and `mutation procedure foo`
-both yield `procedure.foo`.
+both yield `procedure.foo`. Neither is `@api_version`: a versioned procedure is
+still `procedure.<name>` on the server and in every client, because procedure
+names are unique per schema. The version prefix applies to the REST path only.
 
 A verb suppressed by `@@internal(...)` gets no descriptor and no dispatch arm, so
 it resolves as an unknown op — `not_found`, 404.

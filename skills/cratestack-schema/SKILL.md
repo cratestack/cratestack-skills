@@ -235,7 +235,7 @@ Attribute lines follow the declaration, unbraced. `procedure` is a query,
 | `@no_idempotency` | Bare only. No extension gate. |
 | `@no_rate_limit` | Bare only. **Requires `extension rate_limit { }`.** |
 | `@isolation("serializable")` | Quoted level. |
-| `@api_version("v1")` | Alphanumeric plus `.`, `-`, `_`. Mounts at `/<version>/$procs/<name>`. |
+| `@api_version("v1")` | Alphanumeric plus `.`, `-`, `_`. Mounts at `/<version>/$procs/<name>` (REST only; the RPC op id stays `procedure.<name>`). On 0.12.0 generated clients ignore it and 404; fixed *(unreleased)*. |
 | `@deprecated` / `@deprecated("msg")` | Adds `Deprecation` response headers. |
 | `@status(202)` | 2xx only, and **rejected under `transport rpc`**. |
 | `@authorize(Model, action, args.path)` | `detail`/`read`, `update`, `delete` only. |
