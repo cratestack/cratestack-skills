@@ -66,7 +66,7 @@ Three traps:
    example in the repo serves via `into_make_service_with_connect_info`, so a
    cookie- or mTLS-authenticated deployment 412s every request until you supply
    `.with_principal_fingerprint(...)`.
-   *(unreleased, cratestack#1006)* A `VerifiedPrincipal` request extension now
+   *(since 0.13.1, cratestack#1006)* A `VerifiedPrincipal` request extension now
    comes **first**, keyed `princ:<sha256 hex>` (the rate limiter already did
    this); the COSE envelope layer inserts one for every signed request, so a
    COSE-only client is no longer 412'd. See "Upgrading past cratestack#1006"
@@ -85,7 +85,7 @@ concurrent-safe (two simultaneous callers see exactly one `Reserved`), and
 reclaiming an expired row **must rotate the reservation token**. `complete`
 freezes the outcome — a 5xx replays as the same 5xx until a fresh key is used.
 
-### Upgrading past cratestack#1006 *(unreleased)*
+### Upgrading past cratestack#1006 *(since 0.13.1)*
 
 The default order is now `VerifiedPrincipal` → `Authorization` → `ConnectInfo`
 → 412. **Breaking** for an app that already inserts `VerifiedPrincipal` in
@@ -102,7 +102,7 @@ let idempotency = IdempotencyLayer::new(store, ttl).with_legacy_principal_finger
 
 Custom `.with_principal_fingerprint(..)` functions are unaffected.
 
-### Idempotency under the envelope layer *(unreleased, cratestack#1006)*
+### Idempotency under the envelope layer *(since 0.13.1, cratestack#1006)*
 
 With `EnvelopeLayer` as the router's last `.layer(..)` (see `cratestack-server`),
 this layer sees the **opened** request, so the body hash covers the CBOR
@@ -145,7 +145,7 @@ Bucket cardinality is bounded atomically in the store, not in the layer
 | `ConnectInfo` only | `ip:<addr>` | — | none | — |
 | neither | **refused, 412** | | | |
 
-*(unreleased, cratestack#1006)* The COSE envelope layer is what produces a
+*(since 0.13.1, cratestack#1006)* The COSE envelope layer is what produces a
 `VerifiedPrincipal` for signed traffic (`cose:<hex thumbprint>` by default,
 `ThumbprintPrincipal::with_prefix(..)` or a custom `PrincipalMapper` to change
 it), so a signed client lands in its own `princ:` bucket. That requires the
@@ -194,7 +194,7 @@ Flow: read, capture the `ETag` (a strong validator, `"7"`), send it back as
 `If-Match` on `PATCH` or `DELETE`, retry on 412. **Omitting `If-Match` on a
 versioned model is itself a 412.** `If-Match: *` is a 400.
 
-Under the COSE envelope layer *(unreleased, cratestack#1006)*, `If-Match` is
+Under the COSE envelope layer *(since 0.13.1, cratestack#1006)*, `If-Match` is
 **signature-bound** exactly as sent: a client must sign it, a proxy that strips
 or alters it gets the unsigned 401, and sending it twice is a 400. The
 response's **`ETag` is not bound** (no response header is): don't treat it as

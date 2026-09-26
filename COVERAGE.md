@@ -22,7 +22,7 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | [skills/cratestack-embedded/](skills/cratestack-embedded/) | `include_embedded_schema!`, `RusqliteRuntime`, `ModelDelegate`, transactions, wasm32 + OPFS, and the Flutter / Expo / Tauri / async-host integrations. |
 | [skills/cratestack-clients/](skills/cratestack-clients/) | `include_client_schema!`, `generate-dart`, `generate-typescript` and their layer flags, the npm and pub.dev packages, the wire contract and revival, WireMock stubs, client state stores, drift checking. |
 | [skills/cratestack-rpc/](skills/cratestack-rpc/) | `transport rpc`, the three endpoints, op IDs, frames, batch semantics, SSE subscriptions, `@stream` and cbor-seq, client batching links, and the transport-parity rule. |
-| [skills/cratestack-mcp/](skills/cratestack-mcp/) | The MCP operator *(unreleased)*: the `mcp { }` block, `@mcp(tool ...)` and `@@mcp(resource ...)`, the `mcp` facade feature, `StdioServer` and `StreamableHttpServer`, the HTTP guard and audience checks, `cratestack://` resource URIs, errors and fail-closed behaviour. |
+| [skills/cratestack-mcp/](skills/cratestack-mcp/) | The MCP operator *(since 0.13.0)*: the `mcp { }` block, `@mcp(tool ...)` and `@@mcp(resource ...)`, the `mcp` facade feature, `StdioServer` and `StreamableHttpServer`, the HTTP guard and audience checks, `cratestack://` resource URIs, errors and fail-closed behaviour. |
 | [skills/cratestack-migrations/](skills/cratestack-migrations/) | `migrate diff` and `migrate baseline`, the snapshot model, destructive classification, `up.pre.sql`, rename markers, the Postgres-only applier, SQLite differences. |
 | [skills/cratestack-cli/](skills/cratestack-cli/) | Every subcommand and flag, installation, exit codes, `--check` drift mode, JSON diagnostics, `diff` severities, CI recipes. |
 | [skills/cratestack-studio/](skills/cratestack-studio/) | `studio.toml`, `init` / `run` / `eject`, the read and write API, the tools, UI bundling, and the security posture of `rw` database targets. |
@@ -47,7 +47,7 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
-| COSE envelope layer *(unreleased, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) |
+| COSE envelope layer *(since 0.13.1, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) |
 | `@version`, `@@audit`, `@@soft_delete`, upsert, `@@paged`, `@isolation` | `cratestack-data-integrity` |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |

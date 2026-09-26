@@ -154,7 +154,7 @@ principal fingerprint hashes `Authorization`, falls back to the `ConnectInfo`
 peer, and refuses with 412 when it has neither. Serve via
 `into_make_service_with_connect_info::<SocketAddr>()` or supply
 `.with_principal_fingerprint(...)`.
-*(unreleased, cratestack#1006)* A `VerifiedPrincipal` extension (the COSE
+*(since 0.13.1, cratestack#1006)* A `VerifiedPrincipal` extension (the COSE
 envelope layer inserts one) now comes first, so a signed client is not 412'd,
 provided the envelope layer is **outside** the idempotency layer (the router's
 last `.layer(..)`).
@@ -194,7 +194,7 @@ discarded — there is no generated accessor and no auto-wrapping. Call
 **`@@retain(days: N)` deletes nothing.** It is descriptor metadata and nothing
 reads it. Run your own job.
 
-### The COSE envelope layer *(unreleased, cratestack#1006)*
+### The COSE envelope layer *(since 0.13.1, cratestack#1006)*
 
 These apply only with the `envelope` / `cose` facade feature and an
 `EnvelopeLayer` on the router (see `cratestack-server`). Source:
