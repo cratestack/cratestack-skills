@@ -25,6 +25,23 @@ into it, not a replacement.
 
 ---
 
+## 0.13.0 (2026-09-26)
+
+**Partial.** Only this entry has been re-checked against the 0.13.0 release so
+far. Everything else 0.13.0 shipped is still listed under "Unreleased at the
+time of verification" below, until the 0.13.0 re-verification pass moves it
+here and bumps the skill banners.
+
+- **Fix, with a behaviour change:** generated clients honour `@api_version` on
+  REST (cratestack/cratestack#1079). The server always mounted a versioned
+  procedure at `/<version>/$procs/<name>`. Before 0.13.0 the Rust, TypeScript
+  and Dart clients and WireMock stubs called `/$procs/<name>` (a 404), and the
+  `ROUTE_TRANSPORTS` descriptor named that path too, so `@no_idempotency` /
+  `@no_rate_limit` were ignored on a versioned REST procedure. All of them now
+  share `cratestack_core::procedure_route::procedure_rest_route_path`. RPC op
+  ids were never versioned and are unchanged. Regenerate clients and stubs
+  after upgrading.
+
 ## 0.12.0 (2026-09-06)
 
 - `generate-typescript --rtk` — a generated RTK Query endpoint set, with
@@ -188,15 +205,6 @@ before believing this list.
 
 Facts marked *(unreleased)* in a skill are on `main` and in **no published
 version**. As of this writing that includes:
-
-- **Fix, with a behaviour change:** generated clients honour `@api_version` on REST
-  (cratestack/cratestack#1079). The server always mounted a versioned procedure
-  at `/<version>/$procs/<name>`. On 0.12.0 the Rust, TypeScript and Dart clients
-  and WireMock stubs called `/$procs/<name>` (a 404), and the `ROUTE_TRANSPORTS`
-  descriptor named that path too, so `@no_idempotency` / `@no_rate_limit` were
-  ignored on a versioned REST procedure. All of them now share
-  `cratestack_core::procedure_route::procedure_rest_route_path`. RPC op ids were
-  never versioned and are unchanged.
 
 - **Breaking:** `DeviceKeyResolver` gains the required
   `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
