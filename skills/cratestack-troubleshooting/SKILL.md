@@ -1,6 +1,6 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, and the schema compile errors the macros emit with what each actually means. Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, and envelope-layer (COSE signed transport) 500/401/415/406 answers. Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
@@ -154,6 +154,10 @@ principal fingerprint hashes `Authorization`, falls back to the `ConnectInfo`
 peer, and refuses with 412 when it has neither. Serve via
 `into_make_service_with_connect_info::<SocketAddr>()` or supply
 `.with_principal_fingerprint(...)`.
+*(unreleased, cratestack#1006)* A `VerifiedPrincipal` extension (the COSE
+envelope layer inserts one) now comes first, so a signed client is not 412'd,
+provided the envelope layer is **outside** the idempotency layer (the router's
+last `.layer(..)`).
 
 **`@no_idempotency` or `@no_rate_limit` does nothing.** Under a nested router you
 need the `_with_prefix` resolver variants. The rate-limit *filters*
@@ -189,6 +193,64 @@ discarded — there is no generated accessor and no auto-wrapping. Call
 
 **`@@retain(days: N)` deletes nothing.** It is descriptor metadata and nothing
 reads it. Run your own job.
+
+### The COSE envelope layer *(unreleased, cratestack#1006)*
+
+These apply only with the `envelope` / `cose` facade feature and an
+`EnvelopeLayer` on the router (see `cratestack-server`). Source:
+`crates/cratestack-axum/src/envelope_layer/`.
+
+**Every request 500s; the log says `envelope misconfigured`.** The response is
+a generic unsigned 500; the detail (matched route, configured mount prefix) is
+only in the server log, target `cratestack`, throttled to once a minute. Under a
+`Required` `unresolved_mode` (an `EnvelopeMode::Required` policy, or **any
+closure policy**), a route the router matched but the layer cannot bind fails
+closed. Causes, in order of likelihood: the router is `nest`ed and the layer was
+not told (`.mount_prefix("/api")` on the builder); the prefix is wrong; the
+generated router was mounted with `nest_service`; the route descriptors drifted
+from the router. If only some routes 500, they are hand-written routes on the same
+router: list them with `.allow_unresolved(["/health"])` (relative to the mount
+prefix). `.unresolved_mode(EnvelopeMode::Optional)` also silences it, by letting
+unbindable routes through unsigned; prefer the allow-list.
+
+**A signed call 401s after adding `Idempotency-Key`, `If-Match` or a query
+parameter.** The signature binds the canonical query and both headers exactly as
+sent, so the client must bind them too; a header the client did not sign (or a
+proxy that adds, strips or re-spells one) fails verification. Every verification
+failure is the same coarse, unsigned 401 on purpose, so the response will not say
+which input differed. Check: the query (distinct keys may be reordered, one key's
+repeated values may not; an RPC call binds its query too, which generated RPC
+clients leave empty), the header values byte for byte (untrimmed), the audience,
+the mount-prefix values of a parameterised mount, and the schema digest (a
+comment-only `.cstack` edit changes it, cratestack#1065). A header sent **twice**
+is a 400, not a 401.
+
+**415 on a COSE body.** The layer never forwards an `application/cose` body it
+will not open. It refuses one when the policy says `Off` for that op, when the
+path is not a generated op (an unmatched path, an allow-listed hand-written
+route, a malformed `/rpc/{op_id}` such as `/rpc/%62atch`), or when a signed
+`/rpc/batch` has every frame's op (and `batch`) `Off`. Check the policy's answer
+for that op (REST ops are route templates like `/widgets/{id}`, RPC ops are op
+ids like `procedure.ping`) and the mount prefix. If **every** COSE body is a 415 and plain
+requests pass untouched, the layer sees no matched route at all: it was wrapped
+around the whole app (a `ServiceBuilder`, a `tower::Layer` on the server)
+instead of applied with `Router::layer` as the generated router's last
+`.layer(..)`, so `MatchedPath` never reaches it. That placement leaves plain
+traffic **unprotected**, not refused.
+
+**406 on a signed subscription.** Streams cannot be sealed until ADR 0006 P1, so
+a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler
+runs, under `Required` and `Optional` alike, and an unsigned one under
+`Required` is the 401. Give subscriptions `Optional` or `Off` in the policy
+(`request.is_subscription()`) and subscribe unsigned. A signed `@stream` call is
+not refused: it is answered as one sealed CBOR array.
+
+**The `AuthProvider` sees CBOR, not the COSE body, and the signer is not the
+user.** The layer hands the router the opened payload as `application/cbor`.
+Generated handlers record `VerifiedSigner` on the context
+(`ctx.verified_signer()`), but that is a recorded fact, not an authentication:
+nothing turns it into an identity (that adapter is cratestack#1077). Keep
+authenticating in the `AuthProvider`.
 
 ## Getting more signal
 
