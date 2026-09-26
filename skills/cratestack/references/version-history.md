@@ -203,8 +203,14 @@ before believing this list.
 
 ## Unreleased at the time of verification
 
-Facts marked *(unreleased)* in a skill are on `main` and in **no published
-version**. As of this writing that includes:
+These entries were written against `main` before 0.13.0. **Every one of them
+has since shipped in 0.13.0 (2026-09-26)**: the framework CHANGELOG's 0.13.0
+section covers each. They stay here, and their skills keep the *(unreleased)*
+marker, only until the 0.13.0 re-verification pass checks them against the
+release and moves them into the 0.13.0 section above. Until then, read
+*(unreleased)* on these facts as "in 0.13.0, not yet re-verified". Anything an
+entry itself calls still pending (for example the routers and clients of
+#1006/#1007) is still pending. The list:
 
 - **Breaking:** `DeviceKeyResolver` gains the required
   `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
