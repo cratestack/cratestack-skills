@@ -19,6 +19,7 @@ When this file and `cratestack check` disagree, the checker is right — report 
 | `@computed` | bare or `@computed(params: T?)` | `type` and `model` only. Once per field. **Cannot combine with any other field attribute.** The `?` on `params` is mandatory; `T` must be a declared `type` block. |
 | `@from(Model.field)` | opaque | **Completely inert.** Provenance documentation on view fields, checked by nothing. |
 | `@db_enforce` | bare | Alongside a validator, promotes it to a real Postgres `CHECK`. Not validated by the parser. |
+| `@rename(from = "old_column")` | exactly that form | Read by `cratestack migrate` only; inert to the parser, so a malformed marker checks as `schema OK` and migrate falls back to drop + add. See `cratestack-migrations`. |
 | `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | see below | Validators. |
 
 ### Mutual exclusions and position rules
@@ -59,8 +60,8 @@ nothing calls them automatically.
 
 | Attribute | Grammar | Rules |
 | --- | --- | --- |
-| `@@allow("action", expr)` | quoted action + expression | Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` groups `list` + `detail`. Validated at macro time, not by the parser. |
-| `@@deny("action", expr)` | same | Only `create`, `update`, `delete`, `list`/`read`, `detail`/`read` are wired. |
+| `@@allow("action", expr)` | quoted action + expression | Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` groups `list` + `detail`. The expression is compiled at macro time, not by the parser. An action outside the list (`"raed"`, `"read,update"`) matches no slot and is **silently dropped** — no error, no rule; so is a line with anything after the closing `)`, a `// comment` included. Refused on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*. |
+| `@@deny("action", expr)` | same | Wired for every action above (`read`/`all` fill both read slots). Same silent drop as `@@allow` — for a deny that means the rule you wrote is not enforced. |
 | `@@id([a, b])` | ≥2 fields | Real scalar fields, no repeats. Mutually exclusive with field-level `@id`. Listed fields must not carry `@readonly` / `@server_only` / `@version`. **Parses, then hard-rejected by every entry macro.** |
 | `@@unique([a, b], where: "…")` | ≥1 field; ≥2 unless `where:` present | Only key accepted is `where`, at most once, value must be a quoted string. Duplicate field lists rejected. |
 | `@@index([a], using: gist, opclass: "…", where: "…")` | ≥1 field | `using:` is a **bare identifier**; `opclass:` is a **quoted string**; `where:` is quoted SQL passed through verbatim. Duplicate `(fields, using)` pairs rejected — same fields with a different `using` is legal. |
@@ -72,6 +73,8 @@ nothing calls them automatically.
 | `@@subscribe` | **bare only** | Requires `transport rpc` **and** requires `@@emit(...)`. |
 | `@@internal("action")` | **exactly one quoted action per declaration** | Vocabulary: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Suppresses the REST route, the RPC dispatch arm and the client stub. Does **not** suppress policy evaluation, and does not exempt handler-name collisions. |
 | `@use(MixinA, MixinB)` | comma list | Written inside the model body. Expanded at parse time; the model's own field wins on a name clash. |
+| `@@rename(from = "old_table")` | exactly that form | Read by `cratestack migrate` only, like `@rename`; a malformed marker is inert. See `cratestack-migrations`. |
+| `@@mcp(resource: "segment", max_page_size: N)` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the model as a read-only MCP resource. Needs an `mcp { }` block exposing `resources`, and a read `@@allow`. Must sit on its own line. |
 
 `@@map` does not exist. Table names are always `pluralize(snake_case(Name))`.
 
@@ -109,6 +112,13 @@ Exactly one `@@sql` body is required.
 | `@deprecated` / `@deprecated("msg")` | bare or one quoted string | Adds `Deprecation: true` and `X-Deprecation: <msg>` response headers. |
 | `@status(202)` | bare integer, 200..=299 | **Rejected under `transport rpc`.** `@status(204)` is accepted but the encoder still attaches a body — do not use it. |
 | `@authorize(Model, action, args.path)` | three parts | Actions `detail`/`read`, `update`, `delete` only. The path's type must match the model's PK type. Parsed at macro time. |
+| `@mcp(tool)` / `@mcp(tool: "name", description: "…")` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the procedure as an MCP tool. Needs an `mcp { }` block exposing `tools`, and an `@allow`. Must sit on its own line. |
+
+Nothing checks procedure attribute names: a typo (`@deyn(…)`) is inert. And
+`@allow` / `@deny` / `@authorize` apply only when the line is exactly that
+attribute — `@deny (…)`, `@Deny(…)`, `@deny(…) // note`, or
+`@no_idempotency @deny(…)` on one line generate nothing and report `schema OK`.
+Refused on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
 
 ## Parametric types
 
@@ -137,5 +147,10 @@ body. Keep each attribute on its own line.
 ## Doc comments
 
 `///` is a doc comment; `//` is an ordinary comment and **clears** pending docs,
-as does a blank line. Per-argument procedure docs use
-`/// @param <name> <description>`.
+as does a blank line. That holds for a line that *starts* with `//`. A trailing
+`// …` after an attribute is not stripped in 0.14.0: it silently drops a
+procedure, `query` or `@@` policy attribute (see above), and on a field line an
+attribute named inside it is applied (`@unique // not @readonly` makes the field
+read-only). Fixed on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
+
+Per-argument procedure docs use `/// @param <name> <description>`.

@@ -7,7 +7,7 @@ and a new feature that fits nowhere gets a row before it gets prose.
 `scripts/validate-skills.mjs` checks this file both ways — every skill directory
 must appear here, and every skill path mentioned here must exist.
 
-Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
+Verified against **CrateStack 0.14.0**. Feature-to-release history lives in
 [skills/cratestack/references/version-history.md](skills/cratestack/references/version-history.md).
 
 ## Skills

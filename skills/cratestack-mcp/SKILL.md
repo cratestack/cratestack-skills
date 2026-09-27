@@ -5,7 +5,7 @@ description: Serving a CrateStack schema to AI agents over the Model Context Pro
 
 # MCP operator
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -40,7 +40,10 @@ cratestack = { package = "cratestack-pg", version = "…", features = ["mcp"] }
 - **`cratestack-sqlite` has no `mcp` feature.** The embedded role enforces no policy.
 - **`cratestack-client` has none either.** It serves nothing.
 
-Without the feature, any MCP declaration is a compile error telling you to enable it.
+Without the feature, any MCP declaration in an `include_server_schema!` schema is a
+compile error telling you to enable it. `include_embedded_schema!` refuses one
+always; `include_client_schema!` accepts and ignores them (another service's MCP
+exposure is not the client's concern).
 
 ## The schema surface
 
@@ -141,9 +144,11 @@ let app = Router::new()
   code, not an API.
 - **Answers before MCP handling:**
   - 403 for a foreign `Origin`;
-  - 405 for `GET`/`DELETE`;
+  - 405 for any method but `POST` (`GET`/`DELETE` included);
   - 400 `invalid_request` for a query-string token or an ambiguous `Authorization`;
-  - 401 plus `WWW-Authenticate` for a missing or rejected token;
+  - 401 plus `WWW-Authenticate` for a missing or rejected token (403
+    `insufficient_scope` if your provider answers `Forbidden`, and a provider
+    5xx passes through as that 5xx);
   - 413 above 4 MiB.
 - **What reaches your procedure.** The token is stripped once the provider has run, and
   the call runs under the context the provider built.

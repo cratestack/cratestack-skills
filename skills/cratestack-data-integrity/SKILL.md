@@ -5,7 +5,7 @@ description: CrateStack's data-integrity surface — idempotency keys, rate limi
 
 # Data integrity
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -48,9 +48,9 @@ Wire behaviour, with `IdempotencyLayer` installed:
 
 | Situation | Response |
 | --- | --- |
-| Replay (same key, same body hash) | Original status and **every** original header, plus `Idempotency-Replayed: true` |
-| Same key, different body | **422**, code `idempotency_key_conflict` |
-| Reservation still in flight | **409** plus `Retry-After: 1` |
+| Replay (same key, same body hash) | Original status and every original header except `Date`, `Content-Length`, `Connection` and `Transfer-Encoding`, plus `Idempotency-Replayed: true` |
+| Same key, different body | **422**, code `VALIDATION_ERROR`, message starting `idempotency_key_conflict` |
+| Reservation still in flight | **409** (`CONFLICT`) plus `Retry-After: 1` |
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
 | No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
 | An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(unreleased)* | **not recorded**: the key is released, so the same key runs the call again |
@@ -165,7 +165,7 @@ un-hash-tagged keys give `CROSSSLOT`).
 Honouring `@no_rate_limit` is opt-in: `RateLimitLayer` rate-limits everything
 until told which op a request is. Either install a predicate,
 `.with_should_rate_limit_fn(build_rpc_ops_filter(OPS))` (REST:
-`build_rest_ops_filter(ROUTE_TRANSPORTS)`), or, *(unreleased, cratestack#877)*,
+`build_rest_ops_filter(ROUTE_TRANSPORTS)`), or, *(since 0.13.0, cratestack#877)*,
 a resolver from the same builders idempotency uses:
 `.with_op_resolver(cratestack_axum::idempotency::build_rpc_op_resolver(OPS))`.
 Prefer the resolver: it has a `_with_prefix` variant. The builders live in
@@ -179,10 +179,10 @@ tradeoff, not a bug. And the **filters have no `_with_prefix` variant**, so a
 nested `/api/rpc/...` mount wired through a filter fails closed and silently makes
 `@no_rate_limit` inert. Use
 `with_op_resolver(cratestack_axum::idempotency::build_rpc_op_resolver_with_prefix("/api", OPS))`
-there *(unreleased)*.
+there *(since 0.13.0)*.
 
 The admission decision itself lives in `cratestack-exec`
-(`OpExecutor::admit_rate_limit`, *unreleased*). An op nobody could identify is
+(`OpExecutor::admit_rate_limit`, *since 0.13.0*). An op nobody could identify is
 **charged** — the same "apply the protection" answer idempotency gives by
 reserving. Key
 derivation, the store-error policy, the lookup timeout and the `429` stay in
@@ -245,8 +245,10 @@ database table is canonical; the sink is a best-effort projection.
 ## Soft delete
 
 `@@soft_delete` is bare, no duplicate check. The column is **hardcoded
-`deleted_at`** — you cannot name a different one. No schema change is needed
-beyond the attribute.
+`deleted_at`** — you cannot name a different one. The model needs no field for
+it, but on Postgres the table needs a nullable `deleted_at TIMESTAMPTZ` column,
+and `cratestack migrate` does **not** emit one (its IR is built from declared
+fields only; every PG test fixture adds the column by hand).
 
 `DELETE` becomes `UPDATE … SET deleted_at = NOW()` (plus a `version` bump if the
 model has one). Every read injects `deleted_at IS NULL` as the first `WHERE`
@@ -261,18 +263,22 @@ absent, like `?include=` does (a sort key through it reads `NULL`). **Before
 backend still does — its relation filters and sorts ignore `@@soft_delete`
 although its `find_*` hides tombstones.
 
-Re-deleting a tombstone matches zero rows and surfaces as not-found. There is no
+Re-deleting a tombstone matches zero rows and surfaces as `Forbidden` (403,
+`delete policy denied this operation`) — the same answer as a missing row or a
+policy denial, and `deleted_at` does not move. There is no
 `undelete` helper; reviving deliberately means an explicit
 `UPDATE … SET deleted_at = NULL`.
 
-**The one to remember: plain `.upsert().run()` on a `@@soft_delete` model revives
-a tombstone.** The pre-flight probe deliberately treats tombstones as "no row",
-but the `DO UPDATE` branch then revives one and reports it as
-`UpsertOutcome::Inserted`, emitting a `Created` event and an
+**The one to remember: plain `.upsert().run()` on a `@@soft_delete` model
+overwrites a tombstone.** The pre-flight probe deliberately treats tombstones as
+"no row", so the `DO UPDATE` statement then writes over the tombstoned row and
+the runtime classifies it as an insert, emitting a `Created` event and an
 `AuditOperation::Create` with `before = None` — and **the update-policy gate does
-not run**. `.do_nothing()` does not share the defect; it returns
-`CratestackError::Conflict`. This is a known, documented defect, not a
-misunderstanding.
+not run**. `deleted_at` is not in the `SET` list (unless the model declares it
+as a field), so the row stays tombstoned and hidden; the source comment calls
+this "revives", but `upsert_do_update_sql.rs` never touches the column.
+`.do_nothing()` does not share the defect; it returns `CratestackError::Conflict`.
+This is a known, documented defect, not a misunderstanding.
 
 `@@retain(days: N)` parses, validates, lands on the descriptor, and **is never
 acted on**. Run your own scheduled job.
@@ -284,13 +290,15 @@ client-supplied. A server-generated PK makes it a **compile error**.
 
 `.on_conflict(ConflictTarget::columns(&["owner_id", "provider"]))` targets a real
 `UNIQUE` constraint; the input must carry a value for every column in the tuple.
-`ON CONFLICT ON CONSTRAINT <name>` is not exposed. Partial indexes work via
-`ConflictTarget::predicate()`.
+`ON CONFLICT ON CONSTRAINT <name>` is not exposed. Partial unique indexes work
+via `ConflictTarget::columns(&[..]).where_index("status = 'active'")`
+(`predicate()` is only the getter).
 
-Both the **create and update policies must allow** — evaluated at call time,
-before the branch is known. Stricter than "gate the path that runs", but
-pre-flighting a read to pick a policy slot would leak row existence to denied
-callers.
+The **create** policy is checked on every call, before the probe. The **update**
+policy is checked only when the locked probe finds a live row, against that row.
+A source comment says "both must allow" up front; the code does not: a caller
+with create but not update permission inserts a new key and gets 403 on an
+existing one.
 
 `upsert_update_columns` is: scalar columns, minus the PK, minus `@version`, minus
 `@readonly`, minus `@server_only`, minus anything with `@default(...)`.
@@ -301,8 +309,9 @@ update policy's job.
 
 `.do_nothing()` is server-only and returns
 `UpsertOutcome::{Inserted, Existing}`. It still evaluates the update policy
-against an existing row it will never mutate, so it cannot be used as an
-existence oracle.
+against an existing row it will never mutate, so a caller without update
+permission gets 403 rather than the row's contents (the 403 still tells a
+create-authorized caller the key exists).
 
 ## Batches
 
@@ -316,7 +325,8 @@ Three unrelated things share the word.
    422.
 2. **`update_many` / `delete_many`** — one filter, one shared patch. Policy
    compiles once into the `WHERE`, so **"denied by policy" and "did not match the
-   filter" are indistinguishable**. Refuses optimistic locking outright.
+   filter" are indistinguishable**. Takes no expected version: it bumps
+   `@version` on every matched row.
 3. **`batch_get` / `batch_create` / `batch_update` / `batch_delete` /
    `batch_upsert`** — item-addressed, per-item version, per-item policy, one
    outer transaction with a savepoint per item so a failing item rolls back only
@@ -328,8 +338,8 @@ not exist**.
 
 ## Transaction isolation
 
-`@isolation("read_committed" | "repeatable_read" | "serializable")`, case- and
-separator-insensitive. No `READ UNCOMMITTED`.
+`@isolation("read_committed" | "repeatable_read" | "serializable")`,
+case-insensitive, `_` or a space as the separator. No `READ UNCOMMITTED`.
 
 **On every published release (0.2.0 through 0.14.0) it is inert.** The level is
 validated and then ignored: the procedure runs on the pool at the server

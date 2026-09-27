@@ -5,7 +5,7 @@ description: CrateStack Studio — the admin and testing surface over one or mor
 
 # Studio
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -40,7 +40,9 @@ everything.
 
 Two related facts:
 
-- `@version` **is** bumped for real on every driver.
+- `@version` **is** bumped for real on every driver — except on a write that
+  `allow_unsafe_writes = true` lets through (below): that bypass is
+  all-or-nothing and skips `@version` too.
 - `@@emit(...)` writes a real `cratestack_event_outbox` row **only on Postgres**.
   On SQLite that is a permanent capability difference, and a write returns
   `403 UNSAFE_DB_WRITE` unless the target sets `allow_unsafe_writes = true`.
@@ -62,8 +64,8 @@ mode         = "rw"             # optional; falls back to workspace.default_mode
 
   [target.db]                   # at least one of db/api is required
   url              = "env:DATABASE_URL"   # literal, env:NAME, or file:PATH
-  driver           = "postgres"           # postgres | sqlite | mysql
-  max_connections  = 10
+  driver           = "postgres"           # postgres | sqlite ("mysql" parses, then fails to load)
+  max_connections  = 10                   # optional; Postgres pool size, default 5
   allow_unsafe_writes = false
 
   [target.api]
@@ -91,8 +93,8 @@ Any secret-bearing string accepts `env:NAME` or `file:PATH` (trimmed).
 
 ## The HTTP surface
 
-Eleven read routes and four write verbs. `/api/*` is mounted before the UI, so it
-always wins over SPA routes.
+Thirteen `GET` routes and three write verbs (`POST`, `PATCH`, `DELETE`).
+`/api/*` is mounted before the UI, so it always wins over SPA routes.
 
 ```
 GET    /api/health
@@ -127,7 +129,7 @@ get `501`.
 
 **Drift** — a per-model column comparison against the driver catalog
 (`information_schema` on Postgres, `PRAGMA table_info` on SQLite). It is a
-**shallow name-set comparison**: it does not check types precisely, defaults,
+**shallow name-set comparison**: it does not check column types, defaults,
 primary keys, indexes, CHECKs, enums or views. It is **not** the same engine as
 `migrate baseline`'s introspection.
 

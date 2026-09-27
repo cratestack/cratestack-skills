@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -35,6 +35,15 @@ empty allow list:                          FALSE
 **A model with no `@@allow` for an action denies that action completely.** That
 is a `FALSE` literal in the SQL, not an oversight.
 
+**A rule the generator does not recognise is dropped, silently** (0.14.0 and
+earlier). Only the exact spellings `@allow(…)` / `@deny(…)` / `@authorize(…)`
+and `@@allow("action", …)` / `@@deny("action", …)` generate a rule, and only when
+nothing follows the closing `)`. `@deny(…) // note`, `@deny (…)`, `@Deny(…)`,
+`@no_idempotency @deny(…)` on one line, and `@@deny("raed", …)` all check as
+`schema OK` and enforce nothing — for a deny, that is more permissive than what
+you wrote. One attribute per line, comments on their own line. Refused on `main`
+*(unreleased, GHSA-69g4-xvcm-vm2j)*.
+
 ## The action vocabulary
 
 `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` fills both
@@ -48,8 +57,8 @@ Terms combined with `&&`, `||` and parentheses.
 | --- | --- |
 | `auth() != null` / `auth() == null` | authenticated / anonymous |
 | `auth().isSystem()` | true only for a `SystemContext`-minted context; never survives deserialisation |
-| `hasRole("admin")` | role membership |
-| `inTenant("acme")` | tenant membership |
+| `hasRole("admin")` | `auth().role` (or `auth().actor.role`) is exactly that string — one role, not a list |
+| `inTenant("acme")` | `auth().tenant.id` is exactly that string |
 | `field == auth().x` | compare a column to an auth claim (dotted paths work: `auth().organization.id`) |
 | `field == "literal"` / `!=` | compare a column to a bool, int or string literal |
 | `field in [A, B, C]` / `not in [...]` *(since 0.9.1)* | membership; an empty list is a compile error |
@@ -69,9 +78,13 @@ Read policy becomes a `WHERE` predicate, so:
   that into **404**;
 - a denied list read just returns **fewer rows, with no error at all**.
 
-Only mutations produce `Forbidden` (403) — `"<action> policy denied this
-operation"`. Mutations run a one-shot
-`SELECT 1 FROM <table> WHERE pk = $1 AND (<policy>) LIMIT 1` first.
+Among model operations, only mutations produce `Forbidden` (403) —
+`"<action> policy denied this operation"`. Update and delete put the policy in their own `WHERE`
+(`… WHERE pk = $1 AND (<policy>) RETURNING …`), so a row that is denied **or
+missing** answers 403; create evaluates the policy in Rust against the input
+values. Procedure and `query` policy also answers 403
+(`"procedure policy denied this operation"` / `"query policy denied this
+operation"`).
 
 This is intentional: distinguishing "denied" from "does not exist" would be an
 existence oracle. Design your clients around 404, not 403, for reads. It is also
@@ -171,8 +184,10 @@ act as fallbacks: they fill the field only when the create input omits it.
 ## `@authorize` on procedures
 
 `@authorize(Model, action, args.path)` runs a model's policy for you against a
-primary key carried in the procedure's arguments. Actions are `detail`/`read`,
-`update` and `delete` only, and the path's type must match the model's PK type.
+primary key carried in the procedure's arguments, as a one-shot
+`SELECT 1 FROM <table> WHERE pk = $1 AND (<policy>) LIMIT 1`, and answers
+`Forbidden` when nothing matches. Actions are `detail`/`read`, `update` and
+`delete` only, and the path's type must match the model's PK type.
 
 ## `cratestack-auth`
 
@@ -184,7 +199,7 @@ Optional, and broad. The pieces you are most likely to want:
 `canonical_signature_base` / `canonical_query` / `content_sha256_base64url` if
 you need to reproduce the canonicalisation on a client.
 
-`DeviceKeyResolver` has **two required methods** *(unreleased, cratestack#1005)*:
+`DeviceKeyResolver` has **two required methods** *(since 0.13.0, cratestack#1005)*:
 `lookup_device_verifying_key(key_id: &str)` →
 `Result<Option<VerifyingKey>, AuthError>`, and
 `lookup_device_verifying_keys_by_thumbprint(kid_prefix: &[u8])` →
@@ -200,7 +215,7 @@ compiles.
 
 The COSE enrolment challenge functions `build_cose_enroll_response` /
 `parse_cose_enroll_response` are **no longer in `cratestack-auth`**
-*(unreleased, cratestack#1005)*. Import them from `cratestack_cose::auth`, with
+*(since 0.13.0, cratestack#1005)*. Import them from `cratestack_cose::auth`, with
 `cratestack-cose = { …, features = ["auth"] }`. `EnrollResponse`,
 `ENROLL_CHALLENGE_COSE_KID` and `CHALLENGE_SIGNING_KEY_ENV` stay in
 `cratestack-auth`.

@@ -5,7 +5,7 @@ description: Working inside the cratestack framework repository itself — the j
 
 # Contributing to the framework
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -32,9 +32,12 @@ such a violation present, `just lint` exited 101 while `all-checks` exited 0 on
 the same tree, and the PR turned `main` red. Consequence by design:
 `all-checks` now fails on lint drift that `--fix` used to absorb.
 
-`just lint` itself runs clippy twice — once over the workspace, and once for
-`-p cratestack-client-rust --features middleware`, because `--workspace` resolves
-*default* features and would never lint the middleware-gated code.
+`just lint` itself runs clippy once over the workspace and then once more per
+off-by-default feature, because `--workspace` resolves *default* features and
+would never lint the gated code: `cratestack-client-rust`'s `middleware`; `mcp`
+on `cratestack-api` and `cratestack-pg`, and `cratestack-cose`'s `auth`
+*(since 0.13.0)*; `envelope` / `cose` on `cratestack-axum` and `cratestack-api`
+*(since 0.14.0)*. Seven clippy runs in all.
 
 Never add `--all-features`. See `cratestack-troubleshooting` for why, and note
 that the *reason* given in several places in the repo is stale.
@@ -45,7 +48,7 @@ that the *reason* given in several places in the repo is stale.
 cargo test --workspace --exclude embedded_flutter_native   # plain, no DB
 just test-pg                                               # compose Postgres on :55432
 just test-pg-only -- <test_name>                            # faster inner loop
-just test-pg-tc                                            # ephemeral testcontainers (what CI uses)
+just test-pg-tc                                            # ephemeral testcontainers (the mechanism CI's shards use)
 ```
 
 `just test-pg` hardcodes `--workspace`, which conflicts with `-p` — use

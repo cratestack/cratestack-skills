@@ -5,7 +5,7 @@ description: Editor support for .cstack files — the cratestack-lsp language se
 
 # Editor tooling
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -61,7 +61,7 @@ owning declaration, so `User.id` and `Post.id` are distinct symbols.
 Rename refuses rather than guesses: builtins are unrenameable, the new name must
 be a non-keyword non-builtin identifier, collisions are rejected, and it refuses
 entirely while the file has a syntax error. The keyword list it checks includes
-the reserved multi-file words `part` and `import` *(unreleased)*, queried from
+the reserved multi-file words `part` and `import` *(since 0.13.0)*, queried from
 `cratestack_parser::reserved_multi_file_keywords()` rather than copied — so a
 rename to `import` is refused with a message instead of rewriting the buffer into
 a file that no longer parses.

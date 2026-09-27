@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -54,7 +54,7 @@ let runtime = CratestackClient::cbor(ClientConfig { base_url: url })
 let client = cratestack_schema::client::Client::new(runtime);
 
 let posts = client.posts().list(query, headers).await?;
-let one   = client.posts().get(id, headers).await?;
+let one   = client.posts().get(&id, headers).await?;
 let out   = client.procedures().my_procedure(&args, headers).await?;
 ```
 
@@ -68,14 +68,16 @@ every generated client ignored `@api_version`**: it called the unversioned
 path, which the server never registers, so the call was a 404. After upgrading,
 regenerate TypeScript/Dart clients and rebuild `include_client_schema!` crates.
 
-Under `transport rpc` the outer shape is identical so call sites need not know
-the transport, but: the envelopes (`RpcListInput`, `RpcPkInput`,
-`RpcUpdateInput`) are built inside the methods so the surface stays `get(id)`;
+Under `transport rpc` the outer shape (`Client`, `<M>Client`,
+`ProceduresClient`) is the same, but the methods are not: `get`/`update`/`delete`
+build their envelopes (`RpcPkInput`, `RpcUpdateInput`) inside so the surface
+stays `get(&id)`, while `list` takes an `&RpcListInput` directly; model methods
+return a `BatchableCall` (`.await` it, or `.queue(&mut batch)`);
 list-returning procedures use `call_streaming` and return `RpcStream<Item>`;
 errors are `RpcClientError`, not `ClientError`; and **per-call headers are
 dropped from the RPC surface entirely** — auth flows through
-`with_request_authorizer`. The RPC `Client` gains `rpc()`, `runtime()` and
-`batch()`.
+`with_request_authorizer`. The RPC `Client` gains `rpc()` and `batch()` (both
+have `runtime()`).
 
 **Auth is an async trait** so an OAuth2 client-credentials provider can refresh
 on a cache miss:
@@ -102,12 +104,15 @@ cratestack generate-dart --schema schema.cstack --out ./client \
   --library-name my_client --preset riverpod --run-build-runner
 ```
 
-`--preset riverpod` generates a provider per operation on top of the default
-layout. Consumption in Flutter is one override:
+`--preset riverpod` replaces the default layout's monolithic models/APIs with one
+file per model plus a provider per operation (reads are providers, writes are
+controllers); the runtime and constants are shared with the default preset.
+Consumption in Flutter is one override of `<libraryName>AdapterProvider` — the
+prefix is the camel-cased `--library-name`:
 
 ```dart
 ProviderScope(overrides: [
-  flutterRiverpodClientAdapterProvider.overrideWithValue(CratestackDioAdapter(dio)),
+  myClientAdapterProvider.overrideWithValue(CratestackDioAdapter(dio: dio)),
 ])
 ```
 
@@ -212,8 +217,11 @@ integrity.
 | `@cratestack/cbor-node` | N-API codec wrapping the framework's own Rust CBOR crate |
 | `@cratestack/cbor-web` | wasm-bindgen codec for browsers |
 
-`@cratestack/api` is a compat umbrella re-exporting the whole split family behind
-one package.
+`@cratestack/api` is a compat umbrella: its root re-exports only `ts-types`,
+`link-batch` and `link-logger`; the `runtime-*`, `validator-*` and `adapter-*`
+packages are subpath imports (`@cratestack/api/runtime-fetch`,
+`@cratestack/api/adapter-rtk`, …), so none becomes a peer requirement of the root
+import. It does not cover `cbor*`, `refine` or `cli`.
 
 Links are **RPC-only** — the REST binding has no link chain. Streaming runs
 through a separate `RpcStreamLink` chain. See `cratestack-rpc`.

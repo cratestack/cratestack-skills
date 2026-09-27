@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -154,7 +154,9 @@ outermost `DefaultBodyLimit` and **cannot be overridden by re-layering**.
 
 Procedures: `POST /$procs/<procedureName>` — the procedure name **verbatim**, not
 snake-cased — or `POST /<version>/$procs/<name>` with `@api_version`. The request
-body is `{"args": {…}}`. Before 0.13.0 the generated `ROUTE_TRANSPORTS`
+body is the generated `procedures::<name>::Args`: one key per declared parameter,
+named verbatim, so `procedure f(args: X)` takes `{"args": {…}}` and
+`procedure g(account: Account)` takes `{"account": {…}}`. Before 0.13.0 the generated `ROUTE_TRANSPORTS`
 descriptor for a versioned procedure named `/$procs/<name>`. The REST op
 resolvers match `MatchedPath` against it, so for that procedure every lookup
 missed, `@no_idempotency` and `@no_rate_limit` silently did nothing, and the
@@ -162,8 +164,9 @@ generated clients 404'd. All of this is fixed *(since 0.13.0)*: the router, the
 descriptor and every client share
 `cratestack_core::procedure_route::procedure_rest_route_path`.
 
-A verb suppressed with `@@internal("create")` is never registered, so it is a
-plain axum 404 with no fallback.
+A verb suppressed with `@@internal("create")` is never registered: on a path
+that still serves another verb it is axum's bare 405, and a path whose verbs are
+all suppressed is a bare 404, with no fallback.
 
 ## The list-route query contract
 
@@ -181,8 +184,11 @@ plain axum 404 with no fallback.
 
 Filter operators, by field shape:
 
-- always: `eq`, `ne`, `in` (comma-separated). No `__` suffix means `eq`.
-- comparable fields: `lt`, `lte`, `gt`, `gte`
+- every required or optional scalar (not a scalar list): `eq`, `ne`, `in`
+  (comma-separated). No `__` suffix means `eq`. Optional fields got these
+  *(since 0.13.0, #953)*; before, `?optField=x` was a 400.
+- comparable **required** fields (`String`, `Cuid`, `Int`, `Float`, `DateTime`,
+  `Decimal`, `Uuid`): `lt`, `lte`, `gt`, `gte`. An optional field has none.
 - `String` / `Cuid`: `contains`, `startsWith`
 - optional fields: `isNull` (value parsed as a bool; `false` means `IS NOT NULL`)
 
@@ -239,7 +245,9 @@ policy scope.
 { "code": "VALIDATION_ERROR", "message": "…", "details": null }
 ```
 
-Encoded with the same negotiated codec as a success body.
+Encoded with the same negotiated codec as a success body. This is the REST shape;
+`transport rpc` answers with `RpcErrorBody`'s lowercase codes (`invalid_argument`,
+`not_found`, `permission_denied`, …) instead.
 
 | Variant | code | status |
 | --- | --- | --- |
@@ -248,7 +256,7 @@ Encoded with the same negotiated codec as a success body.
 | `Forbidden` | `FORBIDDEN` | 403 |
 | `NotFound` | `NOT_FOUND` | 404 |
 | `NotAcceptable` | `NOT_ACCEPTABLE` | 406 |
-| `Conflict` | `CONFLICT` | 409 |
+| `Conflict`, `ConflictTyped` | `CONFLICT` | 409 |
 | `TransactionAborted` *(unreleased)* | `TRANSACTION_ABORTED` | 409 — only an `@isolation` procedure's own exhausted retries; any other abort is answered 500 `INTERNAL_ERROR` (see `cratestack-data-integrity`) |
 | `PreconditionFailed` | `PRECONDITION_FAILED` | 412 |
 | `UnsupportedMediaType` | `UNSUPPORTED_MEDIA_TYPE` | 415 |
@@ -257,8 +265,10 @@ Encoded with the same negotiated codec as a success body.
 | `Database`, `DatabaseTyped`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
 | `Unavailable` | `UNAVAILABLE` | 503 |
 
-4xx messages are the caller-supplied string; **5xx messages are canned** and the
-real detail goes to tracing only. `details` is always `null` on the wire.
+4xx messages (and `Unavailable`'s 503) are the caller-supplied string, except
+`Codec`, whose 400 always reads `invalid request payload`. **500 messages are
+canned** (`internal error`) and the real detail goes to tracing only. `details`
+is always `null` on the wire.
 
 **A denied model read is not a 403.** Read policy compiles into the `WHERE`
 clause, so a denied `find_unique` returns `Ok(None)` and the handler turns that
@@ -335,14 +345,16 @@ Three things bite:
    (`build_rest_op_resolver_with_prefix`, `build_rpc_op_resolver_with_prefix`), or
    every descriptor lookup misses and `@no_idempotency` silently no-ops. Give
    `RateLimitLayer::with_op_resolver` its own instance from the same builder
-   *(unreleased, #877)* so `@no_rate_limit` survives the nest too — the
+   *(since 0.13.0, #877)* so `@no_rate_limit` survives the nest too — the
    resolver is not `Clone`, so call the builder once per layer.
 3. **Rate-limit store failure is nuanced by design**: a transport-class failure
-   (Redis connection dropped) fails **open** with a warning; a store that is
+   (Redis connection dropped) fails **open** with a warning under the default
+   `StoreErrorPolicy::Allow` (`Deny` refuses it too); a store that is
    reachable and refusing (OOM) fails **closed** under every policy.
 
 Replay semantics: same key and same body hash replays the stored response; same
-key with a different body is a **422** with code `idempotency_key_conflict`.
+key with a different body is a **422** `VALIDATION_ERROR` whose message starts
+`idempotency_key_conflict` (that string is not the `code`).
 
 Redis-backed stores live in `cratestack-redis`; the Postgres idempotency store is
 in `cratestack-sqlx`. `cratestack-exec`'s `OpExecutor` is the transport-neutral
