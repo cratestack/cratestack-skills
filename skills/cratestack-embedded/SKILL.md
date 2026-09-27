@@ -13,7 +13,10 @@ description: Building CrateStack's embedded offline-first mode — include_embed
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
 ```toml
-cratestack = { package = "cratestack-sqlite", version = "0.12" }
+cratestack = { package = "cratestack-sqlite", version = "0.14" }
+# the generated code names both of these directly; neither is optional
+cratestack-rusqlite = "0.14"
+serde = { version = "1", features = ["derive"] }
 ```
 
 ```rust

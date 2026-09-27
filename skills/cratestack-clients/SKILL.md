@@ -23,7 +23,9 @@ Three generated languages, one wire contract.
 ## Rust — `include_client_schema!`
 
 ```toml
-cratestack = { package = "cratestack-client", version = "0.12" }
+cratestack = { package = "cratestack-client", version = "0.14" }
+# the generated structs derive through bare `serde::` paths
+serde = { version = "1", features = ["derive"] }
 ```
 
 Arguments: a path literal, plus an optional `decimal = RustDecimal | BigDecimal`.
