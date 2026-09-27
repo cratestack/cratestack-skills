@@ -5,7 +5,7 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -50,7 +50,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 ```yaml
 - uses: cratestack/cratestack/.github/actions/install-cratestack-cli@main
   with:
-    version: "0.14.1"   # optional, defaults to "latest"
+    version: "0.14.2"   # optional, defaults to "latest"
 ```
 
 Pin `@main` to a tag or SHA for reproducibility.
