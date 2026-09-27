@@ -18,7 +18,7 @@ for whatever the consuming crate is. No runtime reflection, no build script, no
 generated Rust files checked in. Change the schema and the compiler tells you
 what broke.
 
-Pre-1.0. The public crates version together (currently **0.12.0**, edition 2024,
+Pre-1.0. The public crates version together (currently **0.14.0**, edition 2024,
 MSRV **1.98.0**) and minor releases can break.
 
 ## First: which crate am I in?
@@ -29,10 +29,15 @@ which expose their library as `cratestack`, so you select one with Cargo's
 
 | The crate you are writing | Dependency | Entry macro |
 | --- | --- | --- |
-| HTTP service that owns a Postgres database | `cratestack = { package = "cratestack-pg", version = "0.12" }` | `include_server_schema!("schema.cstack", db = Postgres)` |
-| Procedures-only service, no database at all | `cratestack = { package = "cratestack-api", version = "0.12" }` | `include_server_schema!("schema.cstack", db = None)` |
-| Mobile / desktop / browser app with local SQLite | `cratestack = { package = "cratestack-sqlite", version = "0.12" }` | `include_embedded_schema!("schema.cstack")` |
-| A crate that only *calls* a CrateStack service | `cratestack = { package = "cratestack-client", version = "0.12" }` | `include_client_schema!("../schemas/billing.cstack")` |
+| HTTP service that owns a Postgres database | `cratestack = { package = "cratestack-pg", version = "0.14" }` | `include_server_schema!("schema.cstack", db = Postgres)` |
+| Procedures-only service, no database at all | `cratestack = { package = "cratestack-api", version = "0.14" }` | `include_server_schema!("schema.cstack", db = None)` |
+| Mobile / desktop / browser app with local SQLite | `cratestack = { package = "cratestack-sqlite", version = "0.14" }` | `include_embedded_schema!("schema.cstack")` |
+| A crate that only *calls* a CrateStack service | `cratestack = { package = "cratestack-client", version = "0.14" }` | `include_client_schema!("../schemas/billing.cstack")` |
+
+Whichever facade you pick, also depend on `serde = { version = "1", features = ["derive"] }`
+directly: the generated structs derive through bare `serde::` paths, so the build fails
+with ``can't find crate for `serde` `` without it. The embedded facade additionally needs
+`cratestack-rusqlite` — see [cratestack-embedded](../cratestack-embedded/SKILL.md).
 
 **Exactly one per crate.** The four are strictly disjoint by design, and the
 split is enforced by a CI job (`facade-disjointness`) running a real `cargo tree`,

@@ -50,7 +50,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 ```yaml
 - uses: cratestack/cratestack/.github/actions/install-cratestack-cli@main
   with:
-    version: "0.12.0"   # optional, defaults to "latest"
+    version: "0.14.0"   # optional, defaults to "latest"
 ```
 
 Pin `@main` to a tag or SHA for reproducibility.

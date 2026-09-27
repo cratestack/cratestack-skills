@@ -99,6 +99,8 @@ they appear at the `include_*_schema!` call site.
 
 | Error mentions | Cause | Fix |
 | --- | --- | --- |
+| ``can't find crate for `serde` `` or ``cannot find module or crate `serde` `` | the generated structs derive through bare `serde::` paths, and the facade does not provide `serde` | add `serde = { version = "1", features = ["derive"] }` as a direct dependency — every facade needs it |
+| ``cannot find `cratestack_rusqlite` in the crate root`` | `include_embedded_schema!` names `cratestack_rusqlite` directly | add `cratestack-rusqlite` at the same version as the facade |
 | `requires a facade crate with 'cratestack-sqlx' support` | you depend on `cratestack-api` but wrote `db = Postgres` | depend on `cratestack-pg`, or switch the schema to `provider = "none"` + `db = None` |
 | `the macro's 'db' argument and the schema's own 'datasource' declaration must agree` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |

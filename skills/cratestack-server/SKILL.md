@@ -14,9 +14,12 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 ```toml
 # owns a Postgres database
-cratestack = { package = "cratestack-pg", version = "0.12" }
+cratestack = { package = "cratestack-pg", version = "0.14" }
 # procedures only, no database at all
-cratestack = { package = "cratestack-api", version = "0.12" }
+cratestack = { package = "cratestack-api", version = "0.14" }
+
+# either way: the generated structs derive through bare `serde::` paths
+serde = { version = "1", features = ["derive"] }
 ```
 
 ```rust
