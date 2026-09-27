@@ -90,6 +90,17 @@ pub trait RequestAuthorizer: Send + Sync {
 }
 ```
 
+That is the native shape, and on 0.14.1 the only one. On
+`wasm32-unknown-unknown` *(unreleased, cratestack#1108)* the trait is declared
+with `#[async_trait(?Send)]` and without `Send + Sync`, because a browser
+`fetch` future is never `Send` and an authorizer that refreshes its token
+through the client has to await one. An impl that builds for both targets
+splits the attribute:
+`#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]` and
+`#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]`. On
+0.14.1 such an authorizer does not compile for wasm32 ("future cannot be sent
+between threads safely"); a non-refreshing one (a static header) does.
+
 Header injection order: schema SHA, `Accept`, `Content-Type`, authorizer headers,
 then **per-call extras last so they override**.
 

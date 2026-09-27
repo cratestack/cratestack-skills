@@ -29,9 +29,16 @@ into it, not a replacement.
 
 ## Unreleased on `main`, after 0.14.1
 
-Nothing recorded here yet. Skills mark these *(unreleased, cratestack#NNN)*, or
+In no published release. Skills mark these *(unreleased, cratestack#NNN)*, or
 *(unreleased, GHSA-…)* for a security fix merged from a private fork with no PR
 number.
+
+- **`RequestAuthorizer` is target-split on wasm32** (cratestack#1108, a #1104
+  follow-up). Affected: 0.14.1, which built the client for wasm32 but kept the
+  trait `Send + Sync` with a `Send` future, so an authorizer that refreshes its
+  token through the client could not be implemented there. Now the trait is
+  `#[async_trait(?Send)]` without `Send + Sync` on wasm32 and unchanged
+  natively. See [cratestack-clients](../../cratestack-clients/SKILL.md).
 
 ## 0.14.1 (2026-09-27)
 
