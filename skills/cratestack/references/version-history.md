@@ -53,35 +53,35 @@ number.
   [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md) and the
   framework's `docs/design/procedure-isolation.md`.
 - **Security, breaking: policy attributes the generator skipped are refused**
-  (GHSA-69g4-xvcm-vm2j). Affected: procedure `@allow` / `@deny` / `@authorize`
-  and model `@@allow` / `@@deny` in 0.2.0–0.14.0, view `@@allow` / `@@deny` from
-  0.4.2, `query` `@allow` / `@deny` in 0.11.0–0.14.0. The generator applied a
-  policy attribute only in its exact spelling and silently skipped any other
-  while `cratestack check` said `schema OK`: `@deny (…)`, `@Deny(…)`, a typo,
-  anything after the closing `)` (a `// comment`, `;`), a second attribute on
-  the same line (`@no_idempotency @deny(…)`), an invisible character in the
-  name, a model rule naming an action no slot generates, or a `@deny` after a
-  blank line (it attached to the declaration before it). A skipped `@deny` /
-  `@@deny` is more permissive than written. Now a trailing `//` comment is dropped from every attribute
-  line; procedure, query, model and view attributes are closed lists in one
-  spelling, anything else an error with a suggestion; several attributes on one
-  procedure line are each read; `@@rename` and a field's `@rename` take exactly
-  `(from = "<old>")`; a blank line ends a procedure's attributes; invisible,
-  bidirectional and control characters in attribute text are refused. **On
-  0.14.0 and earlier**, write every policy attribute in its exact spelling, one
-  per line, with nothing after its `)`. See
-  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md).
-- **Breaking: `@server_only` is refused where it has no effect, and attributes
-  in spellings no generator reads.** On a `type` field, a relation field, a
-  `@version` field or an `auth` field, `@server_only` did nothing on 0.14.0; on
-  a relation key (named in any `@relation`'s `fields:` / `references:`) it only
-  kept the key out of the create and update inputs. Each is now a schema error
-  (on a relation key, replace it with `@readonly`, not nothing, or the key
-  becomes client-settable). An argument-less attribute written with an
-  argument list or trailing punctuation (`@readonly()`, `@version()`,
-  `@server_only(true)`, `@readonly,`) and two attributes run together (`@server_only@unique`, `@@audit @@soft_delete` on one line) parsed
-  as `schema OK` and did nothing; they are now refused. See
-  [cratestack-schema](../../cratestack-schema/SKILL.md).
+  (GHSA-69g4-xvcm-vm2j; advisory not yet published). Affected: procedure
+  `@allow` / `@deny` / `@authorize` and model `@@allow` / `@@deny` from 0.2.0,
+  view `@@allow` / `@@deny` from 0.4.2, `query` `@allow` / `@deny` from 0.11.0,
+  all through 0.14.0. The generator applied a policy only in its exact spelling
+  and silently skipped any other (`@deny (…)`, `@Deny(…)`, `@deyn(…)`,
+  `@deny(…) // note`, `@deny(…);`, a second attribute on the line, an unknown
+  action, an invisible character), while `check` said `schema OK`: a skipped
+  deny or `@authorize` failed open. Now:
+  - A trailing `//` comment is stripped, quote-aware, on every attribute line.
+  - Procedure, query, model and view attributes are closed lists in one
+    spelling.
+  - Several attributes on one procedure or query line are each read.
+  - A procedure's or query's attributes end at the first blank line and must be
+    followed by one.
+  - Invisible characters are refused in attribute text, and bidi controls and
+    ESC anywhere.
+  - The generator refuses (`compile_error!`) a policy it cannot read.
+  - Same release, companion entry: `@server_only` is refused on `type` / `auth`
+    / relation / relation-key / `@version` fields; `@readonly()`-style argument
+    lists and run-on attributes are refused; `@rename` / `@@rename` accept only
+    `from = "<old SQL name>"`, once, where the migrator reads them.
+
+  **No error, different behaviour:** an attribute with a trailing comment now
+  applies (an `@allow` / `@@allow` that was skipped now grants access), and an
+  attribute written inside a field's comment no longer does. See
+  [cratestack-schema](../../cratestack-schema/SKILL.md) ("Attribute traps"),
+  [its attribute reference](../../cratestack-schema/references/attributes.md),
+  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md) and
+  [cratestack-migrations](../../cratestack-migrations/SKILL.md).
 - **`include_client_schema!` builds for `wasm32-unknown-unknown`**
   (cratestack#1104, merged in cratestack#1105). Affected: 0.14.0 and earlier,
   where `cratestack-sqlite` re-exported `client_rust` only off wasm32 and
@@ -368,6 +368,10 @@ As of 0.14.0, each of these parses, validates, and then does nothing:
 - `@isolation("…")` — ignored by every published release, 0.14.0 included.
   Call `run_in_isolated_tx` yourself. Enforced on `main` *(unreleased,
   GHSA-r67q-4qqq-g9gm)*; see "Unreleased on `main`" above.
+- An unknown **field** attribute (`@whatever`, and `@Id` / `@ID`, which are not a
+  primary key) still parses and does nothing on `main`; only near-misses are
+  refused. An unknown `@@`, procedure or query attribute did the same through
+  0.14.0 and is refused on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
 - `@@retain(days: N)` — descriptor metadata; no GC job exists.
 - `@from(Model.field)` on a view field — checked by nothing.
 - `prefer_for` in `studio.toml` — parsed and never consulted.
@@ -379,9 +383,9 @@ As of 0.14.0, each of these parses, validates, and then does nothing:
 - A policy attribute in any but its exact spelling — `@deny (…)`, `@Deny(…)`,
   `@deny(…) // note`, `@@deny("read", …) // note`, a second attribute on the
   same procedure line — is skipped by the generator, leaving the declaration
-  more permissive than written; an unknown `@@` name (`@@map(…)`, `@@check(…)`)
-  also checks as `schema OK`. Refused on `main` *(unreleased,
-  GHSA-69g4-xvcm-vm2j)*.
+  more permissive than written. Refused on `main` *(unreleased,
+  GHSA-69g4-xvcm-vm2j)*; see
+  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md).
 - `@server_only` on a `type` field, a relation field, a `@version` field or an
   `auth` field, and an argument-less attribute written
   with `()` (`@readonly()`, `@version()`). Refused on `main` *(unreleased)*.

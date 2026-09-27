@@ -1,6 +1,6 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, and relation filters or @server_only keys refused or returning fewer rows since 0.13.0. Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, and attributes refused by the strict attribute parsing on main (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
@@ -123,7 +123,36 @@ And from `cratestack check` itself, the families that generate the most confusio
 most valuable error in the set. An unrecognised attribute is **inert**: it
 parses, reports `schema OK`, and enforces nothing. The near-miss check converts
 that silent no-op into a hard failure. Note it runs on **field** attributes only,
-so a mistyped `@@` model attribute is still silently inert.
+so on 0.14.0 and earlier a mistyped `@@` model attribute is still silently inert.
+On `main`, `@@` attributes are a closed list (next entry).
+
+**Attribute refusals after upgrading past 0.14.0** *(unreleased,
+GHSA-69g4-xvcm-vm2j)*. Each names the declaration and the attribute. On 0.14.0
+and earlier that attribute was not applied, so treat a policy one as having run
+without it. The messages, measured with `cratestack check` built from `main`:
+
+| Error text contains | Cause | Fix |
+| --- | --- | --- |
+| ``unsupported attribute `@x` on a procedure`` (or `query`, `model`, `view`) | a name outside the closed list, a case variant (`@Deny`), a typo (`@deyn`, `@authorise`), or a Prisma habit (`@@map`) | use the suggested name; see `cratestack-schema/references/attributes.md` for each list |
+| ``must be followed directly by `(` `` / ``must be followed directly by its `(` `` | `@deny (…)`, `@@allow ("read", …)`, `@@sql ("…")` | remove the space |
+| ``after the closing `)` of `@deny` is not part of any attribute`` / ``follows the closing `)` `` | `;`, `,` or a word after the `)` | remove it, or make it a `//` comment |
+| ``is not an action here (expected one of …)`` | `@@deny("raed", …)`, `@@deny("read,update", …)`, a view `@@deny("update", …)` | one action per rule, from the list |
+| ``takes an argument list`` / ``has an empty argument list`` / ``does not take arguments`` | bare `@deny`, `@@emit`, `@@rename`; `@deny()`; `@stream()`, `@@audit(...)` | write the documented form |
+| ``attributes with no space between them`` / ``as one block attribute`` | `@deny(x)@allow(y)`, `@server_only@unique`; `@@audit @@soft_delete` on one line | the message shows the separated form; put each `@@` on its own line |
+| ``is not directly under a signature`` | a blank line between a procedure's or query's signature and an attribute, or among its attributes | remove the blank line |
+| ``is the last attribute of procedure `a`, and procedure `b` starts on the very next line`` (or `follows it with only comment lines in between`) | no blank line after an attribute run | add a blank line before the next declaration |
+| ``stands … outside any `model` or `view` body`` | a `@@` line at the top level | move it inside the braces |
+| ``contains U+200B (zero width space) … an invisible character`` | an invisible character anywhere in attribute text, strings included, or a variation selector in a policy | delete it; the error gives line and column |
+| ``a bidirectional text control`` | U+202A–U+202E or U+2066–U+2069 anywhere in the file, comments included | delete it |
+| ``takes no arguments — write `@readonly` `` / ``is recognised only when written exactly`` | `@readonly()`, `@server_only(true)`, `@version,`, `@unique(...)` | write it bare |
+| ``declares @server_only, but `T` is a `type` `` / ``is the `auth` block`` / ``is a key of relation`` / ``declares both @version and @server_only`` | `@server_only` where it had no effect | remove it; on a relation key use `@readonly` so clients still cannot set it |
+| `` `@@rename` takes exactly one argument `` / `` `@rename` takes exactly one argument `` / ``declares a second `@rename` `` / ``which has no effect here`` | a rename marker the migrator never read | `from = "<old SQL name>"`, once, on a model's stored column; see `cratestack-migrations` |
+| ``reads as a `deny` policy attribute, but not in the exact form`` or ``its attributes name N policy rule(s) but M were generated`` | the `include_*_schema!` re-check (a `compile_error!`, not `check`) found a policy it would skip | write the policy exactly; see `cratestack-policy-auth` |
+
+A schema that still checks can also behave differently after the upgrade: an
+attribute with a trailing `//` comment now takes effect, and one written inside
+a field's comment no longer does. See `cratestack-schema`, "A trailing `//`
+comment".
 
 **`cannot be represented as a Rust identifier`** — only `self`, `Self`, `super`
 and `crate` are unusable. Every other Rust keyword is fine, escaped as `r#type`.
@@ -149,9 +178,11 @@ names ending in `Builder`. Declaring a type by one of them is rejected.
 **`must list at least two fields`** — `@@id([x])` and `@@unique([x])` want a
 field-level `@id` / `@unique` instead (unless `@@unique` carries `where:`).
 
-**`declares both @isolation and @stream`** / **`declares @isolation, but this
-schema's datasource is provider = "none"`** / **``declare `@isolation`, but this
-macro call says `db = None` ``** *(unreleased, GHSA-r67q-4qqq-g9gm)* — `@isolation`
+**`declares both @isolation and @stream`** / **``declares @isolation, but this
+schema's datasource is `provider = "none"` ``** (both parse errors) /
+**``declare `@isolation`, but this macro call says `db = None` ``** (a
+`compile_error!` from `include_server_schema!`) *(unreleased,
+GHSA-r67q-4qqq-g9gm)* — `@isolation`
 is now enforced, so it is refused where there is no transaction to run in: a
 streamed response is produced after the procedure returns, and a schema with no
 database has none. Remove the attribute or the conflicting declaration. On
@@ -236,9 +267,16 @@ Serve the procedure through the generated router, or map the error yourself.
 `Ok`** *(unreleased)*. The attempt was poisoned: raw SQL through `tx` failed
 without the error being returned, or ended the transaction; a
 `transaction(..)` or joined `@isolation` call was cancelled or panicked half-way;
-the handle was used concurrently or re-entrantly (`.run(ctx)` inside
-`db.transaction`); or a nested `@isolation` call declared a stricter level than
-the running attempt.
+or a second joined `@isolation` call started while another was still running on
+the same attempt (`tokio::join!` in a resolver).
+
+Two other refusals are **not** poisons: using the handle concurrently or
+re-entrantly (`.run(ctx)` inside `db.transaction`), and a nested `@isolation`
+call that declares a stricter level than the running attempt. Each returns
+`INTERNAL_ERROR` to the code that made the call and nothing more
+(`cratestack-sqlx/src/bound.rs` `lock`, `bound/join.rs`). Propagate it with `?`;
+a body or resolver that swallows it and returns `Ok` commits whatever else the
+attempt did.
 
 **After upgrading to 0.13.0, a list filtered or sorted through a relation
 returns fewer rows, or none** (GHSA-p55v-6xv5-93p3). Relation subqueries now

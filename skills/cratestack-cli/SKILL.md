@@ -155,6 +155,10 @@ the base copy out first:
 Matching is by name only — a rename reads as a removal plus an addition, matching
 `cratestack-migrate`'s philosophy.
 
+`diff` parses both files, so an old schema that a newer CLI refuses fails the
+gate on the *baseline*. The strict attribute parsing on `main` *(unreleased,
+GHSA-69g4-xvcm-vm2j)* is such a change: fix the baseline in the same change.
+
 | Severity | Examples |
 | --- | --- |
 | `BREAKING` | removing a model/field/procedure; **adding or removing `@@paged`** (it flips `.list()` between `T[]` and `Page<T>`); **adding `@@internal(...)`**; adding a required field with no default; retyping anything; narrowing arity |

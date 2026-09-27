@@ -89,11 +89,16 @@ ignored.
 - **Tools.**
   - `@mcp(tool: "name")`, or a bare `@mcp(tool)` to use the procedure's own name, plus
     an optional `description:`.
-  - It must sit on its own line under a procedure.
+  - On 0.13.0 and 0.14.0 it must sit on its own line under a procedure; one
+    sharing a line with another attribute is refused. *(unreleased,
+    GHSA-69g4-xvcm-vm2j)* A procedure line is split into attributes, so
+    `@allow(…) @mcp(tool)` is read as two. Run together with no space
+    (`@allow(…)@mcp(tool)`) it is still refused. A line of its own works on
+    every version.
   - Spelling it `@mcp.tool` (dotted) is an error.
 - **Resources.**
   - `@@mcp(resource: "segment")` (`[a-z0-9-]+`), optional `max_page_size:` from 1 to 200.
-  - It must sit on its own line in a model.
+  - It must sit on its own line in a model, on every version, `main` included.
 - **Policy is required.**
   - A tool needs an `@allow` (`@deny` alone is refused).
   - A resource needs a read allow: `@@allow("read", …)`, `@@allow("all", …)`, or both

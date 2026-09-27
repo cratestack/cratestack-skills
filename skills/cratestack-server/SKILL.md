@@ -219,6 +219,14 @@ a rendered `value_sql`, and multi-hop sorts use `OrderClause::relation_path(&hop
 column, direction)`. Pass `<RELATED>_MODEL.related_read_scope()`.
 `RelatedReadScope::Unscoped` reads the raw table: only for trusted server code,
 never for a filter or sort whose values a caller controls.
+The same release also changed, and these break or change hand-written code too:
+`RelationFilter` and `RelationHop` have a new public `scope` field that a struct
+literal must set; `OrderTarget::RelationScalar` is now `{ hops, column }`;
+`order_value_sql` still compiles but renders no scope and mis-correlates
+self-relations, so never build a server-side sort from it; relation filters
+passed to `update_many` / `delete_many` in process now apply the related model's
+**read** scope, so they can match fewer rows; and `preview_scoped_sql` numbers
+binds like the executed query (deny rules first).
 
 **`@server_only` fields are not filter or sort keys** *(since 0.13.0,
 [GHSA-ch54-jqw2-vpp5](https://github.com/cratestack/cratestack/security/advisories/GHSA-ch54-jqw2-vpp5))*.
