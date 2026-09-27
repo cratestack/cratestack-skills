@@ -5,7 +5,7 @@ description: CrateStack database migrations — cratestack migrate diff and base
 
 # Migrations
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -84,7 +84,7 @@ applied.
   not work. `@@rename(from = "OldModel")` checks as `schema OK`, matches no table,
   and the diff is a drop plus a create. `migrate diff` then refuses it as lossy,
   and with `--allow-destructive` it drops the rows. This holds on every release,
-  `main` included. `check` validates only the marker's form, not that the table
+  0.14.1 included. `check` validates only the marker's form, not that the table
   exists.
 - `@rename(from = "…")` takes the old **column** name. The migrator snake-cases
   it first, so `"old_field"` and `"oldField"` both work.
@@ -92,7 +92,7 @@ applied.
   with nothing after the `)`. On 0.14.0 and earlier, any other form
   (`@@rename(from: "x")`, `@@rename("x")`, `@rename()`) passed `cratestack
   check` and was **silently treated as absent**, so the migration dropped and
-  re-created the table or column. *(unreleased, GHSA-69g4-xvcm-vm2j)* Those
+  re-created the table or column. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)* Those
   forms are refused. So are a second marker on the same model or field, which
   the migrator ignored, and a `@rename` on a field of a `view`, `type` or `auth`
   block or on a relation field, which it never read. If you generated

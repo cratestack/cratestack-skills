@@ -13,7 +13,7 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.14.0** unless a marker says
+Everything in these skills is verified against **0.14.1** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
@@ -27,11 +27,17 @@ into it, not a replacement.
 
 ---
 
-## Unreleased on `main`, after 0.14.0
+## Unreleased on `main`, after 0.14.1
 
-In no published release. Skills mark these *(unreleased, cratestack#NNN)*, or
+Nothing recorded here yet. Skills mark these *(unreleased, cratestack#NNN)*, or
 *(unreleased, GHSA-…)* for a security fix merged from a private fork with no PR
 number.
+
+## 0.14.1 (2026-09-27)
+
+0.14.1 is 0.14.0 plus these four `CHANGELOG.md` entries: two breaking security
+fixes, a companion attribute-parsing hardening change that shipped alongside
+the first, and a wasm32 client-build fix. Skills mark them *(since 0.14.1)*.
 
 - **Security, breaking: `@isolation` is enforced** (GHSA-r67q-4qqq-g9gm; advisory
   not yet published). Affected: 0.2.0 through 0.14.0, where the attribute was
@@ -363,15 +369,12 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.14.0, each of these parses, validates, and then does nothing:
+As of 0.14.1, each of these parses, validates, and then does nothing:
 
-- `@isolation("…")` — ignored by every published release, 0.14.0 included.
-  Call `run_in_isolated_tx` yourself. Enforced on `main` *(unreleased,
-  GHSA-r67q-4qqq-g9gm)*; see "Unreleased on `main`" above.
 - An unknown **field** attribute (`@whatever`, and `@Id` / `@ID`, which are not a
-  primary key) still parses and does nothing on `main`; only near-misses are
-  refused. An unknown `@@`, procedure or query attribute did the same through
-  0.14.0 and is refused on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
+  primary key) still parses and does nothing; only near-misses are refused. An
+  unknown `@@`, procedure or query attribute did the same through 0.14.0 and is
+  refused since 0.14.1 *(GHSA-69g4-xvcm-vm2j)*.
 - `@@retain(days: N)` — descriptor metadata; no GC job exists.
 - `@from(Model.field)` on a view field — checked by nothing.
 - `prefer_for` in `studio.toml` — parsed and never consulted.
@@ -380,15 +383,18 @@ As of 0.14.0, each of these parses, validates, and then does nothing:
   (issue #136).
 - The five `batch_*` ORM primitives — complete, and reachable from no generated
   route.
-- A policy attribute in any but its exact spelling — `@deny (…)`, `@Deny(…)`,
-  `@deny(…) // note`, `@@deny("read", …) // note`, a second attribute on the
-  same procedure line — is skipped by the generator, leaving the declaration
-  more permissive than written. Refused on `main` *(unreleased,
-  GHSA-69g4-xvcm-vm2j)*; see
-  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md).
-- `@server_only` on a `type` field, a relation field, a `@version` field or an
-  `auth` field, and an argument-less attribute written
-  with `()` (`@readonly()`, `@version()`). Refused on `main` *(unreleased)*.
 
-If a future release wires any of these up, that is a changelog entry to look for
-before believing this list.
+**No longer inert since 0.14.1.** Three entries left this list in the same
+release: `@isolation(level)` is now enforced (see [0.14.1](#0141-2026-09-27)
+above, and [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md));
+a policy attribute in any but its exact spelling — `@deny (…)`, `@Deny(…)`,
+`@deny(…) // note`, `@@deny("read", …) // note`, a second attribute on the same
+procedure line — is now refused by `cratestack check` instead of being skipped
+by the generator and leaving the declaration more permissive than written (see
+[cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md)); and
+`@server_only` on a `type` field, a relation field, a `@version` field or an
+`auth` field, and any no-argument attribute written with `()`
+(`@readonly()`, `@version()`), are refused rather than silently accepted.
+
+If a future release wires up one of the entries still above, that is a
+changelog entry to look for before believing this list.

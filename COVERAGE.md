@@ -7,7 +7,7 @@ and a new feature that fits nowhere gets a row before it gets prose.
 `scripts/validate-skills.mjs` checks this file both ways — every skill directory
 must appear here, and every skill path mentioned here must exist.
 
-Verified against **CrateStack 0.14.0**. Feature-to-release history lives in
+Verified against **CrateStack 0.14.1**. Feature-to-release history lives in
 [skills/cratestack/references/version-history.md](skills/cratestack/references/version-history.md).
 
 ## Skills
@@ -49,10 +49,10 @@ Verified against **CrateStack 0.14.0**. Feature-to-release history lives in
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
 | COSE envelope layer *(since 0.14.0, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) |
 | `@version`, `@@audit`, `@@soft_delete`, upsert, `@@paged`, `@isolation` | `cratestack-data-integrity` |
-| `@isolation` enforcement *(unreleased, GHSA-r67q-4qqq-g9gm)*: `IsolatedCratestack`, `with_isolation_max_retries`, `409 TRANSACTION_ABORTED` / RPC `aborted` | `cratestack-data-integrity` (semantics, idempotency) + `cratestack-server` (handle, error table) + `cratestack-rpc` / `cratestack-mcp` (per-transport answer) + `cratestack-troubleshooting` |
+| `@isolation` enforcement *(since 0.14.1, GHSA-r67q-4qqq-g9gm)*: `IsolatedCratestack`, `with_isolation_max_retries`, `409 TRANSACTION_ABORTED` / RPC `aborted` | `cratestack-data-integrity` (semantics, idempotency) + `cratestack-server` (handle, error table) + `cratestack-rpc` / `cratestack-mcp` (per-transport answer) + `cratestack-troubleshooting` |
 | Relation filter and sort read scope *(since 0.13.0, GHSA-p55v-6xv5-93p3)*: `RelatedReadScope`, `related_read_scope()`, self-relations | `cratestack-server` (query contract, hand-built constructors) + `cratestack-policy-auth` (policy semantics) |
 | `@server_only` refused as a filter or sort key, and never sent by a `@computed` procedure output *(since 0.13.0, GHSA-ch54-jqw2-vpp5)* | `cratestack-schema` (attribute) + `cratestack-server` (query contract) + `cratestack-clients` (`<M>Where` / `<M>SortField`) |
-| Strict attribute parsing *(unreleased, GHSA-69g4-xvcm-vm2j)*: trailing `//` comments stripped, closed procedure / query / model / view attribute lists, attribute runs and blank lines, invisible characters, the generator's policy re-check, `@server_only` placement, `@rename` / `@@rename` form | `cratestack-schema` (rules, `references/attributes.md`) + `cratestack-policy-auth` (exact policy forms, the fail-open history, upgrade greps) + `cratestack-migrations` (rename markers) + `cratestack-mcp` (`@mcp` sharing a line) + `cratestack-cli` (`diff` baseline) + `cratestack-troubleshooting` (the refusal messages) |
+| Strict attribute parsing *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: trailing `//` comments stripped, closed procedure / query / model / view attribute lists, attribute runs and blank lines, invisible characters, the generator's policy re-check, `@server_only` placement, `@rename` / `@@rename` form | `cratestack-schema` (rules, `references/attributes.md`) + `cratestack-policy-auth` (exact policy forms, the fail-open history, upgrade greps) + `cratestack-migrations` (rename markers) + `cratestack-mcp` (`@mcp` sharing a line) + `cratestack-cli` (`diff` baseline) + `cratestack-troubleshooting` (the refusal messages) |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |

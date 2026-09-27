@@ -1,11 +1,11 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, and attributes refused by the strict attribute parsing on main (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, and attributes refused by the strict attribute parsing since 0.14.1 (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -123,13 +123,13 @@ And from `cratestack check` itself, the families that generate the most confusio
 most valuable error in the set. An unrecognised attribute is **inert**: it
 parses, reports `schema OK`, and enforces nothing. The near-miss check converts
 that silent no-op into a hard failure. Note it runs on **field** attributes only,
-so on 0.14.0 and earlier a mistyped `@@` model attribute is still silently inert.
-On `main`, `@@` attributes are a closed list (next entry).
+so on 0.14.0 and earlier a mistyped `@@` model attribute was still silently inert.
+Since 0.14.1, `@@` attributes are a closed list (next entry).
 
-**Attribute refusals after upgrading past 0.14.0** *(unreleased,
+**Attribute refusals after upgrading past 0.14.0** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. Each names the declaration and the attribute. On 0.14.0
 and earlier that attribute was not applied, so treat a policy one as having run
-without it. The messages, measured with `cratestack check` built from `main`:
+without it. The messages, measured with `cratestack check` built from 0.14.1:
 
 | Error text contains | Cause | Fix |
 | --- | --- | --- |
@@ -181,12 +181,12 @@ field-level `@id` / `@unique` instead (unless `@@unique` carries `where:`).
 **`declares both @isolation and @stream`** / **``declares @isolation, but this
 schema's datasource is `provider = "none"` ``** (both parse errors) /
 **``declare `@isolation`, but this macro call says `db = None` ``** (a
-`compile_error!` from `include_server_schema!`) *(unreleased,
+`compile_error!` from `include_server_schema!`) *(since 0.14.1,
 GHSA-r67q-4qqq-g9gm)* — `@isolation`
 is now enforced, so it is refused where there is no transaction to run in: a
 streamed response is produced after the procedure returns, and a schema with no
-database has none. Remove the attribute or the conflicting declaration. On
-published releases these compiled and the attribute did nothing.
+database has none. Remove the attribute or the conflicting declaration. On every
+release through 0.14.0 these compiled and the attribute did nothing.
 
 ## Runtime behaviour that looks like a bug and is not
 
@@ -236,27 +236,28 @@ write is classified as an insert, skipping the update-policy gate — but
 `find_unique` returns `None`. Known defect; see `cratestack-data-integrity`.
 `.do_nothing()` returns `Conflict` instead.
 
-**`@isolation("serializable")` has no effect.** On every published release,
-0.14.0 included, it is parse-validated and then ignored: the procedure runs at
-the server default (normally `READ COMMITTED`). Call `run_in_isolated_tx`
-yourself. It is enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)* — see
-`cratestack-data-integrity` — which changes the four entries below.
+**`@isolation("serializable")` had no effect through 0.14.0.** On every release
+through 0.14.0 it was parse-validated and then ignored: the procedure ran at
+the server default (normally `READ COMMITTED`), so it had to be called through
+`run_in_isolated_tx` by hand. Since 0.14.1 it is enforced
+*(GHSA-r67q-4qqq-g9gm)* — see `cratestack-data-integrity` — which changes the
+four entries below.
 
 **`no method named pool` on `&IsolatedCratestack`, or the `ProcedureRegistry`
-impl no longer matches the trait** *(unreleased)*. An `@isolation` procedure's
+impl no longer matches the trait** *(since 0.14.1)*. An `@isolation` procedure's
 method takes `db: &IsolatedCratestack`, which has no `pool()`, `events()`,
 `views()` or `queries()` by design. Raw SQL goes through
 `db.transaction(async |tx| … &mut ***tx …)`; drop any hand-written
 `run_in_isolated_tx(db.pool(), ..)` wrapper.
 
-**`409 TRANSACTION_ABORTED` (RPC `aborted`)** *(unreleased)*. An `@isolation`
+**`409 TRANSACTION_ABORTED` (RPC `aborted`)** *(since 0.14.1)*. An `@isolation`
 procedure hit `40001` / `40P01` on every attempt (default: 4). Nothing was
 committed; resend, under the same `Idempotency-Key` if you like — the key was
 released. If it is frequent, reduce contention or raise
 `with_isolation_max_retries(n)`. It is not `CONFLICT`.
 
 **A `500 INTERNAL_ERROR` whose server log shows a transaction abort or `40001`**
-*(unreleased)*. Some caller propagated another procedure's exhausted abort: a
+*(since 0.14.1)*. Some caller propagated another procedure's exhausted abort: a
 procedure that called it, a `@computed` resolver, or a hand-written handler
 returning `invoke_with_db`'s result. Only the aborted procedure's own generated
 dispatch may answer `TRANSACTION_ABORTED`; everyone else answers 500 and the
@@ -264,7 +265,7 @@ response is recorded under the key, because the caller may have committed work.
 Serve the procedure through the generated router, or map the error yourself.
 
 **An `@isolation` procedure answers `INTERNAL_ERROR` although its body returned
-`Ok`** *(unreleased)*. The attempt was poisoned: raw SQL through `tx` failed
+`Ok`** *(since 0.14.1)*. The attempt was poisoned: raw SQL through `tx` failed
 without the error being returned, or ended the transaction; a
 `transaction(..)` or joined `@isolation` call was cancelled or panicked half-way;
 or a second joined `@isolation` call started while another was still running on

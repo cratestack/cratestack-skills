@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -116,12 +116,12 @@ Note the has-many side carries `@relation` too. That is mandatory.
 | `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. |
 | `@unique` | Single-column unique index. |
 | `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. At most one per field *(since 0.14.0)*. |
-| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses (procedure outputs with `@computed` fields included *(since 0.13.0)*), is ignored in a procedure argument that decodes the model *(since 0.13.0, #1051)*, and is never a filter or sort key *(since 0.13.0)*. Mutually exclusive, and neither may sit on the PK. Write both bare: `@readonly()` or `@server_only(true)` did nothing on 0.14.0 and is refused *(unreleased, GHSA-69g4-xvcm-vm2j)*. `@server_only` belongs on a model's stored scalar column only; on a `type` or `auth` field, a relation field, a relation key (use `@readonly`) or a `@version` field it did nothing and is refused *(unreleased)*. |
+| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses (procedure outputs with `@computed` fields included *(since 0.13.0)*), is ignored in a procedure argument that decodes the model *(since 0.13.0, #1051)*, and is never a filter or sort key *(since 0.13.0)*. Mutually exclusive, and neither may sit on the PK. Write both bare: `@readonly()` or `@server_only(true)` did nothing on 0.14.0 and is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. `@server_only` belongs on a model's stored scalar column only; on a `type` or `auth` field, a relation field, a relation key (use `@readonly`) or a `@version` field it did nothing and is refused *(since 0.14.1)*. |
 | `@pii` / `@sensitive` | Audit redaction only; no effect on inputs or outputs. |
 | `@version` | Optimistic locking. Required `Int`, at most one, never the PK. |
 | `@computed` / `@computed(params: T?)` | Resolver-backed response field. |
 | `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | Validators — see below. |
-| `@@allow("action", expr)` / `@@deny(…)` | Model policy. Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Write it exactly so, either quote, the line ending at its `)`: on 0.14.0 any other spelling or action was **silently skipped**; now it is refused *(unreleased, GHSA-69g4-xvcm-vm2j)*. See `cratestack-policy-auth`. |
+| `@@allow("action", expr)` / `@@deny(…)` | Model policy. Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Write it exactly so, either quote, the line ending at its `)`: on 0.14.0 any other spelling or action was **silently skipped**; now it is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. See `cratestack-policy-auth`. |
 | `@@id([a,b])` `@@unique([a,b])` `@@index([a,b], using: gist, opclass: "…", where: "…")` | Model-level keys and indexes. |
 | `@@paged` `@@audit` `@@soft_delete` `@@retain(days: N)` `@@emit(created, updated, deleted)` `@@subscribe` `@@internal("action")` *(since 0.8.14)* | Behaviour markers. |
 
@@ -145,21 +145,22 @@ Exhaustive argument grammars, every error message, and the full validator table:
 
 **No space before an argument list.** `@computed (params: X?)` is rejected;
 write `@computed(params: X?)`. The same holds for every procedure, query, model and
-view attribute *(unreleased, GHSA-69g4-xvcm-vm2j)*: `@deny (x)`, which the
+view attribute *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: `@deny (x)`, which the
 generator silently skipped on 0.14.0, is refused, and so is `@@sql ("…")`.
 
 **Field attributes: unknown ones are inert, near-misses are rejected** *(since 0.8.15)*. `@reedonly` is caught
 as a typo of `@readonly`; a genuinely unknown `@whatever` on a field parses, reports
-`schema OK`, and enforces nothing. Do not assume silence means it worked. This is
-still true on `main` for fields only.
+`schema OK`, and enforces nothing. Do not assume silence means it worked. This
+remains true for fields only — since 0.14.1, procedure, query and `@@`
+attributes are closed lists instead (next entry).
 
-**Procedure, query, model and view attributes are closed lists** *(unreleased,
+**Procedure, query, model and view attributes are closed lists** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. Any other name, a case variant (`@Deny`, `@@DENY`) or a typo
 is refused, with a suggestion when one is close. So is text after the closing `)`
 (`;`, `,`, a word), an empty `()`, and an argument list on a bare attribute. On
 0.14.0 and earlier, most of these reported `schema OK` and did nothing.
 
-**Write a known bare attribute bare, and space attributes apart** *(unreleased)*.
+**Write a known bare attribute bare, and space attributes apart** *(since 0.14.1)*.
 `@readonly()`, `@version()`, `@readonly,`, `@unique(...)` and `@@materialized(...)`
 are refused, and so are `@server_only@unique` (no space) and two `@@` attributes
 on one line (`@@audit @@soft_delete`). On 0.14.0 each parsed with `schema OK`.
@@ -168,7 +169,7 @@ Most did nothing: `@readonly()` left the field writable. The argument lists of
 line nothing after the first attribute was read. Put each `@@` attribute on its
 own line.
 
-**A trailing `//` comment is a comment on every attribute line** *(unreleased)*.
+**A trailing `//` comment is a comment on every attribute line** *(since 0.14.1)*.
 It is stripped, quote-aware (`"http://…"` and `//` inside SQL strings are kept),
 before anything reads the attribute. Two upgrade traps follow, neither raising an
 error:
@@ -183,7 +184,7 @@ error:
   ordinary field and is returned to clients. The same goes for `@readonly`,
   `@pii`, `@id` and every other field attribute.
 
-**Invisible characters are refused in attribute text** *(unreleased)*, strings and
+**Invisible characters are refused in attribute text** *(since 0.14.1)*, strings and
 SQL bodies included: zero-width characters, the BOM, variation selectors in a
 policy attribute, non-whitespace controls, and more. Bidi controls and ESC are
 refused anywhere in the file. Visible non-ASCII (`é`, CJK, most emoji) is fine,
@@ -209,7 +210,7 @@ outright. Treat composite PKs as not yet usable, whatever `check` says.
 
 **An unrecognised `@@` attribute** was silently inert on 0.14.0 and earlier: the
 near-miss check only ran on field attributes, so `@@map(…)`, `@@check(…)` or
-`@@sofT_delete` reported `schema OK` and did nothing. It is refused *(unreleased,
+`@@sofT_delete` reported `schema OK` and did nothing. It is refused *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*: a model takes only `@@allow` `@@deny` `@@emit` `@@paged`
 `@@audit` `@@soft_delete` `@@retain` `@@subscribe` `@@id` `@@unique` `@@index`
 `@@internal` `@@rename` (and `@@mcp`); a view only `@@allow` `@@deny`
@@ -232,7 +233,7 @@ view ActiveNote from Note {
 view needs **exactly one `@id` field** unless it declares `@@no_unique`.
 `@@materialized` requires a server body and cannot combine with `@@no_unique`.
 `@@allow` on a view supports only `"read"`; a view's `@@deny` must name `"read"` or
-`"all"` *(unreleased; on 0.14.0 any other action was silently skipped)*.
+`"all"` *(since 0.14.1; on 0.14.0 any other action was silently skipped)*.
 **`@from(...)` is completely inert** —
 documentation of provenance, checked by nothing.
 
@@ -259,8 +260,8 @@ rejected entirely under `provider = "none"`.
 **Prefer `"""…"""` over `"…"` for SQL bodies.** Triple-quoted is verbatim;
 single-quoted unescapes `\"` and `\\`. And keep every other attribute on its own
 line. On 0.14.0 and earlier, `@@sql("…") @allow(…)` on one line was refused as a
-body that is "not a quoted string". On `main` the two are read as separate
-attributes *(unreleased, GHSA-69g4-xvcm-vm2j)*. Own lines work on both.
+body that is "not a quoted string". Since 0.14.1 the two are read as separate
+attributes *(GHSA-69g4-xvcm-vm2j)*. Own lines work on both.
 
 The correspondence between the declared result `type`'s fields and the SQL's
 actual `SELECT` list is deliberately **not** checked. A mismatch surfaces at the
@@ -278,7 +279,7 @@ Attribute lines follow the declaration, unbraced. `procedure` is a query,
 `mutation procedure` is a mutation. Per-argument documentation comes from
 `/// @param <name> <description>` doc comments above the declaration.
 
-**Layout decides which declaration an attribute belongs to** *(unreleased,
+**Layout decides which declaration an attribute belongs to** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. The same rules hold for `query` blocks:
 
 - A procedure's attributes are the lines under its signature, **up to the first
@@ -298,19 +299,19 @@ GHSA-69g4-xvcm-vm2j)*. The same rules hold for `query` blocks:
 | Attribute | Notes |
 | --- | --- |
 | `@allow(expr)` / `@deny(expr)` | Single `@`, unlike models. Evaluated in Rust, not SQL. |
-| `@stream` | Bare only (`@stream()` is refused *(unreleased)*; on 0.14.0 it did nothing). **Requires a list return type.** |
+| `@stream` | Bare only (`@stream()` is refused *(since 0.14.1)*; on 0.14.0 it did nothing). **Requires a list return type.** |
 | `@no_idempotency` | Bare only. No extension gate. |
 | `@no_rate_limit` | Bare only. **Requires `extension rate_limit { }`.** |
-| `@isolation("serializable")` | Quoted level. **Ignored by every published release** (0.14.0 included). Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*: the procedure runs in one retried transaction at that level, its method takes `db: &IsolatedCratestack`, and it is refused with `@stream` or under `provider = "none"` / `db = None`. See `cratestack-data-integrity`. |
+| `@isolation("serializable")` | Quoted level. **Ignored by every release through 0.14.0.** Enforced since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*: the procedure runs in one retried transaction at that level, its method takes `db: &IsolatedCratestack`, and it is refused with `@stream` or under `provider = "none"` / `db = None`. See `cratestack-data-integrity`. |
 | `@api_version("v1")` | Alphanumeric plus `.`, `-`, `_`. Mounts at `/<version>/$procs/<name>` (REST only; the RPC op id stays `procedure.<name>`). Generated clients call the versioned path *(since 0.13.0)*; before that they ignored it and 404'd. |
 | `@deprecated` / `@deprecated("msg")` | Adds `Deprecation` response headers. |
 | `@status(202)` | 2xx only, and **rejected under `transport rpc`**. |
-| `@authorize(Model, action, args.path)` | `detail`/`read`, `update`, `delete` only. Three arguments and the action are checked by `cratestack check` *(unreleased)*; on 0.14.0 a malformed or misspelled one (`@authorise`) was skipped, and `authorize_with_db` returned `Ok` without consulting the database. |
+| `@authorize(Model, action, args.path)` | `detail`/`read`, `update`, `delete` only. Three arguments and the action are checked by `cratestack check` *(since 0.14.1)*; on 0.14.0 a malformed or misspelled one (`@authorise`) was skipped, and `authorize_with_db` returned `Ok` without consulting the database. |
 
 `@status(204)` is accepted but the encoder still attaches a body — a known,
 documented limitation. Do not use it.
 
-That table plus `@mcp` is the whole list *(unreleased, GHSA-69g4-xvcm-vm2j)*. Any
+That table plus `@mcp` is the whole list *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. Any
 other procedure attribute is refused. On 0.14.0 it parsed and did nothing, and a
 misspelled `@deny` left the procedure more permissive than written.
 
