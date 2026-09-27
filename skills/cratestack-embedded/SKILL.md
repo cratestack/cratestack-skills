@@ -174,13 +174,26 @@ Build prerequisites that bite: `rustup target add wasm32-unknown-unknown`,
 compiles SQLite's C source with `cc-rs`, and Apple's stock Xcode clang has no
 wasm32 backend (`brew install llvm`; on Debian/Ubuntu `clang` + `lld`).
 
-`cratestack-client-rust` is **target-gated off on wasm32** (reqwest does not
-compile there), so `include_client_schema!` alongside `include_embedded_schema!`
-works on native but not in the browser — use `fetch` from JS instead.
+`include_client_schema!` alongside `include_embedded_schema!` depends on the
+version *(unreleased, cratestack#1104)*:
 
-Note the repo's own warning: there is **no CI coverage for the wasm32 target**.
-A missing-import bug once survived because host `cargo check` passed while
-`wasm-pack build` did not. Build for wasm explicitly before believing it works.
+- **0.14.0 and earlier:** `cratestack-sqlite` re-exports `client_rust` only off
+  wasm32, so the generated client fails in a browser build with ``cannot find
+  `client_rust` in `cratestack` ``, and `cratestack-client-rust` itself does not
+  compile there (its `tokio` edge carries `rt-multi-thread`). Use `fetch` from
+  JS, or the generated TypeScript client, instead.
+- **After #1104:** the facade re-exports `client_rust` on every target and the
+  runtime builds for `wasm32-unknown-unknown`, with reqwest on the browser's
+  `fetch`. Use the async generated client. `RuntimeHandle`, the blocking FFI
+  surface, is native-only: a `fetch` future cannot resolve while `block_on`
+  blocks the thread. `rustls` is not in the wasm graph, and
+  `ensure_crypto_provider()` is a no-op there.
+
+CI runs `cargo check --target wasm32-unknown-unknown` on the facade (and,
+after #1104, on the client runtime), but a host or wasm32 `cargo check` is not
+a `wasm-pack build`: a missing-import bug once survived because host `cargo
+check` passed while `wasm-pack build` did not. Build for wasm explicitly before
+believing it works.
 
 ## Host integrations
 
