@@ -15,7 +15,9 @@ grep -n 'cratestack' Cargo.toml          # the facade version
 
 Everything in these skills is verified against **0.12.0** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
-**breaking** note as "your call sites change".
+**breaking** note as "your call sites change". One exception: *(since 0.14.0)*
+also covers the yanked 0.13.1, which shipped the same changes (see
+[0.14.0](#0140-2026-09-26)).
 
 ## Reading order for an upgrade
 
