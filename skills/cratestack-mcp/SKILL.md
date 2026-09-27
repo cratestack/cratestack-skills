@@ -5,7 +5,7 @@ description: Serving a CrateStack schema to AI agents over the Model Context Pro
 
 # MCP operator
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -90,7 +90,7 @@ ignored.
   - `@mcp(tool: "name")`, or a bare `@mcp(tool)` to use the procedure's own name, plus
     an optional `description:`.
   - On 0.13.0 and 0.14.0 it must sit on its own line under a procedure; one
-    sharing a line with another attribute is refused. *(unreleased,
+    sharing a line with another attribute is refused. *(since 0.14.1,
     GHSA-69g4-xvcm-vm2j)* A procedure line is split into attributes, so
     `@allow(…) @mcp(tool)` is read as two. Run together with no space
     (`@allow(…)@mcp(tool)`) it is still refused. A line of its own works on
@@ -181,9 +181,9 @@ buckets start fresh.
     (`{"code":"FORBIDDEN",...}`).
 - **Idempotency.** A key goes in `_meta["dev.cratestack/idempotencyKey"]`; without one,
   a retried mutation runs again. `idempotentHint` is never `true` on a mutation.
-- **`@isolation` tools.** On every published release, 0.14.0 included, `@isolation`
-  is ignored here as on REST and RPC. On `main` *(unreleased,
-  GHSA-r67q-4qqq-g9gm)* `tools/call` runs such a tool through the same
+- **`@isolation` tools.** On every release through 0.14.0, `@isolation`
+  was ignored here as on REST and RPC. Since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*
+  `tools/call` runs such a tool through the same
   transaction-and-retry dispatch as REST and RPC (the registry method gets
   `&IsolatedCratestack`). Out of retries, the result is `isError` with
   `{"code":"TRANSACTION_ABORTED",...}`, and MCP admission **releases** the

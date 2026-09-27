@@ -9,17 +9,17 @@ When this file and `cratestack check` disagree, the checker is right — report 
 | --- | --- | --- |
 | `@id` | bare | Exactly one per model. Rejected on `mixin` fields. A model needs `@id` or `@@id([...])`. Matched exactly *(since 0.14.0)*: `@identity` / `@idx` / `@id_foo` are not keys, and `@id(...)` is refused. |
 | `@default(expr)` | one expression | Free-form. `dbgenerated()` takes **no argument**. `@default(auth().path)` pulls from the auth context and supports nested paths. Any `@default` makes the field generated-on-create. |
-| `@unique` | bare | `cratestack-migrate` emits the constraint. On 0.14.0 `@unique(...)` was accepted and its arguments ignored; it is refused *(unreleased, GHSA-69g4-xvcm-vm2j)*. |
+| `@unique` | bare | `cratestack-migrate` emits the constraint. On 0.14.0 `@unique(...)` was accepted and its arguments ignored; it is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. |
 | `@relation(...)` | `fields: [x], references: [y], onDelete: A, onUpdate: A` | See the SKILL. Unknown key → `unsupported @relation key`. Both `fields` and `references` are mandatory. At most one per field *(since 0.14.0)*; a second is refused. |
-| `@readonly` | bare | Out of Create + Update inputs; visible in responses and audit snapshots. `@readonly()` parsed on 0.14.0 and left the field writable; it is refused *(unreleased, GHSA-69g4-xvcm-vm2j)*. |
-| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(since 0.13.0, #1051)*. Before that, a client could set it that way. Never a filter or sort key: refused like an undeclared field on REST, RPC, relation paths and `FindMany`, and absent from the generated `<M>Where` / `<M>SortField` *(since 0.13.0, GHSA-ch54-jqw2-vpp5)*. Before 0.13.0 a request could test its value that way, and a procedure output containing a model with a `@computed` field sent it (0.8.11–0.12.0). Only on a model's stored scalar column: see the placement rules below *(unreleased, GHSA-69g4-xvcm-vm2j)*. |
+| `@readonly` | bare | Out of Create + Update inputs; visible in responses and audit snapshots. `@readonly()` parsed on 0.14.0 and left the field writable; it is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. |
+| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(since 0.13.0, #1051)*. Before that, a client could set it that way. Never a filter or sort key: refused like an undeclared field on REST, RPC, relation paths and `FindMany`, and absent from the generated `<M>Where` / `<M>SortField` *(since 0.13.0, GHSA-ch54-jqw2-vpp5)*. Before 0.13.0 a request could test its value that way, and a procedure output containing a model with a `@computed` field sent it (0.8.11–0.12.0). Only on a model's stored scalar column: see the placement rules below *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. |
 | `@pii` | bare | Audit redaction as `"[redacted-pii]"`. No effect on inputs or outputs. |
 | `@sensitive` | bare | Audit redaction as `"[redacted-sensitive]"`. |
 | `@version` | bare | Required `Int`. At most one per model. Never the PK, never inside `@@id([...])`. |
 | `@computed` | bare or `@computed(params: T?)` | `type` and `model` only. Once per field. **Cannot combine with any other field attribute.** The `?` on `params` is mandatory; `T` must be a declared `type` block. |
 | `@from(Model.field)` | opaque | **Completely inert.** Provenance documentation on view fields, checked by nothing. |
-| `@db_enforce` | bare | Alongside a validator, promotes it to a real Postgres `CHECK`. The parser checks only its spelling (`@db_enforce()` refused *(unreleased, GHSA-69g4-xvcm-vm2j)*), not that a validator is present. |
-| `@rename(from = "<old_column>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate` — see `cratestack-migrations`. The value is the old SQL column name (a camelCase name is snake-cased first). *(unreleased, GHSA-69g4-xvcm-vm2j)*: any other form (`@rename(from: "x")`, `@rename("x")`, `@rename()`, bare `@rename`, text after its `)`) is refused, and so are a second `@rename` on the field and a `@rename` on a field of a `view`, `type` or `auth` block or on a relation field. On 0.14.0 each of those checked as `schema OK` and the migrator read no marker: the next migration dropped the column and added a new one, losing its data. |
+| `@db_enforce` | bare | Alongside a validator, promotes it to a real Postgres `CHECK`. The parser checks only its spelling (`@db_enforce()` refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*), not that a validator is present. |
+| `@rename(from = "<old_column>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate` — see `cratestack-migrations`. The value is the old SQL column name (a camelCase name is snake-cased first). *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: any other form (`@rename(from: "x")`, `@rename("x")`, `@rename()`, bare `@rename`, text after its `)`) is refused, and so are a second `@rename` on the field and a `@rename` on a field of a `view`, `type` or `auth` block or on a relation field. On 0.14.0 each of those checked as `schema OK` and the migrator read no marker: the next migration dropped the column and added a new one, losing its data. |
 | `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | see below | Validators. |
 
 ### Mutual exclusions and position rules
@@ -27,14 +27,14 @@ When this file and `cratestack check` disagree, the checker is right — report 
 - `@readonly` + `@server_only` together → rejected; use `@server_only` alone.
 - Either of them on the primary key → rejected.
 - `@default(dbgenerated(anything))` → rejected; the marker takes no argument.
-- `@server_only` is refused *(unreleased, GHSA-69g4-xvcm-vm2j)* wherever it had no effect: on a field of a
+- `@server_only` is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)* wherever it had no effect: on a field of a
   `type` block or the `auth` block, on a relation field (mark the related model's
   fields instead), on a relation key (a scalar in any `@relation`'s `fields:` or
   a `references:` that targets its model), and on a `@version` field. On a
   relation key it did keep the key out of create and update inputs, so replace
   it with `@readonly` rather than deleting it, or clients can set the key.
 
-### Spelling rules for field attributes *(unreleased, GHSA-69g4-xvcm-vm2j)*
+### Spelling rules for field attributes *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*
 
 - **A no-argument attribute is written bare.** `@server_only`, `@readonly`,
   `@version`, `@pii`, `@sensitive`, `@db_enforce`, `@email`, `@uri`,
@@ -47,7 +47,7 @@ When this file and `cratestack check` disagree, the checker is right — report 
 - **Unknown field attributes are still inert.** Only a near-miss of a known name
   (`@reedonly`, `@renam`, `@Readonly`) is refused. A name too short for the
   near-miss check stays inert: `@Id` and `@ID` report `schema OK` and are **not**
-  a primary key (measured with `cratestack check` built from `main`).
+  a primary key (measured with `cratestack check` built from 0.14.1).
 
 ### Rejected at field position
 
@@ -81,7 +81,7 @@ nothing calls them automatically.
 
 | Attribute | Grammar | Rules |
 | --- | --- | --- |
-| `@@allow("action", expr)` | quoted action (either quote) + expression | Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` groups `list` + `detail`. The expression is parsed at macro time. On 0.14.0 the form and the action were checked by nothing, and any other spelling was **silently skipped**. *(unreleased, GHSA-69g4-xvcm-vm2j)*: `cratestack check` requires exactly `@@allow(` + a quoted action from this list + `,` + a non-empty expression + `)`, ending the line (a trailing `//` comment is fine). |
+| `@@allow("action", expr)` | quoted action (either quote) + expression | Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` groups `list` + `detail`. The expression is parsed at macro time. On 0.14.0 the form and the action were checked by nothing, and any other spelling was **silently skipped**. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: `cratestack check` requires exactly `@@allow(` + a quoted action from this list + `,` + a non-empty expression + `)`, ending the line (a trailing `//` comment is fine). |
 | `@@deny("action", expr)` | same | Same rules and actions: `all` covers every slot. A skipped `@@deny` made the model more permissive than written. |
 | `@@id([a, b])` | ≥2 fields | Real scalar fields, no repeats. Mutually exclusive with field-level `@id`. Listed fields must not carry `@readonly` / `@server_only` / `@version`. **Parses, then hard-rejected by every entry macro.** |
 | `@@unique([a, b], where: "…")` | ≥1 field; ≥2 unless `where:` present | Only key accepted is `where`, at most once, value must be a quoted string. Duplicate field lists rejected. |
@@ -92,7 +92,7 @@ nothing calls them automatically.
 | `@@retain(days: N)` | `days:` + non-negative integer | |
 | `@@emit(created, updated, deleted)` | ≥1 of exactly those three | At most one per model; duplicates deduped. |
 | `@@subscribe` | **bare only** | Requires `transport rpc` **and** requires `@@emit(...)`. |
-| `@@rename(from = "<old_table>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate`. The value is the **old SQL table name** (`"old_models"`), not the old model name. *(unreleased, GHSA-69g4-xvcm-vm2j)*: any other argument form, and a second `@@rename`, are refused; on 0.14.0 they checked as `schema OK` and the next migration dropped and re-created the table. A well-formed marker naming a table that does not exist is still accepted by `check` and silently ignored by the migrator. |
+| `@@rename(from = "<old_table>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate`. The value is the **old SQL table name** (`"old_models"`), not the old model name. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: any other argument form, and a second `@@rename`, are refused; on 0.14.0 they checked as `schema OK` and the next migration dropped and re-created the table. A well-formed marker naming a table that does not exist is still accepted by `check` and silently ignored by the migrator. |
 | `@@internal("action")` | **exactly one quoted action per declaration** | Vocabulary: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Suppresses the REST route, the RPC dispatch arm and the client stub. Does **not** suppress policy evaluation, and does not exempt handler-name collisions. |
 | `@use(MixinA, MixinB)` | comma list | Written inside the model body. Expanded at parse time; the model's own field wins on a name clash. |
 | `@@mcp(resource: "segment", max_page_size: N)` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the model as a read-only MCP resource. Needs an `mcp { }` block exposing `resources`, and a read `@@allow`. Must sit on its own line. |
@@ -103,8 +103,8 @@ nothing calls them automatically.
 near-miss typo check runs on field attributes only, so `@@sofT_delete` or
 `@@map("docs")` enforces nothing and reports `schema OK`.
 
-**On `main` the table above is a closed list** *(unreleased,
-GHSA-69g4-xvcm-vm2j)*, plus `@@mcp`, which the parser moves out before
+**Since 0.14.1 the table above is a closed list** *(GHSA-69g4-xvcm-vm2j)*,
+plus `@@mcp`, which the parser moves out before
 validation. Any other `@@` name, a view-only attribute on a model, a case variant
 or a typo is refused. So are whitespace before `(`, text after the closing `)`, an
 empty `()`, an argument list on `@@paged` / `@@audit` / `@@soft_delete` /
@@ -117,12 +117,12 @@ empty `()`, an argument list on `@@paged` / `@@audit` / `@@soft_delete` /
 | `@@server_sql("…")` | Postgres body. |
 | `@@embedded_sql("…")` | SQLite body. |
 | `@@sql("…")` | Both — used as the fallback for each. |
-| `@@materialized` | Bare. Requires a server body. Cannot combine with `@@no_unique`. `@@materialized(...)` was accepted and ignored on 0.14.0; refused *(unreleased)*. |
+| `@@materialized` | Bare. Requires a server body. Cannot combine with `@@no_unique`. `@@materialized(...)` was accepted and ignored on 0.14.0; refused *(since 0.14.1)*. |
 | `@@no_unique` | Bare. Opts out of the "exactly one `@id` field" rule. Same `(...)` change. |
-| `@@allow("read", expr)` | **Only `read`** is supported on a view. Single quotes (`'read'`) were refused on a view on 0.14.0 and are accepted *(unreleased)*. |
-| `@@deny("read" \| "all", expr)` | A view generates only the `read` slot. On 0.14.0 a view `@@deny` naming any other action was silently skipped; it is refused *(unreleased)*. |
+| `@@allow("read", expr)` | **Only `read`** is supported on a view. Single quotes (`'read'`) were refused on a view on 0.14.0 and are accepted *(since 0.14.1)*. |
+| `@@deny("read" \| "all", expr)` | A view generates only the `read` slot. On 0.14.0 a view `@@deny` naming any other action was silently skipped; it is refused *(since 0.14.1)*. |
 
-These seven are the whole list for a view *(unreleased, GHSA-69g4-xvcm-vm2j)*,
+These seven are the whole list for a view *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*,
 with the same spelling rules as a model's.
 
 ## `query` attributes
@@ -132,7 +132,7 @@ Only three are recognised: `@@sql`, `@allow`, `@deny`. `@@server_sql` and
 Exactly one `@@sql` body is required.
 
 On 0.14.0 and earlier the name was everything before the first `(`, trimmed, so `@deny (…)`, `@Deny(…)` and `@deny(…) banned` passed `check` while the
-generator dropped the rule. *(unreleased, GHSA-69g4-xvcm-vm2j)* each must be
+generator dropped the rule. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)* each must be
 spelled exactly: `@@sql(`, `@allow(`, `@deny(` with no space before `(`, a
 non-empty argument list, and nothing after the closing `)`. `@@sql ("…")` is
 refused. The layout rules below apply.
@@ -142,17 +142,17 @@ refused. The layout rules below apply.
 | Attribute | Grammar | Rules |
 | --- | --- | --- |
 | `@allow(expr)` / `@deny(expr)` | single `@` | Evaluated in Rust against the decoded args and the auth context. |
-| `@stream` | bare only | Requires a list (`T[]`) return type. `@stream(...)` is silently inert on 0.14.0 and refused *(unreleased)*. Rejected when the item type contains `@computed` fields. |
-| `@no_idempotency` | bare only | `@no_idempotency(false)` is rejected — it would read as re-enabling while doing the opposite. No extension gate. `@no_idempotency ()` was ignored on 0.14.0 and is refused *(unreleased)*. |
-| `@no_rate_limit` | bare only | Requires `extension rate_limit { }`. Any argument list is refused *(unreleased)*. |
-| `@isolation("serializable")` | quoted | At most one. Levels `read_committed`, `repeatable_read`, `serializable`. **Validated and then ignored by every published release**, 0.14.0 included. Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*, where it is also refused together with `@stream` ("declares both @isolation and @stream"), under `provider = "none"`, and with `include_server_schema!(.., db = None)`. |
+| `@stream` | bare only | Requires a list (`T[]`) return type. `@stream(...)` is silently inert on 0.14.0 and refused *(since 0.14.1)*. Rejected when the item type contains `@computed` fields. |
+| `@no_idempotency` | bare only | `@no_idempotency(false)` is rejected — it would read as re-enabling while doing the opposite. No extension gate. `@no_idempotency ()` was ignored on 0.14.0 and is refused *(since 0.14.1)*. |
+| `@no_rate_limit` | bare only | Requires `extension rate_limit { }`. Any argument list is refused *(since 0.14.1)*. |
+| `@isolation("serializable")` | quoted | At most one. Levels `read_committed`, `repeatable_read`, `serializable`. **Validated and then ignored by every release through 0.14.0.** Enforced since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*, where it is also refused together with `@stream` ("declares both @isolation and @stream"), under `provider = "none"`, and with `include_server_schema!(.., db = None)`. |
 | `@api_version("v1")` | quoted, `[A-Za-z0-9._-]` | Mounts at `/<version>/$procs/<name>` on REST. Under `transport rpc` the op id is still `procedure.<name>`, so to version an RPC operation give it a new procedure name. Before 0.13.0 the generated clients and WireMock stubs called the unversioned path (404), and `@no_idempotency`/`@no_rate_limit` were ignored on a versioned REST procedure; both fixed *(since 0.13.0)*. |
 | `@deprecated` / `@deprecated("msg")` | bare or one quoted string | Adds `Deprecation: true` and `X-Deprecation: <msg>` response headers. |
 | `@status(202)` | bare integer, 200..=299 | **Rejected under `transport rpc`.** `@status(204)` is accepted but the encoder still attaches a body — do not use it. |
-| `@authorize(Model, action, args.path)` | three parts | Actions `detail`/`read`, `update`, `delete` only. The path's type must match the model's PK type. Parsed at macro time; on 0.14.0 a malformed one was skipped there, so `authorize_with_db` returned `Ok` without consulting the database. *(unreleased)*: `cratestack check` also requires three non-empty arguments and one of those actions. |
+| `@authorize(Model, action, args.path)` | three parts | Actions `detail`/`read`, `update`, `delete` only. The path's type must match the model's PK type. Parsed at macro time; on 0.14.0 a malformed one was skipped there, so `authorize_with_db` returned `Ok` without consulting the database. *(since 0.14.1)*: `cratestack check` also requires three non-empty arguments and one of those actions. |
 | `@mcp(tool)` / `@mcp(tool: "name", description: "…")` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the procedure as an MCP tool; moved into the procedure's MCP exposure while parsing. Needs an `mcp { }` block exposing `tools`, and an `@allow`. Must sit on its own line. |
 
-**This table is the whole list** *(unreleased, GHSA-69g4-xvcm-vm2j)*. Any other
+**Since 0.14.1, this table is the whole list** *(GHSA-69g4-xvcm-vm2j)*. Any other
 procedure attribute, a case variant (`@Deny`), a typo (`@deyn`, `@authorise`),
 whitespace before `(` (`@deny (…)`), `@deny` with no argument list, `()` on a
 bare attribute, or text after the closing `)` (`;`, `,`, a word) is refused, with
@@ -184,14 +184,14 @@ Prefer triple quotes.
 Keep each attribute on its own line. On 0.14.0 and earlier the extractor read
 everything up to the **last** `)` on the line as the SQL argument, so a second
 attribute on the same physical line broke the body (a `query` refused it as "not a
-quoted string"). *(unreleased, GHSA-69g4-xvcm-vm2j)*: on a `query` line the
+quoted string"). *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: on a `query` line the
 attributes are split and each is read. On a `view` line two `@@` attributes are
 refused.
 
-## Attribute text: comments, layout, invisible characters *(unreleased, GHSA-69g4-xvcm-vm2j)*
+## Attribute text: comments, layout, invisible characters *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*
 
 These rules come from `cratestack-core/src/schema/attribute_text*.rs` and
-`cratestack-parser/src/parse/attribute_run.rs` on `main`.
+`cratestack-parser/src/parse/attribute_run.rs`, since 0.14.1.
 
 **Trailing comments.** A `//` outside a string literal starts a comment on every
 attribute line: field, `@@`, procedure and query. The comment is dropped before
@@ -249,9 +249,10 @@ through a compiled schema for this skill.
 
 `///` is a doc comment; `//` is an ordinary comment and **clears** pending docs,
 as does a blank line. That holds for a line that *starts* with `//`. A trailing
-`// …` after an attribute is not stripped in 0.14.0: it silently drops a
-procedure, `query` or `@@` policy attribute (see above), and on a field line an
-attribute named inside it is applied (`@unique // not @readonly` makes the field
-read-only). Fixed on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
+`// …` after an attribute was not stripped on 0.14.0 and earlier: it silently
+dropped a procedure, `query` or `@@` policy attribute (see above), and on a
+field line an attribute named inside it was applied (`@unique // not
+@readonly` made the field read-only). Fixed since 0.14.1
+*(GHSA-69g4-xvcm-vm2j)*.
 
 Per-argument procedure docs use `/// @param <name> <description>`.

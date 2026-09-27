@@ -5,7 +5,7 @@ description: CrateStack's RPC transport — transport rpc, POST /rpc/{op_id}, PO
 
 # RPC transport
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -83,11 +83,11 @@ doc uses different ones:
 Error bodies are `{ code, message, details? }` with **lowercase, gRPC-style
 codes** — `invalid_argument`, `unauthenticated`, `permission_denied`,
 `not_found`, `conflict`, `failed_precondition`, `resource_exhausted`,
-`unavailable`, `internal`, and *(unreleased, GHSA-r67q-4qqq-g9gm)* `aborted`. Note
+`unavailable`, `internal`, and *(since 0.14.1, GHSA-r67q-4qqq-g9gm)* `aborted`. Note
 `invalid_argument` covers five error variants spanning four different HTTP
 statuses, so a client cannot reconstruct the status from the code alone.
 
-On `main` only (0.14.0 has neither the code nor a working `@isolation`),
+Since 0.14.1 only (0.14.0 has neither the code nor a working `@isolation`),
 `aborted` is REST's `409 TRANSACTION_ABORTED`: an `@isolation` procedure ran out
 of retries and committed nothing, so resending is expected to succeed. Only that
 procedure's own dispatch answers it; a caller that propagated someone else's

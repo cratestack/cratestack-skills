@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -64,7 +64,7 @@ skipped `@allow` leaves it closed. Spellings that were skipped:
 - a `@deny(…)` written above a procedure after a blank line, which belonged to
   the declaration *before* it.
 
-*(unreleased, GHSA-69g4-xvcm-vm2j)* All of these are now refused by
+*(since 0.14.1, GHSA-69g4-xvcm-vm2j)* All of these are now refused by
 `cratestack check` (and the LSP), and the generator itself refuses to compile a
 policy it cannot read (`compile_error!` from the `include_*_schema!` call). The
 accepted forms:
@@ -86,26 +86,26 @@ procedure archive(args: ArchiveArgs): Doc
 
 Keep each policy attribute alone on its line, with no trailing comment. Put
 comments on the line above. That form is read the same way on every release. A
-trailing `//` comment is safe only on `main`: on 0.14.0 and earlier it made the
+trailing `//` comment is safe since 0.14.1: on 0.14.0 and earlier it made the
 generator skip the rule.
 
 - **Model / view:** `@@allow(` or `@@deny(` directly, a quoted action from the
-  list above (`"…"` or `'…'`; a view accepts `'…'` only on `main`), `,`, a
-  non-empty expression, `)`, then the end of the line or, on `main`, a `//`
+  list above (`"…"` or `'…'`; a view accepts `'…'` only since 0.14.1), `,`, a
+  non-empty expression, `)`, then the end of the line or, since 0.14.1, a `//`
   comment.
 - **Procedure / query:** `@allow(expr)` / `@deny(expr)` with no space before `(`
-  and nothing after `)` (on `main`, a `//` comment is allowed).
+  and nothing after `)` (since 0.14.1, a `//` comment is allowed).
   `@authorize(Model, action, args.path)` takes three arguments and an action from
-  `detail`, `read`, `update`, `delete`. On `main`, several attributes may share a
-  line if a space separates them; on 0.14.0 the second was skipped. Attributes
-  belong to the signature above, up to the first blank line (see
+  `detail`, `read`, `update`, `delete`. Since 0.14.1, several attributes may share a
+  line if a space separates them; on 0.14.0 and earlier the second was skipped.
+  Attributes belong to the signature above, up to the first blank line (see
   `cratestack-schema`, "Procedures").
 
 **Upgrading: one change widens access with no error.** An `@allow(…)` or
 `@@allow(…)` with a trailing `// comment`, or sharing a procedure line with
 another attribute, was skipped on 0.14.0 and earlier. The declaration or action
-it names was therefore closed. On `main` the rule applies. Confirm that each such
-rule grants what it says before upgrading. To find candidates:
+it names was therefore closed. Since 0.14.1 the rule applies. Confirm that each
+such rule grants what it says before upgrading. To find candidates:
 
 ```bash
 grep -rnE --include='*.cstack' '@@?allow\(.*\)\s*//|@[a-z_]+(\(.*\))?\s+@allow' .
@@ -258,8 +258,8 @@ primary key carried in the procedure's arguments, as a one-shot
 `Forbidden` when nothing matches. Actions are `detail`/`read`, `update` and
 `delete` only, and the path's type must match the model's PK type.
 On 0.14.0 and earlier a malformed or misspelled one was skipped, so
-`authorize_with_db` returned `Ok` without consulting the database. *(unreleased,
-GHSA-69g4-xvcm-vm2j)* `cratestack check` refuses it.
+`authorize_with_db` returned `Ok` without consulting the database. *(since
+0.14.1, GHSA-69g4-xvcm-vm2j)* `cratestack check` refuses it.
 
 ## `cratestack-auth`
 

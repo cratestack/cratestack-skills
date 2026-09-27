@@ -5,7 +5,7 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -50,7 +50,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 ```yaml
 - uses: cratestack/cratestack/.github/actions/install-cratestack-cli@main
   with:
-    version: "0.14.0"   # optional, defaults to "latest"
+    version: "0.14.1"   # optional, defaults to "latest"
 ```
 
 Pin `@main` to a tag or SHA for reproducibility.
@@ -156,8 +156,8 @@ Matching is by name only — a rename reads as a removal plus an addition, match
 `cratestack-migrate`'s philosophy.
 
 `diff` parses both files, so an old schema that a newer CLI refuses fails the
-gate on the *baseline*. The strict attribute parsing on `main` *(unreleased,
-GHSA-69g4-xvcm-vm2j)* is such a change: fix the baseline in the same change.
+gate on the *baseline*. The strict attribute parsing since 0.14.1
+*(GHSA-69g4-xvcm-vm2j)* is such a change: fix the baseline in the same change.
 
 | Severity | Examples |
 | --- | --- |

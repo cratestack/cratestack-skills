@@ -5,7 +5,7 @@ description: CrateStack's data-integrity surface — idempotency keys, rate limi
 
 # Data integrity
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -30,10 +30,10 @@ are callable only from hand-written Rust inside a procedure. The only batch
 parses and emits correct DDL, then is rejected by every entry macro.
 
 **Validated and then discarded.** `@@retain(days: N)` lands on the descriptor and
-**nothing ever reads it** — there is no GC job. `@isolation("serializable")` is
-in this tier on **every published release, 0.14.0 included**: every procedure
+**nothing ever reads it** — there is no GC job. `@isolation("serializable")` was
+in this tier on **every release through 0.14.0**: every procedure
 ran at the server default, so call `run_in_isolated_tx` by hand. It is enforced
-on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*, with a different handle type; see
+since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*, with a different handle type; see
 "Transaction isolation" below.
 
 ## Idempotency
@@ -53,7 +53,7 @@ Wire behaviour, with `IdempotencyLayer` installed:
 | Reservation still in flight | **409** (`CONFLICT`) plus `Retry-After: 1` |
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
 | No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
-| An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(unreleased)* | **not recorded**: the key is released, so the same key runs the call again |
+| An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(since 0.14.1)* | **not recorded**: the key is released, so the same key runs the call again |
 
 The fingerprint is SHA-256 over `method \0 path_and_query \0 content_type \0 body`.
 **The query string is included on purpose** — `POST /transfer?dry_run=true` must
@@ -341,11 +341,12 @@ not exist**.
 `@isolation("read_committed" | "repeatable_read" | "serializable")`,
 case-insensitive, `_` or a space as the separator. No `READ UNCOMMITTED`.
 
-**On every published release (0.2.0 through 0.14.0) it is inert.** The level is
-validated and then ignored: the procedure runs on the pool at the server
-default, normally `READ COMMITTED`, on REST, RPC, `/rpc/batch` and MCP. Measured
-upstream: two concurrent declared-serializable withdrawals of 100 from a balance
-of 100 both succeeded. On those versions, run the transaction yourself:
+**On every release from 0.2.0 through 0.14.0 it was inert.** The
+level was validated and then ignored: the procedure ran on the pool at the
+server default, normally `READ COMMITTED`, on REST, RPC, `/rpc/batch` and MCP.
+Measured upstream: two concurrent declared-serializable withdrawals of 100 from
+a balance of 100 both succeeded. On those versions, run the transaction
+yourself:
 
 ```rust
 run_in_isolated_tx_with_retries(pool, TransactionIsolation::Serializable, 3, |tx| async { … })
@@ -355,14 +356,14 @@ Retries on SQLSTATE `40001` (serialization failure) and `40P01` (deadlock),
 **including errors raised from `commit()` itself** — SSI defers write-skew to
 commit time. Composing write-builder `run_in_tx` calls inside does not get
 automatic audit-sink fan-out or `@@emit` delivery; dispatch after `Ok` returns.
-*(unreleased, GHSA-r67q-4qqq-g9gm)* It retries **only database errors**: a typed
-one by its SQLSTATE alone, an untyped `Database(String)` by its text. An error
-the body builds itself whose message contains `40001` (echoed request data) is
-returned on the first attempt; published releases retried it. Out of retries it
-still returns the last error (a `40001` is `DatabaseTyped`, 500), never
-`TRANSACTION_ABORTED`.
+*(since 0.14.1, GHSA-r67q-4qqq-g9gm)* It retries **only database errors**: a
+typed one by its SQLSTATE alone, an untyped `Database(String)` by its text. An
+error the body builds itself whose message contains `40001` (echoed request
+data) is returned on the first attempt; every release through 0.14.0 retried
+it. Out of retries it still returns the last error (a `40001` is
+`DatabaseTyped`, 500), never `TRANSACTION_ABORTED`.
 
-### Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*
+### Enforced since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*
 
 A procedure declaring `@isolation(level)` runs inside one transaction begun with
 `BEGIN ISOLATION LEVEL <level>`, on every path that can execute it: REST, RPC,
@@ -461,7 +462,7 @@ Upgrading: `grep -rn '@isolation'` your schemas; for each procedure change
 `db: &Cratestack` to `db: &IsolatedCratestack`, replace `db.pool()` with
 `db.transaction(..)`, delete any hand-written `run_in_isolated_tx(db.pool(), ..)`
 wrapper, and check the body and its output's resolvers can run twice. Also
-unreleased and not tied to `@isolation`: the framework's own reads
+since 0.14.1, and not tied to `@isolation`: the framework's own reads
 (`find_unique`, `find_many`, projections, aggregates), the `@authorize` probe,
 create-policy lookups and `@@audit` writes now fail with `DatabaseTyped` rather
 than `Database` (same `DATABASE_ERROR`, 500) — a `match` on `Database(_)` must
@@ -587,7 +588,7 @@ authoring rules. Runtime facts that matter here:
   upgrading, a response `IdempotencyLayer` stored before the upgrade still
   carries the value until its TTL expires: clear the idempotency store. Treat
   the values as disclosed and rotate credentials among them.
-- For an `@isolation` procedure *(unreleased)*, the output's resolvers run inside
+- For an `@isolation` procedure *(since 0.14.1)*, the output's resolvers run inside
   its transaction and re-run on retry — see "Transaction isolation".
 
 ## Composite primary keys

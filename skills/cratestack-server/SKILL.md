@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -119,13 +119,13 @@ Runtime, under `db = Postgres`: `Cratestack::builder(pool)` →
 `db.events()`, `db.views()`, `db.queries()`, `db.bind_context(ctx)`,
 `db.bind_auth(principal)`, and one delegate accessor per model.
 
-*(unreleased, GHSA-r67q-4qqq-g9gm)* The builder gains
+*(since 0.14.1, GHSA-r67q-4qqq-g9gm)* The builder gains
 `.with_isolation_max_retries(n)`, and a schema that declares an `@isolation`
 procedure also gets `IsolatedCratestack`: the handle that procedure's
 `ProcedureRegistry` method receives instead of `&Cratestack`. It has the model
 accessors, `bind_context` / `bind_auth`, `transaction(..)` (a savepoint) and
 `dispatch_audit_sink`, and **no** `pool()`, `events()`, `views()` or
-`queries()`. On every published release `@isolation` is inert. See
+`queries()`. On every release through 0.14.0 `@isolation` was inert. See
 `cratestack-data-integrity`.
 
 **Under `db = None`, most of that does not exist** — no `pool()`, no
@@ -265,7 +265,7 @@ Encoded with the same negotiated codec as a success body. This is the REST shape
 | `NotFound` | `NOT_FOUND` | 404 |
 | `NotAcceptable` | `NOT_ACCEPTABLE` | 406 |
 | `Conflict`, `ConflictTyped` | `CONFLICT` | 409 |
-| `TransactionAborted` *(unreleased)* | `TRANSACTION_ABORTED` | 409 — only an `@isolation` procedure's own exhausted retries; any other abort is answered 500 `INTERNAL_ERROR` (see `cratestack-data-integrity`) |
+| `TransactionAborted` *(since 0.14.1)* | `TRANSACTION_ABORTED` | 409 — only an `@isolation` procedure's own exhausted retries; any other abort is answered 500 `INTERNAL_ERROR` (see `cratestack-data-integrity`) |
 | `PreconditionFailed` | `PRECONDITION_FAILED` | 412 |
 | `UnsupportedMediaType` | `UNSUPPORTED_MEDIA_TYPE` | 415 |
 | `Validation` | `VALIDATION_ERROR` | **422** |
