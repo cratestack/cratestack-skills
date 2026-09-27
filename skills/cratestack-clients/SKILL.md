@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.14.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -90,8 +90,8 @@ pub trait RequestAuthorizer: Send + Sync {
 }
 ```
 
-That is the native shape, and on 0.14.1 the only one. On
-`wasm32-unknown-unknown` *(unreleased, cratestack#1108)* the trait is declared
+That is the native shape, and through 0.14.1 the only one. On
+`wasm32-unknown-unknown` *(since 0.14.2, cratestack#1108)* the trait is declared
 with `#[async_trait(?Send)]` and without `Send + Sync`, because a browser
 `fetch` future is never `Send` and an authorizer that refreshes its token
 through the client has to await one. An impl that builds for both targets

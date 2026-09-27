@@ -13,7 +13,7 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.14.1** unless a marker says
+Everything in these skills is verified against **0.14.2** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
@@ -27,11 +27,16 @@ into it, not a replacement.
 
 ---
 
-## Unreleased on `main`, after 0.14.1
+## Unreleased on `main`, after 0.14.2
 
-In no published release. Skills mark these *(unreleased, cratestack#NNN)*, or
+Nothing recorded here yet. Skills mark these *(unreleased, cratestack#NNN)*, or
 *(unreleased, GHSA-…)* for a security fix merged from a private fork with no PR
 number.
+
+## 0.14.2 (2026-09-27)
+
+0.14.2 is 0.14.1 plus one `CHANGELOG.md` entry, finishing #1104 for clients
+that authenticate. Skills mark it *(since 0.14.2)*.
 
 - **`RequestAuthorizer` is target-split on wasm32** (cratestack#1108, a #1104
   follow-up). Affected: 0.14.1, which built the client for wasm32 but kept the
@@ -376,7 +381,7 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.14.1, each of these parses, validates, and then does nothing:
+As of 0.14.2, each of these parses, validates, and then does nothing:
 
 - An unknown **field** attribute (`@whatever`, and `@Id` / `@ID`, which are not a
   primary key) still parses and does nothing; only near-misses are refused. An
