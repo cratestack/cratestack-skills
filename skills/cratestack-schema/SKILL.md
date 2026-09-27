@@ -115,7 +115,7 @@ Note the has-many side carries `@relation` too. That is mandatory.
 | `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. |
 | `@unique` | Single-column unique index. |
 | `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. |
-| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses and is ignored in a procedure argument that decodes the model *(unreleased, #1051)*. Mutually exclusive, and neither may sit on the PK. |
+| `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses (procedure outputs with `@computed` fields included *(since 0.13.0)*), is ignored in a procedure argument that decodes the model *(since 0.13.0, #1051)*, and is never a filter or sort key *(since 0.13.0)*. Mutually exclusive, and neither may sit on the PK. |
 | `@pii` / `@sensitive` | Audit redaction only; no effect on inputs or outputs. |
 | `@version` | Optimistic locking. Required `Int`, at most one, never the PK. |
 | `@computed` / `@computed(params: T?)` | Resolver-backed response field. |
@@ -234,7 +234,7 @@ Attribute lines follow the declaration, unbraced. `procedure` is a query,
 | `@stream` | Bare only. **Requires a list return type.** |
 | `@no_idempotency` | Bare only. No extension gate. |
 | `@no_rate_limit` | Bare only. **Requires `extension rate_limit { }`.** |
-| `@isolation("serializable")` | Quoted level. |
+| `@isolation("serializable")` | Quoted level. **Ignored by every published release** (0.14.0 included). Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*: the procedure runs in one retried transaction at that level, its method takes `db: &IsolatedCratestack`, and it is refused with `@stream` or under `provider = "none"` / `db = None`. See `cratestack-data-integrity`. |
 | `@api_version("v1")` | Alphanumeric plus `.`, `-`, `_`. Mounts at `/<version>/$procs/<name>` (REST only; the RPC op id stays `procedure.<name>`). Generated clients call the versioned path *(since 0.13.0)*; before that they ignored it and 404'd. |
 | `@deprecated` / `@deprecated("msg")` | Adds `Deprecation` response headers. |
 | `@status(202)` | 2xx only, and **rejected under `transport rpc`**. |

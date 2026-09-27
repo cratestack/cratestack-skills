@@ -171,6 +171,15 @@ buckets start fresh.
     (`{"code":"FORBIDDEN",...}`).
 - **Idempotency.** A key goes in `_meta["dev.cratestack/idempotencyKey"]`; without one,
   a retried mutation runs again. `idempotentHint` is never `true` on a mutation.
+- **`@isolation` tools.** On every published release, 0.14.0 included, `@isolation`
+  is ignored here as on REST and RPC. On `main` *(unreleased,
+  GHSA-r67q-4qqq-g9gm)* `tools/call` runs such a tool through the same
+  transaction-and-retry dispatch as REST and RPC (the registry method gets
+  `&IsolatedCratestack`). Out of retries, the result is `isError` with
+  `{"code":"TRANSACTION_ABORTED",...}`, and MCP admission **releases** the
+  idempotency key instead of recording it, so the same key runs the call again.
+  A tool that merely propagates another procedure's abort answers
+  `INTERNAL_ERROR`, recorded under the key. See `cratestack-data-integrity`.
 - **Resources.**
   - One record: `cratestack://<name>/<segment>/{id}`.
   - A page: `cratestack://<name>/<segment>{?limit,cursor}`, returning

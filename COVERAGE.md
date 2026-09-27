@@ -49,6 +49,9 @@ Verified against **CrateStack 0.12.0**. Feature-to-release history lives in
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
 | COSE envelope layer *(since 0.14.0, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) |
 | `@version`, `@@audit`, `@@soft_delete`, upsert, `@@paged`, `@isolation` | `cratestack-data-integrity` |
+| `@isolation` enforcement *(unreleased, GHSA-r67q-4qqq-g9gm)*: `IsolatedCratestack`, `with_isolation_max_retries`, `409 TRANSACTION_ABORTED` / RPC `aborted` | `cratestack-data-integrity` (semantics, idempotency) + `cratestack-server` (handle, error table) + `cratestack-rpc` / `cratestack-mcp` (per-transport answer) + `cratestack-troubleshooting` |
+| Relation filter and sort read scope *(since 0.13.0, GHSA-p55v-6xv5-93p3)*: `RelatedReadScope`, `related_read_scope()`, self-relations | `cratestack-server` (query contract, hand-built constructors) + `cratestack-policy-auth` (policy semantics) |
+| `@server_only` refused as a filter or sort key, and never sent by a `@computed` procedure output *(since 0.13.0, GHSA-ch54-jqw2-vpp5)* | `cratestack-schema` (attribute) + `cratestack-server` (query contract) + `cratestack-clients` (`<M>Where` / `<M>SortField`) |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |

@@ -83,9 +83,17 @@ doc uses different ones:
 Error bodies are `{ code, message, details? }` with **lowercase, gRPC-style
 codes** — `invalid_argument`, `unauthenticated`, `permission_denied`,
 `not_found`, `conflict`, `failed_precondition`, `resource_exhausted`,
-`unavailable`, `internal`. Note `invalid_argument` covers five error variants
-spanning four different HTTP statuses, so a client cannot reconstruct the status
-from the code alone.
+`unavailable`, `internal`, and *(unreleased, GHSA-r67q-4qqq-g9gm)* `aborted`. Note
+`invalid_argument` covers five error variants spanning four different HTTP
+statuses, so a client cannot reconstruct the status from the code alone.
+
+`aborted` is REST's `409 TRANSACTION_ABORTED`: an `@isolation` procedure ran out
+of retries and committed nothing, so resending is expected to succeed. Only that
+procedure's own dispatch answers it; a caller that propagated someone else's
+abort answers `internal`. Every generated client knows the code (the Rust client
+maps a batch frame's `aborted` to 409, and `@cratestack/link-batch` does the
+same). `@isolation` makes each **frame** of `/rpc/batch` one transaction at its
+level; it does not make the batch atomic.
 
 ## Batch semantics
 
@@ -204,6 +212,11 @@ parsing. `RpcListInput` / `RpcGetInput` are turned back into a real urlencoded
 query string by `synthesize_list_query` / `synthesize_get_query`, and handed to
 the **same** `parse_model_list_query` / `parse_model_fetch_query` REST uses. One
 validator, one error vocabulary, identical statuses on both bindings.
+
+The same holds for what the parser **refuses**: a relation filter or sort in an
+RPC `list` frame applies the related model's read policy and `@@soft_delete`, and
+a `@server_only` field is refused as a filter or sort key, exactly as on REST
+*(since 0.13.0)* — see `cratestack-server`.
 
 So the server half of a parity change is usually:
 

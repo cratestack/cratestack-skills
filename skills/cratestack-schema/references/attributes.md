@@ -12,7 +12,7 @@ When this file and `cratestack check` disagree, the checker is right — report 
 | `@unique` | bare or `@unique(...)` | Parser does not validate it; `cratestack-migrate` emits the constraint. |
 | `@relation(...)` | `fields: [x], references: [y], onDelete: A, onUpdate: A` | See the SKILL. Unknown key → `unsupported @relation key`. Both `fields` and `references` are mandatory. At most one per field *(since 0.14.0)*; a second is refused. |
 | `@readonly` | bare | Out of Create + Update inputs; visible in responses and audit snapshots. |
-| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(unreleased, #1051)*. Before that, a client could set it that way. |
+| `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(since 0.13.0, #1051)*. Before that, a client could set it that way. Never a filter or sort key: refused like an undeclared field on REST, RPC, relation paths and `FindMany`, and absent from the generated `<M>Where` / `<M>SortField` *(since 0.13.0, GHSA-ch54-jqw2-vpp5)*. Before 0.13.0 a request could test its value that way, and a procedure output containing a model with a `@computed` field sent it (0.8.11–0.12.0). |
 | `@pii` | bare | Audit redaction as `"[redacted-pii]"`. No effect on inputs or outputs. |
 | `@sensitive` | bare | Audit redaction as `"[redacted-sensitive]"`. |
 | `@version` | bare | Required `Int`. At most one per model. Never the PK, never inside `@@id([...])`. |
@@ -104,7 +104,7 @@ Exactly one `@@sql` body is required.
 | `@stream` | bare only | Requires a list (`T[]`) return type. `@stream(...)` is silently inert. Rejected when the item type contains `@computed` fields. |
 | `@no_idempotency` | bare only | `@no_idempotency(false)` is rejected — it would read as re-enabling while doing the opposite. No extension gate. |
 | `@no_rate_limit` | bare only | Requires `extension rate_limit { }`. |
-| `@isolation("serializable")` | quoted | |
+| `@isolation("serializable")` | quoted | At most one. Levels `read_committed`, `repeatable_read`, `serializable`. **Validated and then ignored by every published release**, 0.14.0 included. Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*, where it is also refused together with `@stream` ("declares both @isolation and @stream"), under `provider = "none"`, and with `include_server_schema!(.., db = None)`. |
 | `@api_version("v1")` | quoted, `[A-Za-z0-9._-]` | Mounts at `/<version>/$procs/<name>` on REST. Under `transport rpc` the op id is still `procedure.<name>`, so to version an RPC operation give it a new procedure name. Before 0.13.0 the generated clients and WireMock stubs called the unversioned path (404), and `@no_idempotency`/`@no_rate_limit` were ignored on a versioned REST procedure; both fixed *(since 0.13.0)*. |
 | `@deprecated` / `@deprecated("msg")` | bare or one quoted string | Adds `Deprecation: true` and `X-Deprecation: <msg>` response headers. |
 | `@status(202)` | bare integer, 200..=299 | **Rejected under `transport rpc`.** `@status(204)` is accepted but the encoder still attaches a body — do not use it. |
