@@ -52,6 +52,16 @@ number.
   `DatabaseTyped`. See
   [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md) and the
   framework's `docs/design/procedure-isolation.md`.
+- **`include_client_schema!` builds for `wasm32-unknown-unknown`**
+  (cratestack#1104, merged in cratestack#1105). Affected: 0.14.0 and earlier,
+  where `cratestack-sqlite` re-exported `client_rust` only off wasm32 and
+  `cratestack-client-rust` did not compile there (its `tokio` edge inherited
+  `rt-multi-thread`). Now the runtime, the facade's `client_rust` re-export and
+  `cratestack-client` build for wasm32, with and without `middleware`, with
+  reqwest on the browser's `fetch`. On that target `RuntimeHandle` is not
+  available, `rustls` is not in the graph and `ensure_crypto_provider()` is a
+  no-op. Native builds are unchanged. See
+  [cratestack-embedded](../../cratestack-embedded/SKILL.md).
 
 ## 0.14.0 (2026-09-26)
 
