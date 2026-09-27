@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -22,8 +22,9 @@ no items and has no `tests/` directory. Always target `-p cratestack-pg`,
 `-p cratestack-api`, `-p cratestack-sqlite` or `-p cratestack-client`.
 
 **Postgres-backed tests skip silently without `CRATESTACK_TEST_DATABASE_URL`.**
-`banking_*`, `policy_db_*` and `generated_client_rust` all call
-`connect_or_skip()`, and **a skipped test still prints `test result: ok`**. Use
+`banking_*` and `policy_db_*` call `connect_or_skip()`, and **a skipped test
+still prints `test result: ok`**. (`generated_client_rust*` and
+`banking_rate_limit` need no database — they run against an in-process server.) Use
 `just test-pg`, `just test-pg-only` or `just test-pg-tc`.
 
 **On rootless Docker every testcontainers suite skips and still prints `ok`.**
@@ -42,8 +43,9 @@ export CRATESTACK_REQUIRE_DB=1        # or CRATESTACK_REQUIRE_REDIS=1
 in a shared file — the value encodes a uid, and CI uses the default socket.
 
 **To tell a skip from a pass after the fact, read the elapsed time, not the
-summary line.** Both say `ok`; the skip notice goes to stderr, which cargo
-captures for passing tests. A real PG binary takes seconds; a skipped one reports
+summary line.** Both say `ok`; the PG helper skips without printing anything,
+and a Redis suite's `skipping: …` notice goes to stderr, which cargo captures
+for passing tests. A real PG binary takes seconds; a skipped one reports
 `finished in 0.00s`.
 
 **Missing `--no-fail-fast` silently removes coverage.** Measured on one branch:
@@ -69,8 +71,10 @@ resolves `mod` declarations regardless of `#[cfg]` — use `just fmt-check`.
 backends, which are now additive and may both be selected. Today the workspace
 has exactly one `compile_error!`, in `cratestack-pg`'s `crypto-aws-lc-rs` — an
 empty feature that exists solely to hard-fail, because it used to return `Ok(())`
-without installing any crypto provider. Several places in the repo still give the
-old rationale. To exercise the non-default decimal backend use
+without installing any crypto provider. It also turns on
+`cratestack-client-flutter`'s `frb-glue`, whose `mod frb_generated;` is the same
+uncommitted glue (E0583) — a framework crate, so `--exclude` cannot help. Several
+places in the repo still give the old rationale. To exercise the non-default decimal backend use
 `--features decimal-bigdecimal --no-default-features` scoped with `-p`.
 
 **`pkg-config` failing on `javascriptcoregtk-4.1` or `libsoup-3.0`, Linux only.**
@@ -101,19 +105,20 @@ they appear at the `include_*_schema!` call site.
 | --- | --- | --- |
 | ``can't find crate for `serde` `` or ``cannot find module or crate `serde` `` | the generated structs derive through bare `serde::` paths, and the facade does not provide `serde` | add `serde = { version = "1", features = ["derive"] }` as a direct dependency — every facade needs it |
 | ``cannot find `cratestack_rusqlite` in the crate root`` | `include_embedded_schema!` names `cratestack_rusqlite` directly | add `cratestack-rusqlite` at the same version as the facade |
-| `requires a facade crate with 'cratestack-sqlx' support` | you depend on `cratestack-api` but wrote `db = Postgres` | depend on `cratestack-pg`, or switch the schema to `provider = "none"` + `db = None` |
-| `the macro's 'db' argument and the schema's own 'datasource' declaration must agree` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
+| ``requires a facade crate with `cratestack-sqlx` support`` | you depend on `cratestack-api` but wrote `db = Postgres` | depend on `cratestack-pg`, or switch the schema to `provider = "none"` + `db = None` |
+| ``the macro's `db` argument and the schema's own `datasource` declaration must agree`` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |
 | `can never support it, no matter which Cargo features are enabled` | a Postgres-only extension under `include_embedded_schema!` | use the server macro or drop the extension |
 | `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
 | `@computed fields … include_embedded_schema! has no response boundary` | computed fields on the embedded path | remove them or use the server/client macro — without the guard the field would silently vanish |
-| `'query' block(s) … Postgres-only raw SQL` | a `query` under the embedded or `db = None` macro | remove it or move to a Postgres schema |
-| `'@@materialized' … not supported on the embedded backend` | SQLite has no materialized views | gate it or split into a server-only schema |
+| ``declares `query` block(s) … which are Postgres-only raw SQL`` | a `query` under the embedded macro | remove it or move to a Postgres schema |
+| ``declares `query` block(s) … but this macro call says `db = None` `` | a `query` in a `db = None` schema | remove it, or switch to `db = Postgres` + `provider = "postgresql"` |
+| ``is `@@materialized` which is not supported on the embedded backend`` | SQLite has no materialized views | gate it or split into a server-only schema |
 
 And from `cratestack check` itself, the families that generate the most confusion:
 
-**`uses unknown attribute '@reedonly' — did you mean '@readonly'?`** *(since
+**``uses unknown attribute `@reedonly` — did you mean `@readonly`?``** *(since
 0.8.15)* — the single
 most valuable error in the set. An unrecognised attribute is **inert**: it
 parses, reports `schema OK`, and enforces nothing. The near-miss check converts
@@ -152,8 +157,8 @@ comment".
 **`cannot be represented as a Rust identifier`** — only `self`, `Self`, `super`
 and `crate` are unusable. Every other Rust keyword is fine, escaped as `r#type`.
 
-**`uses reserved '.cstack' keyword 'part' … reserved for multi-file schemas`**
-*(unreleased)* — `part` and `import` are refused in every identifier position,
+**``uses `.cstack` keyword `part`, reserved for multi-file schemas``**
+*(since 0.13.0)* — `part` and `import` are refused in every identifier position,
 not because codegen cannot spell them but because the multi-file grammar is
 going to claim them (#922). Rename the declaration, field, variant or parameter.
 The match is exact and case-sensitive, so `Import`, `partOf` and `of` all still
@@ -161,10 +166,10 @@ parse.
 
 **`both normalize to …`** — a snake_case collision. `myField` and `my_field` on
 one model; `model Foo` and `model foo`; a `type` and a `model` normalising
-together. The route variant catches `model Bus` plus `model Buse`, which both
-route to `/buses`.
+together. The route variant (``both route to `/…` ``) catches `model Bus` plus
+`model Buse`, which both route to `/buses`.
 
-**`collides with the builder for …`** — a `model Task` reserves seven generated
+**`collides with the typestate builder generated for …`** — a `model Task` reserves seven generated
 names ending in `Builder`. Declaring a type by one of them is rejected.
 
 **`must declare @relation(fields:[...],references:[...])`** — the has-many
@@ -204,7 +209,7 @@ last `.layer(..)`).
 need the `_with_prefix` resolver variants. The rate-limit *filters*
 (`build_rest_ops_filter` / `build_rpc_ops_filter`) have no prefix variant, so a
 nested `/api/rpc/...` mount wired through them fails closed and makes
-`@no_rate_limit` inert. Fix *(unreleased, cratestack#877)*: give
+`@no_rate_limit` inert. Fix *(since 0.13.0, cratestack#877)*: give
 `RateLimitLayer::with_op_resolver` its own
 `cratestack_axum::idempotency::build_rpc_op_resolver_with_prefix("/api", OPS)`
 (REST: `build_rest_op_resolver_with_prefix`) instead of a filter to
@@ -225,8 +230,11 @@ parameter of `router()` / `rpc_router()`.
 cast. See `cratestack-clients`.
 
 **An upsert on a soft-deleted model "created" a row that already existed.** The
-`DO UPDATE` branch revives a tombstone and reports `Inserted`, skipping the
-update-policy gate. Known defect. `.do_nothing()` returns `Conflict` instead.
+probe treats a tombstone as no row, so the `DO UPDATE` writes over it and the
+write is classified as an insert, skipping the update-policy gate — but
+`deleted_at` is not in the `SET` list, so the row stays tombstoned and the next
+`find_unique` returns `None`. Known defect; see `cratestack-data-integrity`.
+`.do_nothing()` returns `Conflict` instead.
 
 **`@isolation("serializable")` has no effect.** On every published release,
 0.14.0 included, it is parse-validated and then ignored: the procedure runs at

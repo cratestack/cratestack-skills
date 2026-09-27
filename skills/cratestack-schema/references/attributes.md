@@ -95,6 +95,7 @@ nothing calls them automatically.
 | `@@rename(from = "<old_table>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate`. The value is the **old SQL table name** (`"old_models"`), not the old model name. *(unreleased, GHSA-69g4-xvcm-vm2j)*: any other argument form, and a second `@@rename`, are refused; on 0.14.0 they checked as `schema OK` and the next migration dropped and re-created the table. A well-formed marker naming a table that does not exist is still accepted by `check` and silently ignored by the migrator. |
 | `@@internal("action")` | **exactly one quoted action per declaration** | Vocabulary: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Suppresses the REST route, the RPC dispatch arm and the client stub. Does **not** suppress policy evaluation, and does not exempt handler-name collisions. |
 | `@use(MixinA, MixinB)` | comma list | Written inside the model body. Expanded at parse time; the model's own field wins on a name clash. |
+| `@@mcp(resource: "segment", max_page_size: N)` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the model as a read-only MCP resource. Needs an `mcp { }` block exposing `resources`, and a read `@@allow`. Must sit on its own line. |
 
 `@@map` does not exist. Table names are always `pluralize(snake_case(Name))`.
 
@@ -149,7 +150,7 @@ refused. The layout rules below apply.
 | `@deprecated` / `@deprecated("msg")` | bare or one quoted string | Adds `Deprecation: true` and `X-Deprecation: <msg>` response headers. |
 | `@status(202)` | bare integer, 200..=299 | **Rejected under `transport rpc`.** `@status(204)` is accepted but the encoder still attaches a body — do not use it. |
 | `@authorize(Model, action, args.path)` | three parts | Actions `detail`/`read`, `update`, `delete` only. The path's type must match the model's PK type. Parsed at macro time; on 0.14.0 a malformed one was skipped there, so `authorize_with_db` returned `Ok` without consulting the database. *(unreleased)*: `cratestack check` also requires three non-empty arguments and one of those actions. |
-| `@mcp(tool …)` | see `cratestack-mcp` | Moved into the procedure's MCP exposure while parsing. |
+| `@mcp(tool)` / `@mcp(tool: "name", description: "…")` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the procedure as an MCP tool; moved into the procedure's MCP exposure while parsing. Needs an `mcp { }` block exposing `tools`, and an `@allow`. Must sit on its own line. |
 
 **This table is the whole list** *(unreleased, GHSA-69g4-xvcm-vm2j)*. Any other
 procedure attribute, a case variant (`@Deny`), a typo (`@deyn`, `@authorise`),
@@ -247,5 +248,10 @@ through a compiled schema for this skill.
 ## Doc comments
 
 `///` is a doc comment; `//` is an ordinary comment and **clears** pending docs,
-as does a blank line. Per-argument procedure docs use
-`/// @param <name> <description>`.
+as does a blank line. That holds for a line that *starts* with `//`. A trailing
+`// …` after an attribute is not stripped in 0.14.0: it silently drops a
+procedure, `query` or `@@` policy attribute (see above), and on a field line an
+attribute named inside it is applied (`@unique // not @readonly` makes the field
+read-only). Fixed on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
+
+Per-argument procedure docs use `/// @param <name> <description>`.

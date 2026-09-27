@@ -5,7 +5,7 @@ description: CrateStack's RPC transport — transport rpc, POST /rpc/{op_id}, PO
 
 # RPC transport
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -87,6 +87,7 @@ codes** — `invalid_argument`, `unauthenticated`, `permission_denied`,
 `invalid_argument` covers five error variants spanning four different HTTP
 statuses, so a client cannot reconstruct the status from the code alone.
 
+On `main` only (0.14.0 has neither the code nor a working `@isolation`),
 `aborted` is REST's `409 TRANSACTION_ABORTED`: an `@isolation` procedure ran out
 of retries and committed nothing, so resending is expected to succeed. Only that
 procedure's own dispatch answers it; a caller that propagated someone else's
@@ -264,4 +265,5 @@ in-batch dependencies, per-frame signing in WebSocket sessions, HTTP/2 push, and
 cross-schema dispatch are all explicit v1 non-features. The **WebSocket binding
 is pending**, gated on a real bidirectional case. Batch parallelisation is
 deferred. The `StreamItem` / `StreamEnd` / `Cancel` frame variants that appear in
-the design doc exist nowhere in code.
+the design doc are wired nowhere (`cratestack_core::codec::StreamEnd` is an
+unrelated envelope-sealing type, and streams cannot be sealed in 0.14.0).

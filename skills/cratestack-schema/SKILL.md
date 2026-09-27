@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -14,7 +14,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 One file, one schema. **There is no `import` and no `part`** — multi-service
 setups keep separate `.cstack` files and separate macro invocations. Both words
-are nonetheless **reserved identifiers** *(unreleased)*: `model import`,
+are nonetheless **reserved identifiers** *(since 0.13.0)*: `model import`,
 `part String` and every other identifier position is rejected at parse time, so
 the multi-file grammar those words are earmarked for can land without breaking
 schemas written today (#922). The reservation is exact and case-sensitive — `of`,
@@ -34,6 +34,7 @@ model <Name> { fields + @@attrs }   // a table
 type <Name> { fields }              // a plain struct: procedure args, results, query rows
 enum <Name> { VARIANTS }            // one bare identifier per line
 extension rate_limit | pgvector | postgis { }
+mcp { expose = [tools, resources] } // at most once; see cratestack-mcp (since 0.13.0)
 transport rest | rpc                // at most once; default rest
 procedure <name>(a: T): R           // attribute lines follow, no braces
 mutation procedure <name>(a: T): R
@@ -57,7 +58,7 @@ Page  PageInput  FindMany  Vector  Geography  Geometry
 would not parse). There is no `@db.JsonB`; use the `Json` scalar.
 
 Arity suffixes go at the end: `T` required, `T?` optional, `T[]` list. On a
-schema with a `datasource`, a **list-arity scalar or enum field is rejected** —
+schema with a `datasource`, a **list-arity scalar or enum model field is rejected** —
 there is no SQL bind representation for it. Model it as a relation, or drop the
 datasource block if the schema is client-only.
 
@@ -111,10 +112,10 @@ Note the has-many side carries `@relation` too. That is mandatory.
 
 | | |
 | --- | --- |
-| `@id` | Primary key. **Exactly one per model** — a second is now a hard error. |
+| `@id` | Primary key. **Exactly one per model** — a second is now a hard error. Bare `@id` only *(since 0.14.0)*: `@id(...)` is refused, and `@identity` / `@id_foo` are unknown (inert) attributes, not keys. |
 | `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. |
 | `@unique` | Single-column unique index. |
-| `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. |
+| `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. At most one per field *(since 0.14.0)*. |
 | `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses (procedure outputs with `@computed` fields included *(since 0.13.0)*), is ignored in a procedure argument that decodes the model *(since 0.13.0, #1051)*, and is never a filter or sort key *(since 0.13.0)*. Mutually exclusive, and neither may sit on the PK. Write both bare: `@readonly()` or `@server_only(true)` did nothing on 0.14.0 and is refused *(unreleased, GHSA-69g4-xvcm-vm2j)*. `@server_only` belongs on a model's stored scalar column only; on a `type` or `auth` field, a relation field, a relation key (use `@readonly`) or a `@version` field it did nothing and is refused *(unreleased)*. |
 | `@pii` / `@sensitive` | Audit redaction only; no effect on inputs or outputs. |
 | `@version` | Optimistic locking. Required `Int`, at most one, never the PK. |
@@ -334,7 +335,7 @@ actually catch people:
 
 - **`self`, `Self`, `super`, `crate`** are unusable as any identifier. Every
   *other* Rust keyword is fine (escaped as `r#type` at codegen).
-- **`part`, `import`** are unusable as any identifier *(unreleased)* — reserved
+- **`part`, `import`** are unusable as any identifier *(since 0.13.0)* — reserved
   for the future multi-file grammar, not for codegen. Exact and case-sensitive:
   `Import` and `partOf` are fine.
 - **snake_case collisions**: `myField` and `my_field` on one model both normalize

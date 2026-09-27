@@ -5,7 +5,7 @@ description: CrateStack database migrations — cratestack migrate diff and base
 
 # Migrations
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -52,9 +52,9 @@ If there are no ops, it prints `no changes` and writes nothing.
 
 | Class | Which ops | Behaviour |
 | --- | --- | --- |
-| Safe | create table, add/drop index, alter default, rename table/column, drop check, required→optional | written |
-| **Lossy** | drop table, drop column, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
-| **Blocking** | optional→required, non-enum add check | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
+| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, drop check, required→optional, create/replace view, ensure extension | written |
+| **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
+| **Blocking** | add a required column with no default (`dbgenerated()` does not count), optional→required, non-enum add check | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
 `AlterColumnType` is lossy *unconditionally* — the IR has no dialect-aware
 widening view, so even a widening change needs the flag.
@@ -157,9 +157,12 @@ PL/pgSQL survives) — inserts the history row, and commits.
 `Migration.down` is recorded and **never executed**. There is no rollback
 function anywhere: irreversible-by-default is the deliberate banking posture.
 
-Nothing in the repo wires migration-directory reading into the runner — that glue
-is yours. `cratestack-service` exposes `migrations_from_dir` and `run_migrations`
-under its default-on `postgres` feature.
+`cratestack-sqlx` does not read a migrations directory, and the CLI does not
+apply. The glue is in `cratestack-service`, under its default-on `postgres`
+feature: `migrations_from_dir(&include_dir!(…))` loads an embedded
+`migrations/postgres` tree (an `up.pre.sql` that is only comments counts as
+absent), and `run_migrations(database_url, &migrations)` calls `apply_pending`.
+Without that crate, the glue is yours.
 
 ## SQLite
 

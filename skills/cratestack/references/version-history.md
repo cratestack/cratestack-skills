@@ -2,7 +2,7 @@
 
 **Why this file exists:** a skill that says "CrateStack does X" is only true for
 some range of versions. CrateStack is pre-1.0, every public crate shares one
-version, and minor releases break. A fact that is right for 0.12.0 can be wrong
+version, and minor releases break. A fact that is right for 0.14.0 can be wrong
 for the 0.9.x a reader is actually on — and, worse, right for an unreleased
 `main` and wrong for every published version.
 
@@ -13,7 +13,7 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.12.0** unless a marker says
+Everything in these skills is verified against **0.14.0** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
@@ -146,10 +146,8 @@ mark them *(since 0.14.0)*.
 
 ## 0.13.0 (2026-09-26)
 
-**Partial.** Only these entries have been re-checked against the 0.13.0 release so
-far. Everything else 0.13.0 shipped is still listed under "Unreleased at the
-time of verification" below, until the 0.13.0 re-verification pass moves it
-here and bumps the skill banners.
+**Partial.** Each entry here has been checked against the 0.13.0 release;
+skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 - **Fix, with a behaviour change:** generated clients honour `@api_version` on
   REST (cratestack/cratestack#1079). The server always mounted a versioned
@@ -197,6 +195,30 @@ here and bumps the skill banners.
   [cratestack-mcp](../../cratestack-mcp/SKILL.md). **Breaking:** on 0.12.0 an
   `mcp { }` block parsed and did nothing; from 0.13.0 it is validated, and the
   embedded macro refuses it.
+- **Breaking:** `DeviceKeyResolver` gains the required
+  `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
+  `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)
+  (#1005). The new `cratestack-cose` crate (#1005, #1069) implements ADR 0006's
+  unary COSE envelope. In 0.13.0 no router or client calls it; 0.14.0's
+  `EnvelopeLayer` wires the routers (#1006, above), and the Rust client still
+  does not sign (#1007).
+- Optional scalars expose `eq` / `ne` / `in` query filters on generated list
+  routes (#953). Before it, an optional field such as `verificationId String?`
+  accepted `isNull` and string patterns but returned **HTTP 400** for
+  `verificationId=value` — even though the typed Rust `Where` path already
+  supported it. RPC `list` inherits the fix.
+- Rate-limit admission moved into the L3 `OpExecutor` (ADR 0015 slice 2, #877),
+  with no wire change. New `RateLimitLayer::with_op_resolver` takes resolvers from
+  the `cratestack_axum::idempotency` builders, including `_with_prefix`, so `@no_rate_limit` finally works under
+  `Router::nest`. The `build_*_ops_filter` predicates are unchanged and still cannot
+  see through a nest.
+- **Breaking:** `part` and `import` are **reserved identifiers** in every
+  `.cstack` identifier position — declaration names, fields, enum variants,
+  procedure and query parameters (#922). A schema using either word as a name
+  stops parsing. The reservation is exact and case-sensitive (`of`, `Import`,
+  `partOf` are unaffected), and `cratestack-lsp`'s rename now refuses them too.
+  Reserved ahead of the multi-file grammar (`part` / `part of` / `import`,
+  epic #910) so that landing it is not a migration.
 
 ## 0.12.0 (2026-09-06)
 
@@ -341,7 +363,7 @@ here and bumps the skill banners.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.12.0, each of these parses, validates, and then does nothing:
+As of 0.14.0, each of these parses, validates, and then does nothing:
 
 - `@isolation("…")` — ignored by every published release, 0.14.0 included.
   Call `run_in_isolated_tx` yourself. Enforced on `main` *(unreleased,
@@ -358,40 +380,15 @@ As of 0.12.0, each of these parses, validates, and then does nothing:
   (issue #136).
 - The five `batch_*` ORM primitives — complete, and reachable from no generated
   route.
+- A policy attribute in any but its exact spelling — `@deny (…)`, `@Deny(…)`,
+  `@deny(…) // note`, `@@deny("read", …) // note`, a second attribute on the
+  same procedure line — is skipped by the generator, leaving the declaration
+  more permissive than written. Refused on `main` *(unreleased,
+  GHSA-69g4-xvcm-vm2j)*; see
+  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md).
+- `@server_only` on a `type` field, a relation field, a `@version` field or an
+  `auth` field, and an argument-less attribute written
+  with `()` (`@readonly()`, `@version()`). Refused on `main` *(unreleased)*.
 
 If a future release wires any of these up, that is a changelog entry to look for
 before believing this list.
-
-## Unreleased at the time of verification
-
-These entries were written against `main` before 0.13.0. **Every one of them
-has since shipped in 0.13.0 (2026-09-26)**: the framework CHANGELOG's 0.13.0
-section covers each. They stay here, and their skills keep the *(unreleased)*
-marker, only until the 0.13.0 re-verification pass checks them against the
-release and moves them into the 0.13.0 section above. Until then, read
-*(unreleased)* on these facts as "in 0.13.0, not yet re-verified". Anything an
-entry itself calls still pending (for example the routers and clients of
-#1006/#1007) is still pending. The list:
-
-- **Breaking:** `DeviceKeyResolver` gains the required
-  `lookup_device_verifying_keys_by_thumbprint`, and COSE enrolment moves from
-  `cratestack_auth` to `cratestack_cose::auth` (behind the `auth` feature)
-  (#1005). The new `cratestack-cose` crate (#1005, #1069) implements ADR 0006's
-  unary COSE envelope, but no router or client calls it yet (#1006/#1007).
-- Optional scalars exposing `eq` / `ne` / `in` query filters on generated list
-  routes (#953). Before it, an optional field such as `verificationId String?`
-  accepted `isNull` and string patterns but returned **HTTP 400** for
-  `verificationId=value` — even though the typed Rust `Where` path already
-  supported it.
-- Rate-limit admission moved into the L3 `OpExecutor` (ADR 0015 slice 2, #877),
-  with no wire change. New `RateLimitLayer::with_op_resolver` takes resolvers from
-  the `cratestack_axum::idempotency` builders, including `_with_prefix`, so `@no_rate_limit` finally works under
-  `Router::nest`. The `build_*_ops_filter` predicates are unchanged and still cannot
-  see through a nest.
-- **Breaking:** `part` and `import` are **reserved identifiers** in every
-  `.cstack` identifier position — declaration names, fields, enum variants,
-  procedure and query parameters (#922). A schema using either word as a name
-  stops parsing. The reservation is exact and case-sensitive (`of`, `Import`,
-  `partOf` are unaffected), and `cratestack-lsp`'s rename now refuses them too.
-  Reserved ahead of the multi-file grammar (`part` / `part of` / `import`,
-  epic #910) so that landing it is not a migration.

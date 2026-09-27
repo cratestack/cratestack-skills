@@ -5,7 +5,7 @@ description: Entry point and router for CrateStack, the Rust schema-first framew
 
 # CrateStack
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -46,8 +46,9 @@ not just documented:
 - `cratestack-pg` does not pull `libsqlite3-sys`, so it coexists with the
   official `sqlx` umbrella without `links = "sqlite3"` collisions.
 - `cratestack-api` has no `cratestack-sqlx` dependency under any feature gate.
-- `cratestack-client` has no `cratestack-axum`, and therefore no `axum`,
-  `tower`, `hyper` or `tower-http`, in its graph under default features.
+- `cratestack-client` has no `cratestack-axum`, and therefore no `axum`, in
+  its graph under default features. `tower`, `hyper` and `tower-http` *are*
+  there, through `reqwest`, the HTTP client it builds on.
 
 If you find yourself wanting two of these in one crate, you want two crates.
 
@@ -122,15 +123,16 @@ rusqlite-only code; `include_client_schema!` emits axum-free client code. No
 cross-backend impl leaks between them. If you are tempted to "share" a runtime
 type across two of these paths, that is the boundary talking.
 
-## Known limits, current as of 0.12.0
+## Known limits, current as of 0.14.0
 
 Worth knowing before you design around them:
 
 - `db = Postgres` is the only sqlx backend. The parser is wired so adding
   others is non-breaking at existing call sites.
-- Generated routers enforce a **single configured codec** rather than
-  negotiating per request. `application/cbor-seq` is a documented target, not an
-  implementation.
+- A generated router negotiates only among the codecs you configure it with:
+  one codec, or a `CodecSet` pair (CBOR + JSON). `application/cbor-seq` is served
+  only when one of them is CBOR. (The framework's README and ROADMAP still call
+  cbor-seq a target and per-request negotiation absent; the source has both.)
 - The embedded backend does not enforce `@@allow` / `@@deny` (see above).
 - Exact typed non-Rust client generation across arbitrary projection shapes is
   still stabilizing.

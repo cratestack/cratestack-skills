@@ -67,7 +67,7 @@ Android, consumed through a **local Expo native module**.
 The Rust side exports three symbols — `cratestack_init`, `cratestack_dispatch`,
 `cratestack_free` — over a shared JSON envelope
 (`cratestack_rusqlite::ffi::{OperationRequest, OperationResponse}`). The module
-exposes two Expo Functions, `initDatabase(path)` and `dispatch(requestJson)`,
+exposes two Expo `AsyncFunction`s, `initDatabase(dbPath)` and `dispatch(requestJson)`,
 which `index.ts` wraps into `listNotes`, `createNote`, `updateNote`,
 `deleteNote`, `findNote`.
 

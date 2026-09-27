@@ -86,7 +86,7 @@ Full feature-to-skill map, including the gaps: [COVERAGE.md](COVERAGE.md).
 ## Versions matter here more than usual
 
 CrateStack is **pre-1.0**. Every public crate shares one version and minor
-releases break. A fact that is true for 0.12.0 can be false for the 0.9.x you are
+releases break. A fact that is true for 0.14.0 can be false for the 0.9.x you are
 actually running — and a fact true on `main` can be in no published release at
 all.
 

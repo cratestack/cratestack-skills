@@ -5,7 +5,7 @@ description: Building CrateStack's embedded offline-first mode — include_embed
 
 # Embedded mode (SQLite on device)
 
-> **Verified against CrateStack 0.12.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -99,7 +99,8 @@ Cheap; construct it at the call site. `find_many()`, `find_unique(id)`,
 **`ViewDelegate<'a, V, PK>`** — same shape for views. `@@no_unique` views get
 `ViewDelegateNoUnique` with no `find_unique`.
 
-Every write builder has `.run()`, `.run_in_tx(&conn)`, and `.preview_sql()`.
+Every single-row and `*_many` write builder has `.run()`, `.run_in_tx(&conn)`,
+and `.preview_sql()`; the `batch_*` builders have only `.run()`.
 `find_many()` chains `where_`, `where_expr`, `where_optional`, `order_by`,
 `limit`, `offset`, `include`, `select`, then `.run()` / `.paginate(PageInput)`.
 
@@ -137,6 +138,7 @@ These are hard `compile_error!`s at macro expansion, not runtime surprises:
 | `@computed` fields | Embedded has no response-composition boundary |
 | `@@materialized` views | SQLite has no materialized views |
 | `extension pgvector` / `extension postgis` | Postgres-only, rejected regardless of features |
+| an `mcp { }` block, `@mcp(tool)`, or `@@mcp(resource: …)` *(since 0.13.0)* | MCP needs policy enforcement, which embedded does not do; rejected permanently |
 | composite `@@id([...])` | Rejected by all three entry macros |
 | a `Decimal` field with no `decimal = …` macro argument | Backend must be chosen explicitly |
 
@@ -171,6 +173,11 @@ try {
   open_in_memory();         // legitimate fallback; say so in the UI
 }
 ```
+
+Those names are the example's own `#[wasm_bindgen]` exports
+(`examples/embedded-browser-webpack/src/lib.rs`), not framework API — you write
+them. The framework call inside `install_opfs` is
+`cratestack_rusqlite::opfs::install_opfs_vfs(&OpfsOptions::default()).await`.
 
 Build prerequisites that bite: `rustup target add wasm32-unknown-unknown`,
 `cargo install wasm-pack`, and **a wasm-capable clang** — `sqlite-wasm-rs`
@@ -243,8 +250,11 @@ supported combination, see `examples/tauri-native` — wrap each in its own `mod
 `Cargo.toml` under the name `cratestack` even in a crate that otherwise only
 touches `cratestack-rusqlite`.
 
-**`--all-features` breaks the build** — it enables both mutually exclusive
-`decimal-*` backends and trips a `compile_error!` in `cratestack-core`.
+**`--all-features` breaks a framework-workspace build** — not because of the
+`decimal-*` backends, which have been additive since 0.8.0 (cratestack#505), but
+because it turns on `cratestack-client-flutter`'s `frb-glue` (uncommitted frb
+glue, **E0583**) and `cratestack-pg`'s `crypto-aws-lc-rs`, a deliberate
+`compile_error!`.
 
 **`embedded_flutter_native` is excluded from every workspace command**
 (`--exclude embedded_flutter_native`). The reason is *not* the underscore in its
