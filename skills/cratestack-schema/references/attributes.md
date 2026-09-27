@@ -240,8 +240,9 @@ attribute whose name looks like `allow`, `deny` or `authorize` in any case or
 spacing. It fails with a `compile_error!` when the exact reader did not turn that
 attribute into a rule, when the count of such names differs from the rules
 generated, or when a policy attribute carries an invisible character
-(`cratestack-macros/src/policy/attribute_audit.rs`). A schema that passed an older
-`cratestack check` can therefore still fail to compile.
+(`cratestack-macros/src/policy/attribute_audit.rs`). This check does not rely on
+the parser having refused the spelling first. Read from source; not exercised
+through a compiled schema for this skill.
 
 ## Doc comments
 
