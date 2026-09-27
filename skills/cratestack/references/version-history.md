@@ -25,15 +25,20 @@ into it, not a replacement.
 
 ---
 
-## Unreleased on `main`, after 0.13.1
+## Unreleased on `main`, after 0.14.0
 
 In no published release. Skills mark these *(unreleased, cratestack#NNN)*. None
 recorded yet.
 
-## 0.13.1 (2026-09-26)
+## 0.14.0 (2026-09-26)
 
-**Partial.** Only these entries have been checked against the 0.13.1 release. Skills
-mark them *(since 0.13.1)*.
+0.14.0 is the release first published as 0.13.1. That version put breaking
+changes into a patch release, which Cargo treats as compatible with 0.13.0, so
+the 0.13 crates are yanked and 0.14.0 carries the same changes. A reader on
+0.13.1 has everything below.
+
+**Partial.** Only these entries have been checked against the 0.14.0 release. Skills
+mark them *(since 0.14.0)*.
 
 - **The COSE envelope layer** (cratestack#1006, ADR 0006), **breaking**: `EnvelopeLayer`
   opens signed requests and seals every response of the generated REST and
@@ -63,9 +68,16 @@ mark them *(since 0.13.1)*.
   - A legacy `initialize` below the HTTP guard fails closed with `-32603`, like
     every other method (cratestack#1087). Through the guard and over stdio it is
     still `-32022` with the supported-version list.
+- **Field attributes are matched exactly**, **breaking** (cratestack#1074,
+  cratestack#1086). Only a bare `@id` makes a field the primary key: `@identity`,
+  `@idx` and `@id_foo` no longer do (a model keyed only by one of them now reports
+  a missing `@id`, and `@idx` gets the "did you mean `@id`?" error). `@id(...)` is
+  refused ("`@id` takes no arguments"), and a field may carry at most one
+  `@relation`: a second one is refused where it used to be silently ignored. See
+  [cratestack-schema](../../cratestack-schema/SKILL.md).
 - **Fix:** `cratestack-rusqlite` 0.13.0 does not build for `wasm32-unknown-unknown`
   (`unresolved import sqlite_wasm_vfs::sahpool`, after the `sqlite-wasm-vfs` 0.3 bump,
-  cratestack#1048). 0.13.1 stays on 0.3 with its `sahpool` feature and an adapter to
+  cratestack#1048). 0.14.0 stays on 0.3 with its `sahpool` feature and an adapter to
   the SQLite rusqlite links. A browser or OPFS build must skip 0.13.0; native builds
   were never affected, and existing OPFS databases keep working.
 

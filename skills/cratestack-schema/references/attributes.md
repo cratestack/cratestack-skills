@@ -7,10 +7,10 @@ When this file and `cratestack check` disagree, the checker is right — report 
 
 | Attribute | Grammar | Rules |
 | --- | --- | --- |
-| `@id` | bare | Exactly one per model. Rejected on `mixin` fields. A model needs `@id` or `@@id([...])`. |
+| `@id` | bare | Exactly one per model. Rejected on `mixin` fields. A model needs `@id` or `@@id([...])`. Matched exactly *(since 0.14.0)*: `@identity` / `@idx` / `@id_foo` are not keys, and `@id(...)` is refused. |
 | `@default(expr)` | one expression | Free-form. `dbgenerated()` takes **no argument**. `@default(auth().path)` pulls from the auth context and supports nested paths. Any `@default` makes the field generated-on-create. |
 | `@unique` | bare or `@unique(...)` | Parser does not validate it; `cratestack-migrate` emits the constraint. |
-| `@relation(...)` | `fields: [x], references: [y], onDelete: A, onUpdate: A` | See the SKILL. Unknown key → `unsupported @relation key`. Both `fields` and `references` are mandatory. |
+| `@relation(...)` | `fields: [x], references: [y], onDelete: A, onUpdate: A` | See the SKILL. Unknown key → `unsupported @relation key`. Both `fields` and `references` are mandatory. At most one per field *(since 0.14.0)*; a second is refused. |
 | `@readonly` | bare | Out of Create + Update inputs; visible in responses and audit snapshots. |
 | `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(unreleased, #1051)*. Before that, a client could set it that way. |
 | `@pii` | bare | Audit redaction as `"[redacted-pii]"`. No effect on inputs or outputs. |
