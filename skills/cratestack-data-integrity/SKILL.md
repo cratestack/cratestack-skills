@@ -1,6 +1,6 @@
 ---
 name: cratestack-data-integrity
-description: CrateStack's data-integrity surface — idempotency keys, rate limiting, optimistic locking with @version and If-Match, @@audit logging and redaction, @@soft_delete, upsert and conflict targets, batch operations, @isolation, trusted-proxy client IP, @@paged, composite keys, computed fields and multi-tenancy. Load for money-path or compliance-shaped work, or when a question mentions Idempotency-Key, 412, ETag, tombstones, DO UPDATE, audit redaction, X-RateLimit headers, or tenant scoping.
+description: CrateStack's data-integrity surface — idempotency keys, rate limiting, optimistic locking with @version and If-Match, @@audit logging and redaction, @@soft_delete, upsert and conflict targets, batch operations, @isolation, trusted-proxy client IP, @@paged, composite keys, computed fields and multi-tenancy. Load for money-path or compliance-shaped work, or when a question mentions Idempotency-Key, 412, ETag, tombstones, DO UPDATE, audit redaction, X-RateLimit headers, tenant scoping, serializable transactions, IsolatedCratestack, or 409 TRANSACTION_ABORTED.
 ---
 
 # Data integrity
@@ -29,10 +29,12 @@ are callable only from hand-written Rust inside a procedure. The only batch
 *endpoint* that exists is `POST /rpc/batch`. Composite `@@id([...])` similarly
 parses and emits correct DDL, then is rejected by every entry macro.
 
-**Validated and then discarded.** `@isolation("serializable")` records nothing
-anywhere — no generated accessor, no auto-wrapping; you must call
-`run_in_isolated_tx` by hand. `@@retain(days: N)` lands on the descriptor and
-**nothing ever reads it** — there is no GC job.
+**Validated and then discarded.** `@@retain(days: N)` lands on the descriptor and
+**nothing ever reads it** — there is no GC job. `@isolation("serializable")` is
+in this tier on **every published release, 0.14.0 included**: every procedure
+ran at the server default, so call `run_in_isolated_tx` by hand. It is enforced
+on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*, with a different handle type; see
+"Transaction isolation" below.
 
 ## Idempotency
 
@@ -51,6 +53,7 @@ Wire behaviour, with `IdempotencyLayer` installed:
 | Reservation still in flight | **409** plus `Retry-After: 1` |
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
 | No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
+| An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(unreleased)* | **not recorded**: the key is released, so the same key runs the call again |
 
 The fingerprint is SHA-256 over `method \0 path_and_query \0 content_type \0 body`.
 **The query string is included on purpose** — `POST /transfer?dry_run=true` must
@@ -250,6 +253,14 @@ model has one). Every read injects `deleted_at IS NULL` as the first `WHERE`
 clause — but **a view's own SQL body must filter tombstones itself**; views
 report no soft-delete column.
 
+Relation filters and sorts **through** a soft-deleted model skip its tombstones
+too *(since 0.13.0, GHSA-p55v-6xv5-93p3)*: `?author.name=…`, `where=`,
+`sort=author.name` and the RPC `list` slots treat a tombstoned related row as
+absent, like `?include=` does (a sort key through it reads `NULL`). **Before
+0.13.0 they did not**: the correlated subquery saw tombstones. The embedded
+backend still does — its relation filters and sorts ignore `@@soft_delete`
+although its `find_*` hides tombstones.
+
 Re-deleting a tombstone matches zero rows and surfaces as not-found. There is no
 `undelete` helper; reviving deliberately means an explicit
 `UPDATE … SET deleted_at = NULL`.
@@ -320,7 +331,11 @@ not exist**.
 `@isolation("read_committed" | "repeatable_read" | "serializable")`, case- and
 separator-insensitive. No `READ UNCOMMITTED`.
 
-**It is inert.** Call it yourself:
+**On every published release (0.2.0 through 0.14.0) it is inert.** The level is
+validated and then ignored: the procedure runs on the pool at the server
+default, normally `READ COMMITTED`, on REST, RPC, `/rpc/batch` and MCP. Measured
+upstream: two concurrent declared-serializable withdrawals of 100 from a balance
+of 100 both succeeded. On those versions, run the transaction yourself:
 
 ```rust
 run_in_isolated_tx_with_retries(pool, TransactionIsolation::Serializable, 3, |tx| async { … })
@@ -330,6 +345,117 @@ Retries on SQLSTATE `40001` (serialization failure) and `40P01` (deadlock),
 **including errors raised from `commit()` itself** — SSI defers write-skew to
 commit time. Composing write-builder `run_in_tx` calls inside does not get
 automatic audit-sink fan-out or `@@emit` delivery; dispatch after `Ok` returns.
+*(unreleased, GHSA-r67q-4qqq-g9gm)* It retries **only database errors**: a typed
+one by its SQLSTATE alone, an untyped `Database(String)` by its text. An error
+the body builds itself whose message contains `40001` (echoed request data) is
+returned on the first attempt; published releases retried it. Out of retries it
+still returns the last error (a `40001` is `DatabaseTyped`, 500), never
+`TRANSACTION_ABORTED`.
+
+### Enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)*
+
+A procedure declaring `@isolation(level)` runs inside one transaction begun with
+`BEGIN ISOLATION LEVEL <level>`, on every path that can execute it: REST, RPC,
+each `/rpc/batch` frame, MCP `tools/call`, and `<procedure>::invoke_with_db`.
+Its `@allow`/`@deny` and `@authorize` checks, its body, the policy checks of its
+writes (create policies, the `@version` probe, upsert update-policy checks) and
+the `@computed` fields of its output all run in that transaction. Design:
+framework `docs/design/procedure-isolation.md`.
+
+**The handle changes type — breaking.** The `ProcedureRegistry` method takes
+`db: &IsolatedCratestack` (generated in `cratestack_schema`, only for a
+`db = Postgres` schema that declares an `@isolation` procedure). It has the
+model accessors, `bind_context` / `bind_auth`, `transaction(..)` (a savepoint
+inside the procedure's transaction) and `dispatch_audit_sink` (queued until
+commit). It has **no `pool()`, `events()`, `views()` or `queries()`** —
+`db.pool()` is `E0599`. Raw SQL goes through the savepoint:
+
+```rust
+// crates/cratestack-pg/tests/procedure_isolation_support/mod.rs (trimmed)
+async fn withdraw(
+    &self,
+    db: &IsolatedCratestack,
+    ctx: &CratestackContext,
+    args: p::withdraw::Args,
+    _authorized: p::withdraw::Authorized,
+) -> Result<p::withdraw::Output, CratestackError> {
+    let account = db.iso_account().find_unique(args.args.accountId).run(ctx).await?
+        .ok_or_else(|| CratestackError::NotFound("no account".into()))?;
+    // … check, then db.iso_account().update(id).set(..).run(ctx).await?
+}
+
+let level = db
+    .transaction(async |tx| {
+        sqlx::query_scalar::<_, String>("SELECT current_setting('transaction_isolation')")
+            .fetch_one(&mut ***tx)
+            .await
+            .map_err(cratestack::cratestack_error_from_sqlx)
+    })
+    .await?;
+```
+
+`<procedure>::invoke_with_db` of such a procedure takes
+`FnOnce(IsolatedCratestack, Authorized) -> Fut + Clone`, called once per attempt.
+
+What bites:
+
+- **The body must be re-runnable.** On `40001` / `40P01`, from a statement or
+  from `COMMIT`, the attempt rolls back and authorization, body and resolvers run
+  again: 3 retries by default, jittered backoff,
+  `Cratestack::builder(pool).with_isolation_max_retries(n)` to change it (`0`
+  means none). An attempt that saw a retriable error is retried even if the body
+  swallowed it. Work through the handle is rolled back with the attempt;
+  anything else (HTTP calls, e-mail, state in `self`) is **repeated** — make it
+  idempotent or move it behind `@@emit`. `AuditSink` fan-out and the outbox drain
+  happen once, after the committing attempt.
+- **One operation at a time.** Concurrent (`tokio::join!`) or re-entrant
+  (`.run(ctx)` inside `db.transaction(..)`) use of the handle is an
+  `INTERNAL_ERROR`, not a deadlock. Inside `transaction`, use `run_in_tx(tx, ctx)`.
+- **Never send `COMMIT`, `ROLLBACK` or `END` through `tx`.** A savepoint that
+  cannot be closed (raw SQL failed and the error was not returned, or the
+  transaction was ended), or a `transaction(..)` cancelled or panicking half-way,
+  fails the attempt with `INTERNAL_ERROR` even if the body returns `Ok`. Work
+  before a raw `COMMIT` is already durable and cannot be undone.
+- **`@computed` resolvers of the output run inside the attempt**, after the body,
+  before `COMMIT`: their `&Cratestack` is attempt-bound for model accessors and
+  `transaction(..)`, a resolver error rolls the attempt back, and they re-run with
+  it. Its `pool()`, `views()`, `queries()` and `events()` still run on the pool.
+- **Nested calls join.** A resolver that calls another `@isolation` procedure's
+  `invoke_with_db` with that `&Cratestack` runs it once as a savepoint of the same
+  attempt (the outermost attempt owns retries). A stricter declared level than the
+  attempt's is refused, and so is a second joined call while one is running.
+  A procedure called through a pool you hold yourself gets its own transaction.
+- **Refused:** with `@stream`, and under `provider = "none"` (both parse errors),
+  and with `include_server_schema!(.., db = None)` (`compile_error!`). The
+  embedded and client roles have nothing to enforce.
+- **Size the pool:** each in-flight call holds one connection for its whole
+  transaction. `@isolation` does not make `/rpc/batch` atomic.
+
+**Retries exhausted: `409 TRANSACTION_ABORTED`** (RPC `aborted`), the new
+`CratestackError::TransactionAborted`, with the fixed message `transaction could
+not be completed because of concurrent updates; retry the request`. Nothing was
+committed: resend it, under the same `Idempotency-Key` if you like —
+`IdempotencyLayer` and MCP admission release the key for this outcome instead of
+recording it. It is not `CONFLICT`, which a retry repeats.
+
+**Only the owner says so.** Only the generated REST, RPC or MCP dispatch of the
+`@isolation` procedure whose own retries ran out answers `TRANSACTION_ABORTED`.
+Any other abort that reaches a response — a procedure (with or without
+`@isolation`) propagating another's with `?`, a resolver's, or a hand-written
+handler returning `invoke_with_db`'s result — is `500 INTERNAL_ERROR` (RPC
+`internal`), recorded and replayed under the key, because that caller may have
+committed work of its own. Do not retry it under a new key. Application code
+builds a `TransactionAbort` only with `exhausted(..)` or `propagated(..)`.
+
+Upgrading: `grep -rn '@isolation'` your schemas; for each procedure change
+`db: &Cratestack` to `db: &IsolatedCratestack`, replace `db.pool()` with
+`db.transaction(..)`, delete any hand-written `run_in_isolated_tx(db.pool(), ..)`
+wrapper, and check the body and its output's resolvers can run twice. Also
+unreleased and not tied to `@isolation`: the framework's own reads
+(`find_unique`, `find_many`, projections, aggregates), the `@authorize` probe,
+create-policy lookups and `@@audit` writes now fail with `DatabaseTyped` rather
+than `Database` (same `DATABASE_ERROR`, 500) — a `match` on `Database(_)` must
+also match `DatabaseTyped(_)`, or use `code()` / `db_sqlstate()`.
 
 ## Trusted proxy and client IP
 
@@ -442,6 +568,17 @@ authoring rules. Runtime facts that matter here:
   are additive.
 - Computed fields never appear in event payloads, are a parse error on `@stream`
   items, and are a compile error under `include_embedded_schema!`.
+- **A procedure output sent `@server_only` fields on 0.8.11–0.12.0**
+  (GHSA-ch54-jqw2-vpp5, fixed *since 0.13.0*). When a procedure returned a model
+  with a `@computed` field — directly, as `T?`, `T[]`, `Page<T>`, or inside a
+  `type` — the generated `compose_<owner>_value` built the response field by
+  field, bypassing serde's skip, and included every `@server_only` field. Model
+  get/list, `?fields=`, `?include=` and events were never affected. After
+  upgrading, a response `IdempotencyLayer` stored before the upgrade still
+  carries the value until its TTL expires: clear the idempotency store. Treat
+  the values as disclosed and rotate credentials among them.
+- For an `@isolation` procedure *(unreleased)*, the output's resolvers run inside
+  its transaction and re-run on retry — see "Transaction isolation".
 
 ## Composite primary keys
 

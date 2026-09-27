@@ -106,15 +106,24 @@ Everything lands in `pub mod cratestack_schema`. For a `model Article`:
 | --- | --- |
 | `Article`, `ArticleBuilder` | the row struct (field names verbatim from the schema) |
 | `CreateArticleInput`, `UpdateArticleInput` | inputs, with `validate()` |
-| `ArticleWhere`, `ArticleSortField`, `ArticleOrderByClause`, `ArticleFindManyInput` | typed query surface |
+| `ArticleWhere`, `ArticleSortField`, `ArticleOrderByClause`, `ArticleFindManyInput` | typed query surface; no member for a `@server_only` field *(since 0.13.0)* |
 | `models::ARTICLE_MODEL` | the `ModelDescriptor` |
-| `article::<field>()` | `FieldRef` accessors and relation paths |
+| `article::<field>()` | `FieldRef` accessors and relation paths; the server-side way to filter or sort by a `@server_only` field (they read no request) |
 | `events::ArticleCreatedEvent` … | under `db = Postgres` with `@@emit` |
 
 Runtime, under `db = Postgres`: `Cratestack::builder(pool)` →
 `.with_audit_sink(…)` → `.build()`. Then `db.pool()`, `db.transaction(|tx| …)`,
 `db.events()`, `db.views()`, `db.queries()`, `db.bind_context(ctx)`,
 `db.bind_auth(principal)`, and one delegate accessor per model.
+
+*(unreleased, GHSA-r67q-4qqq-g9gm)* The builder gains
+`.with_isolation_max_retries(n)`, and a schema that declares an `@isolation`
+procedure also gets `IsolatedCratestack`: the handle that procedure's
+`ProcedureRegistry` method receives instead of `&Cratestack`. It has the model
+accessors, `bind_context` / `bind_auth`, `transaction(..)` (a savepoint) and
+`dispatch_audit_sink`, and **no** `pool()`, `events()`, `views()` or
+`queries()`. On every published release `@isolation` is inert. See
+`cratestack-data-integrity`.
 
 **Under `db = None`, most of that does not exist** — no `pool()`, no
 `transaction()`, no `events()`, no `views()`, no `queries()`, no
@@ -178,6 +187,39 @@ Relation filters use the path: `?author.email__eq=x@y.z` for to-one, and a
 **mandatory quantifier** for to-many — `?comments.some.body__contains=foo`, or
 `.every.`, or `.none.`. Omitting the quantifier is a 400 that names the three.
 
+**A relation path sees only what the caller may read** *(since 0.13.0,
+GHSA-p55v-6xv5-93p3)*. Every relation filter and sort (query parameters,
+`where=`, `or=`, `sort=`, the RPC `list` slots, `@@paged` `totalCount`, the typed
+builder's `post::author().email().eq(..)` and `.asc()`/`.desc()`) applies the
+related model's read policy and `@@soft_delete` filter, per hop. A hidden related
+row behaves as if it did not exist, matching `?include=`: a to-one filter never
+matches it (`ne` and `isNull` included), `none` and `every` over only hidden
+children are true, and a sort key through it is `NULL`, sorted last. **A related
+model with no read `@@allow` matches nothing** — add the `@@allow("read", …)`
+that says who may see it. Self-relations (`manager User?` on `User`) now
+correlate with the outer row. Before 0.13.0 none of this held, and a hidden
+column could be recovered with `startsWith` one character at a time.
+
+Hand-built relation filters and sorts take the scope explicitly — every
+constructor gained a `RelatedReadScope` argument, with no default:
+`FilterExpr::relation` / `relation_some` / `relation_every` / `relation_none`,
+`RelationFilter::new` and `RelationHop::new` take it last,
+`OrderClause::relation_scalar(parent_table, parent_column, related_table,
+related_column, column, scope, direction)` takes a terminal `column` instead of
+a rendered `value_sql`, and multi-hop sorts use `OrderClause::relation_path(&hops,
+column, direction)`. Pass `<RELATED>_MODEL.related_read_scope()`.
+`RelatedReadScope::Unscoped` reads the raw table: only for trusted server code,
+never for a filter or sort whose values a caller controls.
+
+**`@server_only` fields are not filter or sort keys** *(since 0.13.0,
+[GHSA-ch54-jqw2-vpp5](https://github.com/cratestack/cratestack/security/advisories/GHSA-ch54-jqw2-vpp5))*.
+Such a key is refused exactly like an undeclared field — `400 unsupported query
+filter`, `422 unsupported sort field` — on every operator, in `where=` / `or=`,
+through relation paths (`?owner.secret=`, `sort=owner.secret`), over RPC, and in
+a `FindMany<Model>` argument (the `where` key is ignored, the sort field does
+not decode). `includeFields[<relation>]` naming one is refused too. On 0.2.0
+through 0.12.0 any caller who could list a model could test and order by them.
+
 Two things that surprise people: **an omitted `limit` is coerced to
 `MAX_LIST_LIMIT` (1000)**, not to "unbounded"; and the fetch route
 (`GET /<plural>/{id}`) accepts **only** `fields`, `include`, `includeFields[…]`
@@ -204,11 +246,12 @@ Encoded with the same negotiated codec as a success body.
 | `NotFound` | `NOT_FOUND` | 404 |
 | `NotAcceptable` | `NOT_ACCEPTABLE` | 406 |
 | `Conflict` | `CONFLICT` | 409 |
+| `TransactionAborted` *(unreleased)* | `TRANSACTION_ABORTED` | 409 — only an `@isolation` procedure's own exhausted retries; any other abort is answered 500 `INTERNAL_ERROR` (see `cratestack-data-integrity`) |
 | `PreconditionFailed` | `PRECONDITION_FAILED` | 412 |
 | `UnsupportedMediaType` | `UNSUPPORTED_MEDIA_TYPE` | 415 |
 | `Validation` | `VALIDATION_ERROR` | **422** |
 | `TooManyRequests` | `TOO_MANY_REQUESTS` | 429 |
-| `Database`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
+| `Database`, `DatabaseTyped`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
 | `Unavailable` | `UNAVAILABLE` | 503 |
 
 4xx messages are the caller-supplied string; **5xx messages are canned** and the

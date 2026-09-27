@@ -33,7 +33,11 @@ entry macros — and `cratestack-axum` (and therefore `axum`, `tower`, `hyper`,
 
 Emitted into `cratestack_schema`: `models`, `types`, `inputs`
 (`Create<M>Input`, `Update<M>Input`, `<M>Where`, `<M>OrderByClause`,
-`<M>FindManyInput`), per-model field/selection modules, `procedures` (one
+`<M>FindManyInput`; *since 0.13.0* `<M>Where` and `<M>SortField` have no member
+for a `@server_only` field, here and in the Dart client — the server refuses
+such keys; the generated Dart model class still declares the field, so a value
+a pre-0.13.0 server leaked through a `@computed` procedure output may sit in
+client state or logs), per-model field/selection modules, `procedures` (one
 submodule per procedure with `Args` and `Output`), and `client` with `Client`,
 per-model `<M>Client` and `ProceduresClient`.
 

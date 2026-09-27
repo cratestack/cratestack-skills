@@ -1,6 +1,6 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, and envelope-layer (COSE signed transport) 500/401/415/406 answers. Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, and relation filters or @server_only keys refused or returning fewer rows since 0.13.0. Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
@@ -142,6 +142,14 @@ names ending in `Builder`. Declaring a type by one of them is rejected.
 **`must list at least two fields`** — `@@id([x])` and `@@unique([x])` want a
 field-level `@id` / `@unique` instead (unless `@@unique` carries `where:`).
 
+**`declares both @isolation and @stream`** / **`declares @isolation, but this
+schema's datasource is provider = "none"`** / **`declare @isolation, but this
+macro call says db = None`** *(unreleased, GHSA-r67q-4qqq-g9gm)* — `@isolation`
+is now enforced, so it is refused where there is no transaction to run in: a
+streamed response is produced after the procedure returns, and a schema with no
+database has none. Remove the attribute or the conflicting declaration. On
+published releases these compiled and the attribute did nothing.
+
 ## Runtime behaviour that looks like a bug and is not
 
 **A read returns 404 instead of 403.** Read policy compiles into the `WHERE`
@@ -187,9 +195,56 @@ cast. See `cratestack-clients`.
 `DO UPDATE` branch revives a tombstone and reports `Inserted`, skipping the
 update-policy gate. Known defect. `.do_nothing()` returns `Conflict` instead.
 
-**`@isolation("serializable")` has no effect.** It is parse-validated and then
-discarded — there is no generated accessor and no auto-wrapping. Call
-`run_in_isolated_tx` yourself.
+**`@isolation("serializable")` has no effect.** On every published release,
+0.14.0 included, it is parse-validated and then ignored: the procedure runs at
+the server default (normally `READ COMMITTED`). Call `run_in_isolated_tx`
+yourself. It is enforced on `main` *(unreleased, GHSA-r67q-4qqq-g9gm)* — see
+`cratestack-data-integrity` — which changes the four entries below.
+
+**`no method named pool` on `&IsolatedCratestack`, or the `ProcedureRegistry`
+impl no longer matches the trait** *(unreleased)*. An `@isolation` procedure's
+method takes `db: &IsolatedCratestack`, which has no `pool()`, `events()`,
+`views()` or `queries()` by design. Raw SQL goes through
+`db.transaction(async |tx| … &mut ***tx …)`; drop any hand-written
+`run_in_isolated_tx(db.pool(), ..)` wrapper.
+
+**`409 TRANSACTION_ABORTED` (RPC `aborted`)** *(unreleased)*. An `@isolation`
+procedure hit `40001` / `40P01` on every attempt (default: 4). Nothing was
+committed; resend, under the same `Idempotency-Key` if you like — the key was
+released. If it is frequent, reduce contention or raise
+`with_isolation_max_retries(n)`. It is not `CONFLICT`.
+
+**A `500 INTERNAL_ERROR` whose server log shows a transaction abort or `40001`**
+*(unreleased)*. Some caller propagated another procedure's exhausted abort: a
+procedure that called it, a `@computed` resolver, or a hand-written handler
+returning `invoke_with_db`'s result. Only the aborted procedure's own generated
+dispatch may answer `TRANSACTION_ABORTED`; everyone else answers 500 and the
+response is recorded under the key, because the caller may have committed work.
+Serve the procedure through the generated router, or map the error yourself.
+
+**An `@isolation` procedure answers `INTERNAL_ERROR` although its body returned
+`Ok`** *(unreleased)*. The attempt was poisoned: raw SQL through `tx` failed
+without the error being returned, or ended the transaction; a
+`transaction(..)` or joined `@isolation` call was cancelled or panicked half-way;
+the handle was used concurrently or re-entrantly (`.run(ctx)` inside
+`db.transaction`); or a nested `@isolation` call declared a stricter level than
+the running attempt.
+
+**After upgrading to 0.13.0, a list filtered or sorted through a relation
+returns fewer rows, or none** (GHSA-p55v-6xv5-93p3). Relation subqueries now
+apply the related model's read policy and `@@soft_delete`, like `?include=`. A
+related model with **no** read `@@allow` now matches nothing: add one. A sort
+key through a hidden row is `NULL`, sorted last. Hand-built
+`FilterExpr::relation*`, `RelationHop::new` and `OrderClause::relation_scalar`
+calls fail to compile until they pass a `RelatedReadScope`
+(`<RELATED>_MODEL.related_read_scope()`). See `cratestack-server`.
+
+**`400 unsupported query filter` / `422 unsupported sort field` on a field the
+model does declare** *(since 0.13.0)*. It is `@server_only`: never a filter or
+sort key, over REST, RPC or `FindMany` (GHSA-ch54-jqw2-vpp5). The generated
+`<M>Where` / `<M>SortField` (Rust and Dart) have no member for it either, so
+code that set one stops compiling. Filter server-side with the typed builder,
+`<model>::<field>().eq(..)`, which reads no request.
 
 **`@@retain(days: N)` deletes nothing.** It is descriptor metadata and nothing
 reads it. Run your own job.

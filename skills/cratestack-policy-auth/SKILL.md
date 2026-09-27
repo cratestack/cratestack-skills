@@ -1,6 +1,6 @@
 ---
 name: cratestack-policy-auth
-description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider, CratestackContext, and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read returns 404 or fewer rows than expected, or when wiring authentication into a CrateStack server.
+description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider, CratestackContext, and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read or a relation filter returns 404 or fewer rows than expected, when a policy traverses a self-relation, or when wiring authentication into a CrateStack server.
 ---
 
 # Policy and auth
@@ -79,11 +79,43 @@ why a `@version` mismatch re-reads through the read policy before answering —
 if you cannot see the row you get `Forbidden`, keeping denials and missing rows
 indistinguishable.
 
+## A related model's read policy governs relation filters and sorts
+
+*(since 0.13.0, GHSA-p55v-6xv5-93p3)* A relation filter or sort
+(`?author.email=…`, `?comments.some.body__contains=…`, `where=`, `sort=author.name`,
+the RPC `list` slots, `@@paged` `totalCount`, the typed builder's relation paths)
+reads the related table in a correlated subquery, and that subquery now applies
+the **related model's** list-slot read policy and `@@soft_delete` filter — the
+same scope `find_many` and `?include=` apply to it. So:
+
+- a related row the caller cannot read behaves as if it did not exist: a to-one
+  filter never matches it (`ne` and `isNull` included), `none` / `every` over only
+  hidden children are true, a sort key through it is `NULL`;
+- **a related model with no read `@@allow` is default-deny here too**: every
+  relation path through it matches nothing. Give it the `@@allow("read", …)`
+  that says who may see it;
+- each hop of a multi-hop path applies its own model's scope.
+
+Before 0.13.0 the subquery applied neither, so any caller who could list a model
+could test and order by columns of related rows it could not read, and rebuild a
+hidden string with `startsWith`. `@@internal("read")` does not change this: it
+removes routes, not the read policy that governs paths through the model.
+
+**Self-relations** (`manager User? @relation(fields:[managerId], references:[id])`
+on `User`) were evaluated uncorrelated before 0.13.0 — compared the inner row with
+itself — in relation filters and sorts **and in read policies that traverse one**
+(`@@allow("read", manager.name == …)`), so they matched every row or none. On the
+server role they now correlate with the outer row. Audit any policy written
+against an older version that traverses a self-relation: it may have admitted
+rows it should not have.
+
 ## Where policy is *not* enforced
 
 - **The embedded SQLite backend.** Policies parse, malformed ones still fail
   compilation, the slots are still on the descriptor — and nothing reads them.
-  Clients are untrusted; authorization is the server's job.
+  Clients are untrusted; authorization is the server's job. Its relation filters
+  and sorts also ignore the related model's `@@soft_delete`, and still evaluate
+  self-relations uncorrelated.
 - **Streamed `@@subscribe` events.** A subscriber authenticates; per-row
   `@@allow` filtering is not replayed against the stream. Documented scope limit.
 - **Studio's `rw` database targets.** `mode = "rw"` on a `[target.db]` is

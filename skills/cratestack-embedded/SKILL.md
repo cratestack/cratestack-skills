@@ -146,6 +146,12 @@ routes, RPC and transports.
 
 Spatial and pgvector distance **filters** compile but `panic!` at runtime.
 
+Relation filters and sorts here read the related table **raw**. The server role
+scopes them to the related model's read policy and `@@soft_delete` *(since
+0.13.0)*; the embedded role does not, by design — so an embedded relation
+filter or sort still sees tombstoned related rows even though embedded `find_*`
+hides them, and a self-relation path is still evaluated uncorrelated.
+
 ## Browser (wasm32 + OPFS)
 
 Default VFS on wasm is memory. Persistence requires installing the OPFS SAH-pool

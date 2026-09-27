@@ -29,8 +29,29 @@ into it, not a replacement.
 
 ## Unreleased on `main`, after 0.14.0
 
-In no published release. Skills mark these *(unreleased, cratestack#NNN)*. None
-recorded yet.
+In no published release. Skills mark these *(unreleased, cratestack#NNN)*, or
+*(unreleased, GHSA-…)* for a security fix merged from a private fork with no PR
+number.
+
+- **Security, breaking: `@isolation` is enforced** (GHSA-r67q-4qqq-g9gm; advisory
+  not yet published). Affected: 0.2.0 through 0.14.0, where the attribute was
+  validated and then ignored on REST, RPC, `/rpc/batch` and MCP. A procedure
+  declaring it now runs, with its authorization, body, write-policy checks and
+  output `@computed` resolvers, in one transaction at the declared level, retried
+  on `40001` / `40P01` (3 retries, `with_isolation_max_retries(n)`). Its
+  `ProcedureRegistry` method takes `db: &IsolatedCratestack` (no `pool()`,
+  `events()`, `views()`, `queries()`); `invoke_with_db` takes
+  `FnOnce(IsolatedCratestack, Authorized) -> Fut + Clone`. Exhausted retries are
+  `409 TRANSACTION_ABORTED` / RPC `aborted` (new
+  `CratestackError::TransactionAborted`), released from `Idempotency-Key`
+  recording for the owning dispatch only; any other abort is a recorded 500.
+  Refused with `@stream`, under `provider = "none"` and with `db = None`.
+  Nested `@isolation` calls from a resolver join the attempt. Also breaking for
+  code that never uses `@isolation`: `run_in_isolated_tx` retries only database
+  errors, and the framework's own reads report Postgres errors as
+  `DatabaseTyped`. See
+  [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md) and the
+  framework's `docs/design/procedure-isolation.md`.
 
 ## 0.14.0 (2026-09-26)
 
@@ -99,6 +120,37 @@ here and bumps the skill banners.
   share `cratestack_core::procedure_route::procedure_rest_route_path`. RPC op
   ids were never versioned and are unchanged. Regenerate clients and stubs
   after upgrading.
+- **Security: `@server_only` is never sent by a `@computed` procedure output and
+  is never a filter or sort key**
+  ([GHSA-ch54-jqw2-vpp5](https://github.com/cratestack/cratestack/security/advisories/GHSA-ch54-jqw2-vpp5)).
+  A procedure returning a model with a `@computed` field sent its `@server_only`
+  fields (0.8.11–0.12.0). Any request could filter and sort by a `@server_only`
+  field, through every operator, `where=`/`or=`, relation paths, RPC `list` and
+  `FindMany` (0.2.0–0.12.0). Such keys are now refused as undeclared (400 / 422),
+  `includeFields[..]` naming one is refused, and **breaking:** the generated
+  `<M>Where` / `<M>SortField` (Rust, and the Dart client) lose the member. Rotate
+  any credential such a field held; clear idempotency records stored before the
+  upgrade. See [cratestack-server](../../cratestack-server/SKILL.md).
+- **Security: relation filters and sorts apply the related model's read policy
+  and `@@soft_delete`** (GHSA-p55v-6xv5-93p3; advisory not yet published).
+  Affected 0.2.0–0.12.0, Postgres server role. A hidden related row now behaves
+  as nonexistent (as in `?include=`), a sort key through it reads `NULL`, and
+  self-relations correlate with the outer row — in relation filters and sorts
+  and in read policies that traverse one. **Breaking:** a relation path through a
+  model with no read `@@allow` matches nothing, and `FilterExpr::relation*`,
+  `RelationFilter::new`, `RelationHop::new` and `OrderClause::relation_scalar`
+  take a `RelatedReadScope` (`<M>_MODEL.related_read_scope()`, or the explicit
+  `RelatedReadScope::Unscoped`). The embedded role is unchanged: its relation
+  filters still ignore policy and soft delete. See
+  [cratestack-server](../../cratestack-server/SKILL.md) and
+  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md).
+- **Security:** a `@server_only` model field is never read from a request
+  (#1051). A procedure argument that names a model, directly or through a
+  `type`, used to decode a value the client sent for such a field and hand it to
+  the implementation, because the field was `skip_serializing, default` and
+  `default` only fills an absent key. It is now serde-`skip`ped: the
+  implementation sees the field's default, and a wrong-typed value is ignored,
+  not rejected. Create and update inputs never had the field and are unchanged.
 - **The MCP operator** (ADR 0002, epic #1033): `mcp { name, expose }`, `@mcp(tool ...)`,
   `@@mcp(resource ...)`, the `mcp` feature on `cratestack-pg` / `cratestack-api`, and
   `cratestack-mcp`'s `StdioServer` / `StreamableHttpServer`. See
@@ -251,8 +303,9 @@ here and bumps the skill banners.
 
 As of 0.12.0, each of these parses, validates, and then does nothing:
 
-- `@isolation("…")` — no generated accessor, no auto-wrapping. Call
-  `run_in_isolated_tx` yourself.
+- `@isolation("…")` — ignored by every published release, 0.14.0 included.
+  Call `run_in_isolated_tx` yourself. Enforced on `main` *(unreleased,
+  GHSA-r67q-4qqq-g9gm)*; see "Unreleased on `main`" above.
 - `@@retain(days: N)` — descriptor metadata; no GC job exists.
 - `@from(Model.field)` on a view field — checked by nothing.
 - `prefer_for` in `studio.toml` — parsed and never consulted.
@@ -298,10 +351,3 @@ entry itself calls still pending (for example the routers and clients of
   `partOf` are unaffected), and `cratestack-lsp`'s rename now refuses them too.
   Reserved ahead of the multi-file grammar (`part` / `part of` / `import`,
   epic #910) so that landing it is not a migration.
-- **Security:** a `@server_only` model field is never read from a request
-  (#1051). A procedure argument that names a model, directly or through a
-  `type`, used to decode a value the client sent for such a field and hand it to
-  the implementation, because the field was `skip_serializing, default` and
-  `default` only fills an absent key. It is now serde-`skip`ped: the
-  implementation sees the field's default, and a wrong-typed value is ignored,
-  not rejected. Create and update inputs never had the field and are unchanged.
