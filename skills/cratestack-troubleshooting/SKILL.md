@@ -142,9 +142,11 @@ names ending in `Builder`. Declaring a type by one of them is rejected.
 **`must list at least two fields`** — `@@id([x])` and `@@unique([x])` want a
 field-level `@id` / `@unique` instead (unless `@@unique` carries `where:`).
 
-**`declares both @isolation and @stream`** / **`declares @isolation, but this
-schema's datasource is provider = "none"`** / **`declare @isolation, but this
-macro call says db = None`** *(unreleased, GHSA-r67q-4qqq-g9gm)* — `@isolation`
+**`declares both @isolation and @stream`** / **``declares @isolation, but this
+schema's datasource is `provider = "none"` ``** (both parse errors) /
+**``declare `@isolation`, but this macro call says `db = None` ``** (a
+`compile_error!` from `include_server_schema!`) *(unreleased,
+GHSA-r67q-4qqq-g9gm)* — `@isolation`
 is now enforced, so it is refused where there is no transaction to run in: a
 streamed response is produced after the procedure returns, and a schema with no
 database has none. Remove the attribute or the conflicting declaration. On
@@ -226,9 +228,16 @@ Serve the procedure through the generated router, or map the error yourself.
 `Ok`** *(unreleased)*. The attempt was poisoned: raw SQL through `tx` failed
 without the error being returned, or ended the transaction; a
 `transaction(..)` or joined `@isolation` call was cancelled or panicked half-way;
-the handle was used concurrently or re-entrantly (`.run(ctx)` inside
-`db.transaction`); or a nested `@isolation` call declared a stricter level than
-the running attempt.
+or a second joined `@isolation` call started while another was still running on
+the same attempt (`tokio::join!` in a resolver).
+
+Two other refusals are **not** poisons: using the handle concurrently or
+re-entrantly (`.run(ctx)` inside `db.transaction`), and a nested `@isolation`
+call that declares a stricter level than the running attempt. Each returns
+`INTERNAL_ERROR` to the code that made the call and nothing more
+(`cratestack-sqlx/src/bound.rs` `lock`, `bound/join.rs`). Propagate it with `?`;
+a body or resolver that swallows it and returns `Ok` commits whatever else the
+attempt did.
 
 **After upgrading to 0.13.0, a list filtered or sorted through a relation
 returns fewer rows, or none** (GHSA-p55v-6xv5-93p3). Relation subqueries now
