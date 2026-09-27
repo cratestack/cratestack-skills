@@ -1,6 +1,6 @@
 ---
 name: cratestack-migrations
-description: CrateStack database migrations — cratestack migrate diff and baseline, the snapshot model, destructive-change classification, up.pre.sql backfills, @@rename markers, the Postgres-only forward-only applier in cratestack-sqlx, and the SQLite differences. Load when generating or applying migrations, adopting an existing database, or debugging a lossy/blocking migration refusal.
+description: CrateStack database migrations — cratestack migrate diff and baseline, the snapshot model, destructive-change classification, up.pre.sql backfills, @@rename and @rename markers (and why a rename became a DROP), the Postgres-only forward-only applier in cratestack-sqlx, and the SQLite differences. Load when generating or applying migrations, adopting an existing database, or debugging a lossy/blocking migration refusal.
 ---
 
 # Migrations
@@ -64,9 +64,45 @@ The run prints its label: `safe`, `lossy`, `blocking`, or `blocking+lossy`.
 ## What is *not* auto-generated
 
 **Renames.** Matching is by name only, so a rename looks like drop-plus-create
-unless you declare it: `@@rename(from = "OldModel")` on a model,
-`@rename(from = "oldField")` on a field. A **malformed rename marker is silently
-treated as absent** and falls back to drop-plus-add — check your spelling.
+unless you declare it with a marker that names the **old SQL identifier**:
+
+```cstack
+// Was `model OldModel` (table old_models) with a field `oldField`.
+model NewModel {
+  id       Int    @id
+  newField String @rename(from = "old_field")
+  @@rename(from = "old_models")
+}
+```
+
+Keep comments off the marker's line. On 0.14.0 and earlier the parser did not
+strip a trailing comment from a field line: an attribute named inside one was
+applied.
+
+- `@@rename(from = "…")` takes the old **table** name, verbatim:
+  `pluralize(snake_case(OldModel))`, so `"old_models"`. The old model name does
+  not work. `@@rename(from = "OldModel")` checks as `schema OK`, matches no table,
+  and the diff is a drop plus a create. `migrate diff` then refuses it as lossy,
+  and with `--allow-destructive` it drops the rows. This holds on every release,
+  `main` included. `check` validates only the marker's form, not that the table
+  exists.
+- `@rename(from = "…")` takes the old **column** name. The migrator snake-cases
+  it first, so `"old_field"` and `"oldField"` both work.
+- The marker is read only in exactly the form `from = "<name>"`, double-quoted,
+  with nothing after the `)`. On 0.14.0 and earlier, any other form
+  (`@@rename(from: "x")`, `@@rename("x")`, `@rename()`) passed `cratestack
+  check` and was **silently treated as absent**, so the migration dropped and
+  re-created the table or column. *(unreleased, GHSA-69g4-xvcm-vm2j)* Those
+  forms are refused. So are a second marker on the same model or field, which
+  the migrator ignored, and a `@rename` on a field of a `view`, `type` or `auth`
+  block or on a relation field, which it never read. If you generated
+  migrations from a refused marker, look for a `DROP TABLE` or `DROP COLUMN` of
+  the old name.
+
+Measured with `cratestack migrate diff` built from framework `main`: the
+`"old_models"` form emits `ALTER TABLE old_models RENAME TO new_models;` and
+`ALTER TABLE new_models RENAME COLUMN old_field TO new_field;`. The
+`"OldModel"` form is refused as destructive.
 
 **Backfills.** `up.pre.sql` *(since 0.10.0)* is scaffolded for a blocking migration and you write
 the body. It runs immediately before `up.sql` **in the same transaction**. It is

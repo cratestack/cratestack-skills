@@ -52,6 +52,36 @@ number.
   `DatabaseTyped`. See
   [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md) and the
   framework's `docs/design/procedure-isolation.md`.
+- **Security, breaking: policy attributes the generator skipped are refused**
+  (GHSA-69g4-xvcm-vm2j; advisory not yet published). Affected: procedure
+  `@allow` / `@deny` / `@authorize` and model `@@allow` / `@@deny` from 0.2.0,
+  view `@@allow` / `@@deny` from 0.4.2, `query` `@allow` / `@deny` from 0.11.0,
+  all through 0.14.0. The generator applied a policy only in its exact spelling
+  and silently skipped any other (`@deny (…)`, `@Deny(…)`, `@deyn(…)`,
+  `@deny(…) // note`, `@deny(…);`, a second attribute on the line, an unknown
+  action, an invisible character), while `check` said `schema OK`: a skipped
+  deny or `@authorize` failed open. Now:
+  - A trailing `//` comment is stripped, quote-aware, on every attribute line.
+  - Procedure, query, model and view attributes are closed lists in one
+    spelling.
+  - Several attributes on one procedure or query line are each read.
+  - A procedure's or query's attributes end at the first blank line and must be
+    followed by one.
+  - Invisible characters are refused in attribute text, and bidi controls and
+    ESC anywhere.
+  - The generator refuses (`compile_error!`) a policy it cannot read.
+  - Same release, companion entry: `@server_only` is refused on `type` / `auth`
+    / relation / relation-key / `@version` fields; `@readonly()`-style argument
+    lists and run-on attributes are refused; `@rename` / `@@rename` accept only
+    `from = "<old SQL name>"`, once, where the migrator reads them.
+
+  **No error, different behaviour:** an attribute with a trailing comment now
+  applies (an `@allow` / `@@allow` that was skipped now grants access), and an
+  attribute written inside a field's comment no longer does. See
+  [cratestack-schema](../../cratestack-schema/SKILL.md) ("Attribute traps"),
+  [its attribute reference](../../cratestack-schema/references/attributes.md),
+  [cratestack-policy-auth](../../cratestack-policy-auth/SKILL.md) and
+  [cratestack-migrations](../../cratestack-migrations/SKILL.md).
 
 ## 0.14.0 (2026-09-26)
 
@@ -306,6 +336,10 @@ As of 0.12.0, each of these parses, validates, and then does nothing:
 - `@isolation("…")` — ignored by every published release, 0.14.0 included.
   Call `run_in_isolated_tx` yourself. Enforced on `main` *(unreleased,
   GHSA-r67q-4qqq-g9gm)*; see "Unreleased on `main`" above.
+- An unknown **field** attribute (`@whatever`, and `@Id` / `@ID`, which are not a
+  primary key) still parses and does nothing on `main`; only near-misses are
+  refused. An unknown `@@`, procedure or query attribute did the same through
+  0.14.0 and is refused on `main` *(unreleased, GHSA-69g4-xvcm-vm2j)*.
 - `@@retain(days: N)` — descriptor metadata; no GC job exists.
 - `@from(Model.field)` on a view field — checked by nothing.
 - `prefer_for` in `studio.toml` — parsed and never consulted.

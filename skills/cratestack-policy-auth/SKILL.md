@@ -1,6 +1,6 @@
 ---
 name: cratestack-policy-auth
-description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider, CratestackContext, and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read or a relation filter returns 404 or fewer rows than expected, when a policy traverses a self-relation, or when wiring authentication into a CrateStack server.
+description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider, CratestackContext, and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read or a relation filter returns 404 or fewer rows than expected, when a policy traverses a self-relation, when an @allow / @deny / @@deny / @authorize is refused or seems not to apply, or when wiring authentication into a CrateStack server.
 ---
 
 # Policy and auth
@@ -38,7 +38,85 @@ is a `FALSE` literal in the SQL, not an oversight.
 ## The action vocabulary
 
 `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. `read` fills both
-the `list` and `detail` slots. A view supports only `read`.
+the `list` and `detail` slots. A view's `@@allow` supports only `read`; its
+`@@deny`, `read` or `all`.
+
+## Write every policy attribute exactly — a skipped one fails open
+
+On every release through 0.14.0, the generator applied a policy attribute only
+when its text was exactly the documented form. It **silently skipped anything
+else**, and `cratestack check` still said `schema OK`. A skipped `@deny` or
+`@@deny`, or a skipped `@authorize`, leaves the declaration **more permissive
+than written**. Measured on 0.12.0: a procedure with
+`@deny(hasRole("banned")) // note` answered `200 OK` to a banned caller. A
+skipped `@allow` leaves it closed. Spellings that were skipped:
+
+- `@deny (…)`, `@ deny(…)`, `@Deny(…)`, `@@DENY(…)`, `@deyn(…)`,
+  `@authorise(…)`, and a bare `@deny`;
+- anything after the closing `)`: `// comment`, `;`, `,`, a word;
+- a second attribute on the same line (`@no_idempotency @deny(…)`);
+- a model rule naming an action no slot generates (`@@deny("raed", …)`,
+  `@@deny("read,update", …)`), or a view `@@deny` naming anything but `read` or
+  `all`;
+- an invisible character in the name (a zero-width space inside `deny`) or
+  inside a string (`hasRole("ban<U+200B>ned")` compares against a role no caller
+  has);
+- a `@deny(…)` written above a procedure after a blank line, which belonged to
+  the declaration *before* it.
+
+*(unreleased, GHSA-69g4-xvcm-vm2j)* All of these are now refused by
+`cratestack check` (and the LSP), and the generator itself refuses to compile a
+policy it cannot read (`compile_error!` from the `include_*_schema!` call). The
+accepted forms:
+
+```cstack
+model Doc {
+  id      Int @id
+  ownerId Int
+
+  @@allow("read", auth() != null)
+  @@deny("delete", hasRole("banned"))
+}
+
+procedure archive(args: ArchiveArgs): Doc
+  @allow(auth() != null)
+  @deny(hasRole("banned"))
+  @authorize(Doc, update, args.id)
+```
+
+Keep each policy attribute alone on its line, with no trailing comment. Put
+comments on the line above. That form is read the same way on every release. A
+trailing `//` comment is safe only on `main`: on 0.14.0 and earlier it made the
+generator skip the rule.
+
+- **Model / view:** `@@allow(` or `@@deny(` directly, a quoted action from the
+  list above (`"…"` or `'…'`; a view accepts `'…'` only on `main`), `,`, a
+  non-empty expression, `)`, then the end of the line or, on `main`, a `//`
+  comment.
+- **Procedure / query:** `@allow(expr)` / `@deny(expr)` with no space before `(`
+  and nothing after `)` (on `main`, a `//` comment is allowed).
+  `@authorize(Model, action, args.path)` takes three arguments and an action from
+  `detail`, `read`, `update`, `delete`. On `main`, several attributes may share a
+  line if a space separates them; on 0.14.0 the second was skipped. Attributes
+  belong to the signature above, up to the first blank line (see
+  `cratestack-schema`, "Procedures").
+
+**Upgrading: one change widens access with no error.** An `@allow(…)` or
+`@@allow(…)` with a trailing `// comment`, or sharing a procedure line with
+another attribute, was skipped on 0.14.0 and earlier. The declaration or action
+it names was therefore closed. On `main` the rule applies. Confirm that each such
+rule grants what it says before upgrading. To find candidates:
+
+```bash
+grep -rnE --include='*.cstack' '@@?allow\(.*\)\s*//|@[a-z_]+(\(.*\))?\s+@allow' .
+```
+
+To find policy attributes that may have been skipped, use
+`grep -rnEi --include='*.cstack' '@+\s*(allow|deny|authori[sz]e)' .`. Review each
+hit that is not alone on its line in exactly the documented form. A misspelled
+name or one hiding an invisible character does not match; only `cratestack
+check` from a fixed release finds those. Both commands are from the framework
+CHANGELOG entry.
 
 ## The predicate language
 
@@ -173,6 +251,9 @@ act as fallbacks: they fill the field only when the create input omits it.
 `@authorize(Model, action, args.path)` runs a model's policy for you against a
 primary key carried in the procedure's arguments. Actions are `detail`/`read`,
 `update` and `delete` only, and the path's type must match the model's PK type.
+On 0.14.0 and earlier a malformed or misspelled one was skipped, so
+`authorize_with_db` returned `Ok` without consulting the database. *(unreleased,
+GHSA-69g4-xvcm-vm2j)* `cratestack check` refuses it.
 
 ## `cratestack-auth`
 
