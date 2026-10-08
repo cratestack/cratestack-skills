@@ -27,7 +27,7 @@ into it, not a replacement.
 
 ---
 
-## Unreleased on `main`, after 0.14.2
+## Unreleased on `main`, after 0.15.3
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
@@ -37,6 +37,143 @@ security fix merged from a private fork with no PR number.
   `revoke_key`, optional `with_max_keys` bound) for keys enrolled after the
   server starts. Owner: `cratestack-server` (signed transport), with the 401
   note in `cratestack-troubleshooting`.
+- **The facades re-export `CborCodec` and `JsonCodec` at the crate root**
+  (cratestack#1147, PR #1148). Additive: `cratestack-api`, `-pg`, `-sqlite` and
+  `-client` expose `cratestack::CborCodec` (and `JsonCodec` behind the default
+  `codec-json` feature), the same types as `cratestack::client_rust::CborCodec`,
+  so a `db = None` server no longer needs `cratestack-codec-cbor` as a direct
+  dependency to build `envelope_layer`, `rpc_router` or a client.
+
+## 0.15.3 (2026-10-01)
+
+0.15.3 is a version bump with no `CHANGELOG.md` entries and no code change over
+0.15.2 (`v0.15.2..v0.15.3` is the single release-bump commit; its changelog
+heading is seeded with "No changes since last release" and is dated 2026-09-30,
+the tag 2026-10-01). Nothing is marked *(since 0.15.3)*.
+
+## 0.15.2 (2026-09-30)
+
+0.15.2 is the contract-digest release: the signed transport stops binding the
+whole schema and binds the called op instead. Skills mark it *(since 0.15.2)*.
+
+- **Breaking: signed transport binds the called op's contract digest, binding
+  version 2** (cratestack#1123, #1030). Before, a signed message bound
+  `schema_sha`, the digest of the whole schema IR, so any schema edit (a policy,
+  an `@@index`, a view's SQL, a new procedure) refused every signed client built
+  before it with an unsigned `401` that looked like a revoked key. Now it binds
+  `contract_sha` (`cratestack_core::op_contract_digest`), which moves only when
+  that op's wire shape does. A wire-shape edit makes that op, and only that op,
+  answer the **unsigned `426 contract_unsupported`** (`CONTRACT_UNSUPPORTED` on
+  REST), surfaced by the client as `EnvelopeError::ContractUnsupported { op }`;
+  it is unsigned, so a hint and never proof, and any other unsigned `426` (a
+  proxy's) stays `EnvelopeError::Unsigned`. **A version 2 verifier refuses
+  version 1 with no opt-in: upgrade clients and servers together (the flag day).**
+  The client names the digest it used in the unbound `Cratestack-Contract`
+  header (`ContractSelector`, first 8 bytes of the digest); without it the layer
+  tries the op's accepted digests newest first, at most
+  `EnvelopeLayerBuilder::max_contract_trials` (default 4). A signed
+  `/rpc/batch` still binds the whole-contract `client_contract_digest`, so any
+  client-facing change refuses it. Breaking API: `Binding::schema_sha` is now
+  `contract_sha`; `EnvelopeLayer::builder(envelope, audience, contracts)` takes
+  `AcceptedContracts` (the generated `ACCEPTED_CONTRACTS`) where it took a
+  `[u8; 32]` (the generated `envelope_layer(envelope, policy, audience)` is
+  unchanged for callers); `CratestackClient::with_schema_sha_bytes` is replaced
+  by `with_contracts(OP_CONTRACTS)` and `with_contract_sha([u8; 32])`, and
+  `RuntimeHandle::with_envelope(config, envelope, contracts)` takes
+  `OpContracts`. Every `include_*_schema!` module also emits `OP_CONTRACTS`,
+  `CLIENT_CONTRACT_SHA256(_BYTES)` and, on the server, `ACCEPTED_CONTRACTS`. The
+  whole-IR `SCHEMA_SHA256(_BYTES)` stays, for the warn-only
+  `x-cratestack-schema-sha` drift header only. Owner: `cratestack-server`
+  (signed transport) and `cratestack-troubleshooting` (envelope answers).
+- **Additive: the compatible-contract lock** (cratestack#1123, #1030). A
+  committed JSON lock file next to the schema keeps the server accepting older
+  signed clients across edits that change a shape but stay compatible with it
+  (an optional field added to a model or an args type).
+  `include_server_schema!("s.cstack", db = Postgres, contracts = "s.contracts.lock")`
+  reads it at compile time, and an incompatible locked entry is a compile error
+  naming the op. `cratestack_core::classify(old, new)` is conservative: anything
+  it does not recognise is `Breaking`. CLI: `cratestack contract lock | check |
+  prune` (exit 0 ok, 1 a failed verdict, 2 a tool error; `check --json`). See
+  [cratestack-cli](../../cratestack-cli/SKILL.md).
+
+## 0.15.1 (2026-09-30)
+
+0.15.1 is the groundwork for 0.15.2's binding: per-op digests, with no change to
+what a signed request binds. Skills mark it *(since 0.15.1)*.
+
+- **Additive: per-op contract digests and `cratestack contract digest | print`**
+  (cratestack#1123). `cratestack_core::client_contract` computes, per op, a
+  digest that moves only when that op's wire shape changes (its transport, key
+  and kind, input and output roots and every model, type, enum and view
+  reachable from them, with `@server_only` fields removed). A policy, an
+  `@@index`, a view's SQL or a new procedure leaves every existing digest alone.
+  `cratestack contract digest --schema <file> [--json]` and
+  `cratestack contract print --schema <file> --op <key>` print them. Nothing
+  bound them yet: a signed request still carried the whole-IR `schema_sha`.
+- **No behaviour change: one op list for every surface** (cratestack#1123).
+  `cratestack_core::op_list` is the one place a model's verbs, an op's key and
+  its REST routes are derived; emitted code, routes, op ids and generated
+  clients are byte-identical for existing schemas.
+- **Digests change once: six more wire-neutral attributes leave the op contract**
+  (cratestack#1123). `@pii`, `@sensitive`, `@db_enforce`, field `@unique`, a view
+  field's `@from` and a procedure's `@deprecated` no longer move any op digest.
+  Relative to a build of `main` before 0.15.1 only; no published version bound
+  a per-op digest before 0.15.2.
+
+## 0.15.0 (2026-09-29)
+
+Skills mark it *(since 0.15.0)*.
+
+- **Behaviour change: a write reads its policies on the connection it runs on**
+  (cratestack#1117, PR #1118). A write inside a caller's transaction
+  (`db.transaction(..)`, `run_in_tx`, `run_in_isolated_tx`, `batch_*`, or the
+  transaction an audited or emitting `.run()` opens) used to evaluate create
+  policies, the update/delete `@version` probe, the upsert update-policy gate and
+  the `cratestack_audit` bootstrap on the pool. Now it uses its own connection:
+  no second connection is needed (so `N` concurrent writers on an `N`-connection
+  pool no longer wait on each other); the probe sees the caller's own
+  uncommitted writes; under `REPEATABLE READ` and `SERIALIZABLE` it reads the
+  caller's snapshot; a stale `If-Match` after the caller's own version bump is
+  `412 PRECONDITION_FAILED`, not `403`; and a probe that errors (for example
+  `40001`) aborts the caller's transaction as the write would. No public
+  signature changes. See
+  [cratestack-data-integrity](../../cratestack-data-integrity/SKILL.md).
+- **Breaking: the schema digest identifies the schema, not its text**
+  (cratestack#1065, PR #1119). `SCHEMA_SHA256(_BYTES)` was the SHA-256 of the raw
+  `.cstack` bytes, so a comment, a `///` doc or a re-indent changed it. Both now
+  come from `cratestack_core::schema_digest`, a hash of a canonical form of the
+  parsed schema (spans, docs and attribute whitespace dropped, top-level
+  declarations and fields sorted by name; enum variants, attributes and
+  procedure arguments keep declared order). Every existing `SCHEMA_SHA256`
+  changes once: regenerate clients and rebuild servers together. Superseded for
+  signed transport by 0.15.2's per-op digest.
+- **The Rust client seals requests and opens responses** (cratestack#1007,
+  PR #1120). Behind the new `cose` feature of `cratestack-client-rust`
+  (forwarded by the `cratestack-client`, `-pg` and `-api` facades; off by
+  default, no `axum` in the graph),
+  `CratestackClient::with_envelope(ClientEnvelope::new(envelope, audience)?)`
+  makes the client a `Required` one on REST and RPC, COSE_Sign1 and COSE_Mac0.
+  Every response must be a COSE message that verifies against its request
+  (`EnvelopeError::Unverified` otherwise); an unsealed answer is
+  `EnvelopeError::Unsigned { status }` and its body is never read, so a proxy
+  cannot downgrade the client. Streamed entry points and subscriptions fail
+  locally with `EnvelopeError::StreamsUnsupported`; redirects are never
+  followed; a `JsonCodec` client refuses an envelope (`BadInput`); a sealed
+  request carries a fresh `cti`, so a retry layer must send the call again
+  through the client, not replay bytes. `ExternalSigner::esp256(public_key_sec1,
+  callback)` signs with a key outside the process (Android Keystore, iOS
+  `SecKey`), accepting DER or raw `r || s`. `RuntimeHandle::with_envelope`
+  seals over the FFI, and `RuntimeEnvelopeConfig` gains `CoseMac0`.
+  **Breaking:** `CoseSigner` and `CoseVerifierResolver` are target-split like
+  `RequestAuthorizer` (0.14.2): on `wasm32` they carry no `Send + Sync`, so an
+  implementation that builds for both targets uses the same
+  `#[cfg_attr(..., async_trait)]` pair, and a plain `#[async_trait]` fails with
+  `E0053` there; `ClientError` and `RpcClientError` gain an `Envelope` variant.
+  **The Dart and TypeScript clients do not sign** (ADR 0006 §11): they use the
+  Rust runtime instead of a second implementation. Binding version 1 froze with
+  this release (cratestack#1082) and was replaced by version 2 in 0.15.2. See
+  [cratestack-server](../../cratestack-server/SKILL.md) and
+  [cratestack-clients](../../cratestack-clients/SKILL.md).
 
 ## 0.14.2 (2026-09-27)
 
