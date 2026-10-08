@@ -382,7 +382,9 @@ It is off unless you enable a facade feature:
 
 Both are on `cratestack-pg` and `cratestack-api`. The generated function exists
 only for schemas compiled through a facade with `envelope` on. The Rust client
-does **not** sign yet (cratestack#1007).
+signs since 0.15.0 (`cratestack-client-rust`'s `ClientEnvelope`, feature `cose`,
+cratestack#1007); the Dart client is in `cratestack_cbor` *(unreleased, cratestack#1151)*,
+see `cratestack-clients`.
 
 ```rust
 use std::sync::Arc;
