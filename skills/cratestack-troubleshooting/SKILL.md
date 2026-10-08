@@ -329,6 +329,15 @@ the mount-prefix values of a parameterised mount, and the schema digest (a
 comment-only `.cstack` edit changes it, cratestack#1065). A header sent **twice**
 is a 400, not a 401.
 
+**A device that enrolled (or was revoked) gets the 401 you did not expect.** *(unreleased,
+cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same
+coarse, unsigned 401 as a bad signature, so the response cannot tell you which. If the
+resolver is a `RegistryVerifierResolver`, check that `register` ran on **this process** (state
+is per process: another replica, or a restart, starts empty), that `register` did not return
+`Conflict` (the `with_max_keys` bound), and that a `revoke(kid)` was not meant as `revoke_key`:
+it also removes every other key whose 8-byte `kid` collides. A request that resolved before
+the revoke still completes.
+
 **415 on a COSE body.** The layer never forwards an `application/cose` body it
 will not open. It refuses one when the policy says `Off` for that op, when the
 path is not a generated op (an unmatched path, an allow-listed hand-written

@@ -420,6 +420,24 @@ cratestack_schema::SCHEMA_SHA256_BYTES).policy(..).rest(prefix, ROUTE_TRANSPORTS
 Source: `crates/cratestack-axum/src/envelope_layer/` and
 `crates/cratestack-api/tests/cose_envelope_*.rs`.
 
+**Keys enrolled at run time** *(unreleased, cratestack#1149)*. `StaticVerifierResolver`
+is fixed when built. For devices that enrol after start-up use
+`cratestack::cose::RegistryVerifierResolver` (`cratestack_cose::RegistryVerifierResolver`):
+share one `Arc`, hand a clone to `CoseEnvelope::server(..)` as its
+`Arc<dyn CoseVerifierResolver>`, and keep one to call `register(key) -> Result<[u8; 8],
+CratestackError>` (the `kid`, the first 8 bytes of the RFC 9679 thumbprint; repeating a
+registration is a no-op success, even when full), `revoke(&kid) -> usize` (removes **every**
+key under the `kid`: both HMAC algorithms of one secret, and any unrelated key whose 8-byte
+`kid` collides) and `revoke_key(&key) -> bool` (exactly that key; prefer it to cut off one
+device). `RegistryVerifierResolver::with_max_keys(n)` is a hard bound: a new key past it is
+`CratestackError::Conflict`. Ed25519, ESP256 and both HMAC algorithms. Std `RwLock`, never held
+across an `.await`; a request whose `resolve` already returned a key still finishes with it,
+so a revocation applies to later requests. State is per process: each replica needs the same
+registrations and a restart starts empty. An unknown or revoked `kid` resolves to no keys, so
+it is the same coarse, unsigned `401` as any other failure. Not on 0.14.2 or earlier: write a
+`CoseVerifierResolver`. Source:
+`crates/cratestack-cose/src/keys/registry_resolver.rs`.
+
 **Placement.** Last `.layer(..)` on the generated router, applied **before**
 `nest` / `merge` (through `Router::layer`, so `MatchedPath` is set; wrapped
 around the whole app with a `ServiceBuilder` it sees no route, so plain traffic
