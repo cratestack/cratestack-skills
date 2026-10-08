@@ -29,9 +29,14 @@ into it, not a replacement.
 
 ## Unreleased on `main`, after 0.14.2
 
-Nothing recorded here yet. Skills mark these *(unreleased, cratestack#NNN)*, or
-*(unreleased, GHSA-…)* for a security fix merged from a private fork with no PR
-number.
+Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
+security fix merged from a private fork with no PR number.
+
+- **`cratestack_cose::RegistryVerifierResolver`** (cratestack#1149, PR #1150).
+  Additive: a runtime-mutable `CoseVerifierResolver` (`register` / `revoke` /
+  `revoke_key`, optional `with_max_keys` bound) for keys enrolled after the
+  server starts. Owner: `cratestack-server` (signed transport), with the 401
+  note in `cratestack-troubleshooting`.
 
 ## 0.14.2 (2026-09-27)
 
