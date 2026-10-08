@@ -365,6 +365,22 @@ Generated handlers record `VerifiedSigner` on the context
 nothing turns it into an identity (that adapter is cratestack#1077). Keep
 authenticating in the `AuthProvider`.
 
+### Dart: sealing and opening with `cratestack_cbor` *(unreleased, cratestack#1151)*
+
+For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
+`cratestack-clients`). Source: `dart-packages/cratestack_cbor/lib/src/cose/errors.dart`.
+
+| What the app sees | It means |
+| --- | --- |
+| `CoseRejected` from `openResponse` (empty message, `toString()` is just `CoseRejected`) | The response did not verify. It is the same for every cause **on purpose**, so the exception cannot tell you which. Check, in order: `sealedRequest` is the exact bytes you sent (not a re-seal), the `CallBinding` (method, route, `pathParams`, query, `contractSha`, bound headers) and `status` are the ones of that call, the server key you pinned is the one the server signs with, and the reply is not stale or for another request. Do not look for a detail in it |
+| An HTTP `401` from your own HTTP client, no exception from the package | The server refused the request, unsigned. Nothing was passed to `openResponse`. Same causes as the layer's 401 above, and from Dart add: a bound `Idempotency-Key` or `If-Match` not sent byte for byte, mount parameters missing or not first in `pathParams`, a wrong `audience`, a resent sealed body (a replayed `cti`: reseal), or an envelope built with `ClientEnvelopeForVectors.forVectors` (pinned `cti`, tests only) |
+| An HTTP `426` with `contract_unsupported` | The server no longer accepts this wire shape for the op; the digest in `contractSha` is stale. Take a fresh `cratestackOpContracts` |
+| `CoseMisuse` (message says what) | Local: a key of the wrong length (an Ed25519 seed that is not 32 bytes surfaces here, at `create`), an empty audience, or a binding of the wrong shape. On the web, also a `cratestack-cbor-wasm` built without the `cose` feature (the message names it): use the wasm vendored by `cratestack_cbor`, not the npm `@cratestack/cbor-web` |
+| `ArgumentError` from a constructor | `CallBinding` with a `contractSha` that is not 32 bytes, or `HmacSigner` / `CoseServerKey.hmac` with a non-HMAC `CoseAlg`. Thrown before any bridge call |
+| `StateError` from `ClientEnvelope.contractHeaderValue` | The backend has not started: call it after `ClientEnvelope.create` or `createCborCodec()` |
+| `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
+| `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
+
 ## Getting more signal
 
 `cratestack check --schema s.cstack --format json` gives machine-readable

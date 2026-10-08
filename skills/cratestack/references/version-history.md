@@ -37,6 +37,16 @@ security fix merged from a private fork with no PR number.
   `revoke_key`, optional `with_max_keys` bound) for keys enrolled after the
   server starts. Owner: `cratestack-server` (signed transport), with the 401
   note in `cratestack-troubleshooting`.
+- **Dart and Flutter clients can seal and open COSE** (cratestack#1151, #1026).
+  Additive: `package:cratestack_cbor/cose.dart` (`ClientEnvelope`, `CallBinding`,
+  `HmacSigner`, `Ed25519Signer`, `CoseServerKey`, the `CoseException` family) reaches
+  `cratestack-cose` over flutter_rust_bridge and the `cratestack-cbor-wasm` build,
+  with no Dart reimplementation. Required mode only, in-memory signers only: no
+  keystore or ESP256 signer yet. The generated Dart client still sends unsigned
+  requests. Default builds and the npm `@cratestack/cbor-web` stay codec-only; the
+  vendored `cratestack_cbor` binaries grow by about 460 KB (Linux x86_64) and
+  270 KB (web). Owner: `cratestack-clients`, with the exception mapping in
+  `cratestack-troubleshooting`.
 
 ## 0.14.2 (2026-09-27)
 
