@@ -85,6 +85,17 @@ whole schema and binds the called op instead. Skills mark it *(since 0.15.2)*.
   whole-IR `SCHEMA_SHA256(_BYTES)` stays, for the warn-only
   `x-cratestack-schema-sha` drift header only. Owner: `cratestack-server`
   (signed transport) and `cratestack-troubleshooting` (envelope answers).
+- **Additive: the generated Dart client carries `cratestackOpContracts`**
+  (cratestack#1123, #1030; absent at v0.15.1, present at v0.15.2). A
+  `Map<String, String>` in the generated `lib/src/constants.dart`, from each op
+  key (the RPC op id, or `<METHOD> <route template>` on REST, plus `batch` for
+  `transport rpc`) to its lowercase-hex contract digest, with
+  `cratestackClientContractSha256` beside it for the whole-contract digest.
+  Computed by the same `cratestack_core` function as the Rust client's
+  `OP_CONTRACTS`. For a hand-rolled sealer or a server-version check; the
+  unsigned Dart runtime does not read it, and **the generated Dart client still
+  does not sign**. Owner:
+  [cratestack-clients](../../cratestack-clients/SKILL.md).
 - **Additive: the compatible-contract lock** (cratestack#1123, #1030). A
   committed JSON lock file next to the schema keeps the server accepting older
   signed clients across edits that change a shape but stay compatible with it
