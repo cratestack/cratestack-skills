@@ -32,6 +32,15 @@ into it, not a replacement.
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **Negotiated payload types inside a seal; `seal_call`; `ExternalSigner::ed25519`**
+  (cratestack#1168, PR #1169). Additive: the payload inside a COSE envelope may be
+  JSON or form-urlencoded as well as CBOR, selected by the unbound
+  `Cratestack-Payload-Type` / `Cratestack-Payload-Accept` headers and bound in the
+  AAD; absent means CBOR, byte-identical to 0.15.3. New layer refusals `415
+  payload_type_unsupported` / `406 payload_type_not_acceptable`; new client
+  `EnvelopeError::UnexpectedPayloadType`; public `ClientEnvelope::seal_call` /
+  `PendingResponse::open`; `ExternalSigner::ed25519`. Owners: `cratestack-server`,
+  `cratestack-clients`, with the 415/406 rows in `cratestack-troubleshooting`.
 - **`cratestack_cose::RegistryVerifierResolver`** (cratestack#1149, PR #1150).
   Additive: a runtime-mutable `CoseVerifierResolver` (`register` / `revoke` /
   `revoke_key`, optional `with_max_keys` bound) for keys enrolled after the

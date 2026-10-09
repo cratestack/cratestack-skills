@@ -145,7 +145,7 @@ you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
 macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
 
-### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, since 0.15.4, cratestack#1168)*
+### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, unreleased, cratestack#1168)*
 
 `CratestackClient::with_envelope` (feature `cose`) used to refuse every codec but CBOR. It takes
 any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed

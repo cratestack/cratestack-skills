@@ -470,7 +470,7 @@ id), path parameters (a parameterised mount's too), the canonical query,
 the schema digest, the payload type, and `Idempotency-Key` / `If-Match` exactly
 as sent. **Response headers (`ETag`, `Retry-After`) are not bound.**
 
-**Payload types** *(since 0.15.4, cratestack#1168)*. The payload inside a seal is CBOR unless
+**Payload types** *(unreleased, cratestack#1168)*. The payload inside a seal is CBOR unless
 the client names another type in two **unbound** selector headers (the `Cratestack-Contract`
 pattern): `Cratestack-Payload-Type` (the sealed request's type; on a sealed response, that
 response's type, which the layer always sends) and `Cratestack-Payload-Accept` (the response

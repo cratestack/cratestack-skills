@@ -352,7 +352,7 @@ instead of applied with `Router::layer` as the generated router's last
 traffic **unprotected**, not refused.
 
 **415 or 406 with code `payload_type_unsupported` / `payload_type_not_acceptable`**
-*(since 0.15.4, cratestack#1168)*. Unsigned, answered before any key is looked up, so
+*(unreleased, cratestack#1168)*. Unsigned, answered before any key is looked up, so
 nothing was verified: the request's `Cratestack-Payload-Type` is a type the op does not allow
 (415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
 layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
