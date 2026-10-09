@@ -351,6 +351,20 @@ instead of applied with `Router::layer` as the generated router's last
 `.layer(..)`, so `MatchedPath` never reaches it. That placement leaves plain
 traffic **unprotected**, not refused.
 
+**415 or 406 with code `payload_type_unsupported` / `payload_type_not_acceptable`**
+*(since 0.15.4, cratestack#1168)*. Unsigned, answered before any key is looked up, so
+nothing was verified: the request's `Cratestack-Payload-Type` is a type the op does not allow
+(415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
+layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
+intersected with its route's `capabilities.request_types` / `response_types`; `/rpc/batch` is CBOR
+only. A `JsonCodec` (or form-in/JSON-out) client against a layer that did not opt in lands here, as
+`EnvelopeError::Unsigned { status: 415 }` or `406` on the client. A `400` from the same headers
+means one was sent twice or is outside the grammar (a lowercase `type/subtype`, no parameters, no
+`q`, no wildcard). A coarse `401` after setting the header means the payload was sealed under a
+different type than the header says. `EnvelopeError::UnexpectedPayloadType { got }` on the client
+is the other direction: the response was sealed under a type the call did not list in
+`HttpClientCodec::payload_accept`, and was never opened.
+
 **406 on a signed subscription.** Streams cannot be sealed until ADR 0006 P1, so
 a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler
 runs, under `Required` and `Optional` alike, and an unsigned one under
