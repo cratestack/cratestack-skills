@@ -145,6 +145,72 @@ you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
 macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
 
+### Signing requests from Dart *(unreleased, cratestack#1151)*
+
+The generated Dart client sends **unsigned** requests. A server behind the COSE
+envelope layer (`cratestack-server`) accepts only sealed ones, and a Dart or
+Flutter app seals through `package:cratestack_cbor/cose.dart`. That library does
+not reimplement COSE: it reaches `cratestack-cose`, the one Rust implementation,
+over the bridge the codec already uses (flutter_rust_bridge natively,
+`cratestack-cbor-wasm` on the web), and `lib/` holds no crypto. Never write a
+Dart signer, canonical query or AAD by hand. Source:
+`dart-packages/cratestack_cbor/lib/cose.dart` and `lib/src/cose/`.
+
+```dart
+import 'package:cratestack_cbor/cose.dart';
+
+final envelope = await ClientEnvelope.create(
+  signer: Ed25519Signer.fromSeed(seed),
+  serverKeys: [CoseServerKey.ed25519(serverPublicKey)], // pinned at enrolment
+  audience: 'payments', // the server's configured name, never its host
+);
+final binding = CallBinding(
+  method: 'POST',
+  route: 'procedure.echo', // RPC op id, or the REST route template
+  contractSha: opContractDigest, // 32 bytes
+);
+final sealed = await envelope.sealRequest(cborPayload, binding);
+// POST `sealed` with Content-Type and Accept: envelope.mediaType and
+// Cratestack-Contract: ClientEnvelope.contractHeaderValue(opContractDigest)
+final opened = await envelope.openResponse(
+  responseBody, binding: binding, sealedRequest: sealed, status: 200,
+);
+// opened.payload is CBOR; decode it with the codec.
+```
+
+- **You make the HTTP call.** `sealRequest` returns bytes to POST and
+  `openResponse` takes the body, the exact sealed bytes you sent and the HTTP
+  status. The generated client does not call either.
+- **Where `contractSha` comes from.** The generated `cratestackOpContracts`
+  (`lib/src/constants.dart`, *since 0.15.2*, #1123) maps the RPC op id (`batch`
+  for `transport rpc`) or `<METHOD> <route template>` on REST to the digest as
+  lowercase hex; pass the 32 decoded bytes. Anything else in the constructor is
+  an `ArgumentError`.
+- **Mount parameter values come first in `pathParams`**, then the route's own,
+  as in the Rust client's `with_mount_params`. `query` may be in any spelling.
+- **A bound `Idempotency-Key` or `If-Match` goes into `CallBinding` and onto the
+  request, byte for byte**, or the server answers 401.
+- **Reseal on every retry.** A resent sealed body is a replayed `cti`.
+- **Signers in this release are in memory only:** `HmacSigner(alg, secret)`
+  (`COSE_Mac0`, secret of at least 32 random bytes; pin with
+  `CoseServerKey.hmac`) for services, and `Ed25519Signer.fromSeed(seed)`
+  (`COSE_Sign1`). **Neither is for a user's device.** There is no Android
+  Keystore or Secure Enclave signer yet; it is a later release (a Dart callback
+  into `ExternalSigner::esp256`), with no date. `CoseServerKey.p256Sec1`
+  verifies an ESP256 server, but nothing in Dart signs ESP256. Do not invent a
+  keystore signer in app code.
+- **Required only,** like the Rust client: every request is sealed and only a
+  response to a sealed request opens. There is no `Optional` mode.
+- **Errors:** `CoseRejected` (no message, the same for every failed check),
+  `CoseMisuse`, and the signer errors reserved for the keystore signer; see
+  `cratestack-troubleshooting`.
+- **Codec-only builds.** `@cratestack/cbor-web` on npm is built without the
+  `cose` feature and stays codec-only, as do the default Rust builds. The
+  vendored wasm of `cratestack_cbor` carries it, and every app pays about
+  460 KB (Linux x86_64) or 270 KB (web `.wasm`) for it whether it signs or not.
+- **`cose_testing.dart`** pins `iat` and `cti` for the shared vectors. Never use
+  it outside tests: a pinned `cti` is a replayed request.
+
 ## TypeScript
 
 ```bash

@@ -43,6 +43,16 @@ security fix merged from a private fork with no PR number.
   `codec-json` feature), the same types as `cratestack::client_rust::CborCodec`,
   so a `db = None` server no longer needs `cratestack-codec-cbor` as a direct
   dependency to build `envelope_layer`, `rpc_router` or a client.
+- **Dart and Flutter clients can seal and open COSE** (cratestack#1151, #1026).
+  Additive: `package:cratestack_cbor/cose.dart` (`ClientEnvelope`, `CallBinding`,
+  `HmacSigner`, `Ed25519Signer`, `CoseServerKey`, the `CoseException` family) reaches
+  `cratestack-cose` over flutter_rust_bridge and the `cratestack-cbor-wasm` build,
+  with no Dart reimplementation. Required mode only, in-memory signers only: no
+  keystore or ESP256 signer yet. The generated Dart client still sends unsigned
+  requests. Default builds and the npm `@cratestack/cbor-web` stay codec-only; the
+  vendored `cratestack_cbor` binaries grow by about 460 KB (Linux x86_64) and
+  270 KB (web). Owner: `cratestack-clients`, with the exception mapping in
+  `cratestack-troubleshooting`.
 
 ## 0.15.3 (2026-10-01)
 
