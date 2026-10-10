@@ -145,6 +145,44 @@ you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
 macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
 
+### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, unreleased, cratestack#1168)*
+
+`CratestackClient::with_envelope` (feature `cose`) used to refuse every codec but CBOR. It takes
+any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed
+request, and `HttpClientCodec::payload_accept` (a **provided** method; default: the same type) is the
+`Cratestack-Payload-Accept` value, so a `JsonCodec` client works as is, and an asymmetric codec (a
+form in, JSON out) overrides `payload_accept` to `"application/json"`. CBOR sends no extra header, so
+its wire is unchanged; any other type travels in `Cratestack-Payload-Type` /
+`Cratestack-Payload-Accept`, is bound in the seal, and needs a server layer that opted in with
+`.payload_media_types(..)` (see `cratestack-server`). A response sealed under a type the call did not
+list is `EnvelopeError::UnexpectedPayloadType { got }` and is never decoded. A sealed `/rpc/batch`
+over a non-CBOR codec is `BadInput` and is not sent. `with_envelope` is `BadInput` for a codec whose
+type can never be sealed (`application/cose*`, a stream, a multipart body, or outside the lowercase
+`type/subtype` grammar).
+
+To do your own HTTP (a Node SDK, an adapter), seal with `ClientEnvelope::seal_call` and open with
+`PendingResponse::open`; the generated clients run on the same pair:
+
+```rust
+let route = RouteRef::new("/v1/charges", &[]);
+let sealed = envelope
+    .seal_call(SealCall::new("POST", route, contract_sha)
+        .payload(b"amount=1500", "application/x-www-form-urlencoded")
+        .accept("application/json"))
+    .await?;
+// send `sealed.body` with every header in `sealed.headers`, then:
+let opened = sealed.pending.open(status, &response_headers, response_body).await?;
+// opened.payload_type, opened.body
+```
+
+`SealedCall::headers` is every header the seal depends on (`Content-Type`, `Accept`,
+`Cratestack-Contract`, the payload-type selectors when not CBOR, the bound `Idempotency-Key` /
+`If-Match`); add any others yourself. An Ed25519 key behind a callback (a Node `KeyObject`, a KMS)
+signs through `ExternalSigner::ed25519(&public_key, sign)`, beside `esp256`; the callback returns the
+64-byte pure Ed25519 signature over the to-be-signed bytes. Source:
+`crates/cratestack-client-rust/src/envelope/` and
+`crates/cratestack-client-rust/tests/cose_payload_types.rs`, `cose_seal_call.rs`.
+
 ### Signing requests from Dart *(unreleased, cratestack#1151)*
 
 The generated Dart client sends **unsigned** requests. A server behind the COSE

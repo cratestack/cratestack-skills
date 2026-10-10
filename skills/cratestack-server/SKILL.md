@@ -470,6 +470,30 @@ id), path parameters (a parameterised mount's too), the canonical query,
 the schema digest, the payload type, and `Idempotency-Key` / `If-Match` exactly
 as sent. **Response headers (`ETag`, `Retry-After`) are not bound.**
 
+**Payload types** *(unreleased, cratestack#1168)*. The payload inside a seal is CBOR unless
+the client names another type in two **unbound** selector headers (the `Cratestack-Contract`
+pattern): `Cratestack-Payload-Type` (the sealed request's type; on a sealed response, that
+response's type, which the layer always sends) and `Cratestack-Payload-Accept` (the response
+types the client reads, in order, joined by `", "`). Absent means `application/cbor`, and a message
+that names none is byte-identical to 0.15.3's (binding version 2, no COSE header change). The
+AAD binds the type: a request binding names the **request** payload's type, a response binding
+the **response's own** (form in, JSON out is fine), so a header that lies fails the signature (the
+coarse `401`). Grammar: a lowercase `type/subtype` of token characters, no parameters or
+wildcards. A layer opts in with
+`.payload_media_types(["application/cbor", "application/x-www-form-urlencoded"],
+["application/cbor", "application/json"])` (default: CBOR alone); an op allows that set
+intersected with its route's declared `capabilities.request_types` / `response_types` (both
+resolvers read them; a custom `BindingResolver` uses `ResolvedRoute::with_payload_types`);
+`/rpc/batch` stays CBOR. `build()` refuses `application/cose*`, `application/cbor-seq`,
+`text/event-stream`, `multipart/*`, an empty request set and a response set without CBOR or JSON.
+Refusals are unsigned and made before any key lookup or nonce: selector repeated or malformed
+`400`; request type not allowed `415` (`payload_type_unsupported`); nothing acceptable to answer
+in `406` (`payload_type_not_acceptable`). A handler's success in a non-negotiated type is a sealed
+`500`; its *error* in one is re-encoded as the transport's error (CBOR or JSON) and sealed; a
+service's own JSON error envelope, in a negotiated type, is sealed as it is. Source:
+`crates/cratestack-axum/src/envelope_layer/payload.rs`, `builder_payload.rs`, and the tests
+`tests/payload_types*.rs` beside them.
+
 `Required` is opt-in on purpose: the schema digest hashes the raw `.cstack`
 text, so a comment-only edit breaks every signed client (cratestack#1065).
 
