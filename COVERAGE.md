@@ -41,6 +41,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | Facade selection, `package =` rename | `cratestack` |
 | `@@allow` / `@@deny` / `@allow` / `auth()` | `cratestack-policy-auth` |
 | `AuthProvider`, `CratestackContext` | `cratestack-policy-auth` (trait) + `cratestack-server` (wiring) |
+| `CoseAuthProvider` *(unreleased, cratestack#1077)*: `cratestack_cose::auth`, `authenticate_devices`, `with_service_keys`, the `cose:<thumbprint>` principal and its `kind` / `thumbprint` / `alg` fields | `cratestack-server` (wiring, the device gate) + `cratestack-policy-auth` (`auth()` semantics) + `cratestack-troubleshooting` (anonymous device) |
 | `cratestack-auth` (Ed25519, SD-JWT, JWKS) | `cratestack-policy-auth` |
 | REST routes and query parameters | `cratestack-server` |
 | `transport rpc`, `/rpc/batch`, subscriptions, `@stream` | `cratestack-rpc` |

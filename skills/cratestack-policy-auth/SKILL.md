@@ -310,6 +310,13 @@ Env knobs: `CRATESTACK_AUTH_SIGNATURE_TRUSTED_KEYS`,
 Bridges back into the framework: `auth_error_to_cratestack_error` and
 `principal_to_cratestack_context`.
 
+**A COSE signer as `auth()`** *(unreleased, cratestack#1077)*. `cratestack_cose::auth::CoseAuthProvider`
+authenticates a verified signer through the service key registry, and through the device
+key registry only after `.authenticate_devices(true)`, which is **off by default**. With
+the gate on, `auth() != null` holds for any enrolled device key, with no user behind it.
+Write user-only rules against `auth()` carefully. Wiring and the security notes are in
+`cratestack-server`.
+
 **Note on env lookups:** every one of these goes through an injectable lookup
 closure rather than calling `std::env::var` directly, because
 `std::env::set_var` is `unsafe` in edition 2024 and this workspace forbids

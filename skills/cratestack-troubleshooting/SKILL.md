@@ -385,8 +385,20 @@ not refused: it is answered as one sealed CBOR array.
 user.** The layer hands the router the opened payload as `application/cbor`.
 Generated handlers record `VerifiedSigner` on the context
 (`ctx.verified_signer()`), but that is a recorded fact, not an authentication:
-nothing turns it into an identity (that adapter is cratestack#1077). Keep
+nothing turns it into an identity unless the provider is wrapped in
+`CoseAuthProvider` *(unreleased, cratestack#1077)*. Without that wrapper, keep
 authenticating in the `AuthProvider`.
+
+**An enrolled device's sealed request is still anonymous (403 on a mutation or procedure,
+404 on a read).** *(unreleased, cratestack#1077)* The envelope verified the signer, but
+`auth() != null` refuses it. Check, in order: the router is given the `CoseAuthProvider`,
+not the bare header provider (otherwise the signer is never consulted); **device
+authentication is switched on** with `.authenticate_devices(true)`, which is **off by
+default**, so a device key resolves to anonymous without a device-registry lookup; the key is
+still in the device registry and not revoked (an unknown or revoked key is anonymous too).
+The adapter returns no error for any of these, so the response does not name the cause. A
+**service** key authenticates with the gate off, so only a device key shows this symptom.
+Source: `crates/cratestack-cose/src/auth/signer_provider.rs`.
 
 ### Dart: sealing and opening with `cratestack_cbor` *(unreleased, cratestack#1151)*
 

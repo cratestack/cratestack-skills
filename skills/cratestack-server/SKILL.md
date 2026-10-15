@@ -528,12 +528,60 @@ Traps:
 5. **The envelope does not authenticate.** The `AuthProvider` sees the opened
    CBOR payload (plus a `VerifiedSigner` in the request extensions), and
    generated handlers record the `VerifiedSigner` on the context
-   (`ctx.verified_signer()`). It is a recorded fact, not an identity; mapping a
-   signer to an identity is cratestack#1077. Keep authenticating in your
-   `AuthProvider`.
+   (`ctx.verified_signer()`). It is a recorded fact, not an identity. To turn a
+   verified signer into an identity, wrap your `AuthProvider` in
+   `CoseAuthProvider` *(unreleased, cratestack#1077)*, below. Otherwise keep
+   authenticating in your `AuthProvider`.
 6. **Responses are re-buffered** to be sealed, up to
    `MAX_RESPONSE_REBUFFER_BYTES` (8 MiB); longer is a sealed `500`. A
    `Router::fallback` handler is **not** protected (no `MatchedPath`).
+
+### Signer identity: `CoseAuthProvider` *(unreleased, cratestack#1077)*
+
+A signed client sends no `Authorization` header, so your header `AuthProvider` has
+nothing to authenticate. `CoseAuthProvider` wraps it and, when the header path gives no
+identity, asks the registries whether they still hold the verified signer's key. Depend
+on `cratestack-cose` with `features = ["auth"]` and on `cratestack-auth`; the `cose`
+facade feature re-exports `cratestack-cose` but not `cratestack-auth`, which owns
+`DeviceKeyResolver`.
+
+```rust
+use cratestack_cose::auth::CoseAuthProvider;
+
+let provider = CoseAuthProvider::new(header_provider, device_registry) // Arc<dyn DeviceKeyResolver>
+    .with_service_keys(service_registry)  // Arc<dyn CoseVerifierResolver>, e.g. RegistryVerifierResolver
+    .authenticate_devices(true);          // OFF by default; see the gate below
+// pass `provider` to the generated router in place of the header provider
+```
+
+Rules, in order (`crates/cratestack-cose/src/auth/signer_provider.rs`):
+
+- The header provider runs first. An identity it returns wins and the registries are not
+  asked. An `Err` from it is returned as is: a refused header is never replaced by the signer.
+  A header it accepts but maps to anonymous is not a refusal, and the signer supersedes it.
+- With no verified signer in the request extensions, the answer is the header provider's.
+  A signer is read only from the extensions, never from a header or body.
+- A verified signer is matched by its **full thumbprint** (the 8-byte `kid` is a prefix). The
+  service registry is asked first, then the device registry, which is asked **only when
+  device authentication is on**. A key that is unknown or revoked is anonymous, not an
+  error, so policy refuses it. A registry failure is an error (`500`), so an outage is not
+  mistaken for an unknown key.
+- The principal is `cose:<thumbprint>` (the default `ThumbprintPrincipal` prefix; with
+  another prefix the ids differ), `kind` is `service` or `device`, and the context also
+  carries `thumbprint` (bare lowercase hex) and `alg` (the COSE algorithm id, an `Int`).
+
+**Device keys are off by default.** A device key proves a device, not a user. With the gate
+off, an enrolled device signer is anonymous and the device registry is not consulted. A
+service key authenticates either way. **Turning devices on** makes any request sealed by an
+enrolled device key authenticated, with no user (no `id_jwt`), on every method, whatever the
+header provider's `TransportCallerMode`. Then `auth() != null` means "holds an enrolled device
+or service key", and revoking the key, not token expiry, is what bounds access. Turn it on
+only where device enrolment is itself gated.
+
+Also: under `Required` the envelope does not bind a header identity to the signer. When the
+header provider authenticates, its identity wins and the signer is not consulted, so one
+device can act as the user in another device's header. An ESP256 or WebCrypto device key
+authenticates only through the service registry, because `DeviceKeyResolver` is Ed25519-only.
 
 ## Service scaffolding and observability
 
