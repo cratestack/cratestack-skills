@@ -300,6 +300,10 @@ write a row and then fail to encode.
 `application/cbor-seq` is response-only and procedures-only, and requires a CBOR
 codec.
 
+A CBOR request body must be exactly one item. Bytes after the item are a 400
+(`CODEC_ERROR` on REST, `invalid_argument` on `/rpc`), not ignored, *(unreleased,
+cratestack#1153)*. JSON already refused trailing characters the same way.
+
 **The practical trap:** generated `transport rpc` TypeScript clients default to
 native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Mount
 `CodecSet::new(CborCodec, JsonCodec)`, or generate with `--no-native-cbor`.
