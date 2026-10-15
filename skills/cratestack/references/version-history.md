@@ -32,6 +32,26 @@ into it, not a replacement.
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **A validator CHECK on a table the same migration creates is Safe** (cratestack#1129,
+  PR #1188). `migrate diff` classed it Blocking, so the first migration of any
+  `@db_enforce` schema printed "blocks on existing data", wrote a comment-only
+  `up.pre.sql`, and put a WARNING in `up.sql`, though the table has no rows to reject.
+  Now it is `safe`, with no scaffold and no WARNING. A CHECK added to an existing table
+  is still Blocking. `migrate baseline`'s drift report follows the same rule. No change to
+  the generated DDL. Owner: `cratestack-migrations`.
+- **The Redis nonce store keeps one managed connection, and recovers without a restart**
+  (cratestack#1070, PR #1188). It used to open a connection per claim. Now a claim shares
+  one connection, and any failure other than a server reply (I/O error, timeout, dropped
+  connection, failed re-authentication after a password change) discards it, so the next
+  claim reconnects. A `SET` that times out answers `NonceStoreUnavailable`, never
+  `NonceReused`. The known limitation recorded with #1005 (a connection per claim) no
+  longer applies. Owner: `cratestack-policy-auth`.
+- **Generated procedure and route spans no longer leak across `.await`** (cratestack#1081,
+  PR #1188). The generated `invoke`, `invoke_with_db`, and the procedure and model list
+  route handlers held a span guard across every `.await`, so an unrelated task polled on
+  the same thread could see that span as its own. The body is now attached with
+  `Instrument::instrument`. Bug fix only: span names, fields and events are unchanged, and
+  no public API moves. Owner: `cratestack-server`.
 - **`cratestack check` locates an error after non-ASCII text** (cratestack#1157,
   PR #1187). A schema error's byte offset was handed to a code frame that counts
   characters, so a multi-byte character before the error dropped the location and

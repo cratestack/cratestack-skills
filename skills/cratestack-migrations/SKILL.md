@@ -52,14 +52,22 @@ If there are no ops, it prints `no changes` and writes nothing.
 
 | Class | Which ops | Behaviour |
 | --- | --- | --- |
-| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, drop check, required→optional, create/replace view, ensure extension | written |
+| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(unreleased, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
 | **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
-| **Blocking** | add a required column with no default (`dbgenerated()` does not count), optional→required, non-enum add check | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
+| **Blocking** | add a required column with no default (`dbgenerated()` does not count), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
 `AlterColumnType` is lossy *unconditionally* — the IR has no dialect-aware
 widening view, so even a widening change needs the flag.
 
 The run prints its label: `safe`, `lossy`, `blocking`, or `blocking+lossy`.
+
+**A CHECK on a new table is safe** *(unreleased, cratestack#1129)*. A validator
+CHECK (`@range`, `@length`, `@iso4217` with `@db_enforce`) on a table the same
+migration creates cannot reject a row, because the table has none yet. So a
+first migration of a `@db_enforce` schema is labelled `safe`, gets no
+`up.pre.sql`, and prints no WARNING. The exemption is per migration, keyed on
+the create in the same op list. A CHECK added to a table that already exists,
+in a later migration, is still blocking and gets the scaffold.
 
 ## What is *not* auto-generated
 
