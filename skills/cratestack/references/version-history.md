@@ -39,6 +39,8 @@ security fix merged from a private fork with no PR number.
   registry (`with_service_keys`) and, only after `.authenticate_devices(true)` (off by default),
   the device registry. The principal is `cose:<thumbprint>` with `kind` `service` or `device`.
   Turning devices on makes any enrolled device key an authenticated caller, with no user.
+  `with_service_keys` must hold service keys only (a device key there authenticates as a
+  service whatever the gate), and a failing service registry is a `500`, not a miss.
   Owners: `cratestack-server` (wiring, the gate), with the anonymous-device row in
   `cratestack-troubleshooting` and the `auth()` note in `cratestack-policy-auth`.
 - **A validator CHECK on a table the same migration creates is Safe** (cratestack#1129,
