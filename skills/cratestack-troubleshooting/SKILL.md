@@ -220,6 +220,13 @@ resolver is not `Clone`, so one instance cannot be passed to both.
 CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)` or regenerate with
 `--no-native-cbor`.
 
+**A CBOR request is answered `400` `CODEC_ERROR` (REST) or `invalid_argument` (`/rpc`), with the public message `invalid request payload`** *(unreleased, cratestack#1153)*.
+The operator detail says `failed to decode CBOR body: N bytes left unconsumed after the value`:
+the body has bytes after its first CBOR item. A client that sends a `subarray` of a larger
+pooled buffer, or two items back to back, does this. Send exactly one item per body. There is
+no request form for several items: `application/cbor-seq` is a response format. Before this
+change those trailing bytes were ignored, so a body that worked on an older release can now fail.
+
 **`DefaultBodyLimit` re-layered on the router does nothing** — in *either*
 direction. axum applies layers bottom-to-top and the innermost restriction wins,
 which is structurally always CrateStack's own. Use the `body_limit_bytes`
@@ -227,7 +234,9 @@ parameter of `router()` / `rpc_router()`.
 
 **A `Decimal` field arrives as a string in TypeScript.** You skipped
 `reviveWireFields`. It type-checks because the generated call sites use an `as`
-cast. See `cratestack-clients`.
+cast. See `cratestack-clients`. A `Decimal[]` field is revived element by element
+*(unreleased, cratestack#1155)*; before that fix the array stayed strings even after
+`reviveWireFields`.
 
 **An upsert on a soft-deleted model "created" a row that already existed.** The
 probe treats a tombstone as no row, so the `DO UPDATE` writes over it and the

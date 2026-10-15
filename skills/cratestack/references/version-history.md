@@ -32,6 +32,27 @@ into it, not a replacement.
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **`cratestack check` locates an error after non-ASCII text** (cratestack#1157,
+  PR #1187). A schema error's byte offset was handed to a code frame that counts
+  characters, so a multi-byte character before the error dropped the location and
+  snippet, or pointed up to dozens of lines away. The renderer now converts the span
+  once, in `SchemaError::render`; ASCII-only schemas and the JSON output are unchanged.
+  Owner: `cratestack-cli`, with the macro-error path in `cratestack-troubleshooting`.
+- **CBOR bodies with bytes after the first item are refused with 400** (cratestack#1153,
+  PR #1187). `CborCodec::decode` now errors unless the value consumes the whole body, as
+  `JsonCodec` already did for trailing characters, so a request that relied on prefix
+  decoding gets `CODEC_ERROR` (REST) or `invalid_argument` (RPC) where it got a 200.
+  `application/cbor-seq` is unaffected. Owners: `cratestack-server`, `cratestack-clients`,
+  with the row in `cratestack-troubleshooting`.
+- **`generate-typescript --swr` hooks import `<Model>ComputedParams`** (cratestack#1154,
+  PR #1187). A model with a parameterized `@computed` field failed `tsc` with TS2304 in
+  `<model>.hooks.ts`; the hooks file now imports the type on REST and RPC, only when a
+  hook uses it. Owner: `cratestack-clients`.
+- **A generated TypeScript client revives each element of a `Decimal[]` field**
+  (cratestack#1155, PR #1187). A `Decimal[]` on a model or `type` came back as strings
+  while its type said `Decimal[]`, so `.plus()` threw; a bare `Decimal[]` procedure
+  return was already revived. Generated code only, no wire change. Owner:
+  `cratestack-clients`.
 - **Negotiated payload types inside a seal; `seal_call`; `ExternalSigner::ed25519`**
   (cratestack#1168, PR #1169). Additive: the payload inside a COSE envelope may be
   JSON or form-urlencoded as well as CBOR, selected by the unbound
