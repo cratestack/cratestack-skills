@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -119,12 +119,39 @@ they appear at the `include_*_schema!` call site.
 And from `cratestack check` itself, the families that generate the most confusion:
 
 **``uses unknown attribute `@reedonly` — did you mean `@readonly`?``** *(since
-0.8.15)* — the single
+0.8.15; replaced by the next entry in 0.15.4)* — the single
 most valuable error in the set. An unrecognised attribute is **inert**: it
 parses, reports `schema OK`, and enforces nothing. The near-miss check converts
-that silent no-op into a hard failure. Note it runs on **field** attributes only,
-so on 0.14.0 and earlier a mistyped `@@` model attribute was still silently inert.
-Since 0.14.1, `@@` attributes are a closed list (next entry).
+that silent no-op into a hard failure for a typo of a known name. On 0.15.3 and earlier
+only that near-miss was caught: `@whatever`, `@immutable`, `@Id` still passed, and a
+mistyped `@@` model attribute was silently inert before 0.14.1.
+
+**``unsupported attribute `@x` on a model field``** (or `view`, `mixin`, `type`, `auth`
+field) *(since 0.15.4, ADR 0019 D5, cratestack#679)*. Field attributes are a closed list
+per declaration kind; the message names the attribute, the kind and the accepted list,
+with "did you mean" when close. This is a newly **visible** defect, not a new one: the
+attribute did nothing before, so `@immutable` never protected the field and `@string`
+never changed the generated type. Delete it, or write the accepted attribute you
+actually meant (`@immutable` meant `@readonly`). Surprises when upgrading: validators,
+`@unique`, `@default`, `@pii` and the like on a `view` field; `@id`, `@default`,
+`@db_enforce`, `@pii` and any validator on a `String[]` field of a `type`; **any**
+attribute on an `auth` field; `@from` on a model field; `@db_enforce` with no
+`@range` / `@length` / `@iso4217` beside it; a bare `@default`. The lists are in
+`cratestack-schema/references/attributes.md`.
+
+**A procedure that accepted a call before answers `422` `VALIDATION_ERROR` (REST) or
+`invalid_argument` (RPC), naming a path like `args.owner.tags[1].label`** *(since 0.15.4)*.
+A validator (`@length`, `@range`, `@regex`, `@email`, `@uri`, `@iso4217`) on a `type`
+field used to validate nothing; now it runs on every procedure argument that is or holds
+that `type`, before `@allow`. The server was accepting invalid input, so fix the caller; if
+the rule was never meant, delete the attribute. The message never echoes the value.
+
+**A TypeScript client throws `TypeError` naming a `BigInt` field** *(since 0.15.4)*. Revival
+accepts only a canonical decimal string inside `i64`; a JSON number at a `BigInt` key means
+a server built before `BigInt` whose value may already be rounded. Regenerate every client
+and rebuild every server together. Requests the other way fail the same way: a number, a
+CBOR integer, `+5`, `007`, `-0` or a value outside `i64` is refused as an invalid request
+body.
 
 **Attribute refusals after upgrading past 0.14.0** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. Each names the declaration and the attribute. On 0.14.0
@@ -338,8 +365,7 @@ the mount-prefix values of a parameterised mount, and the schema digest (a
 comment-only `.cstack` edit changes it, cratestack#1065). A header sent **twice**
 is a 400, not a 401.
 
-**A device that enrolled (or was revoked) gets the 401 you did not expect.** *(unreleased,
-cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same
+**A device that enrolled (or was revoked) gets the 401 you did not expect.** *(since 0.15.4, cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same
 coarse, unsigned 401 as a bad signature, so the response cannot tell you which. If the
 resolver is a `RegistryVerifierResolver`, check that `register` ran on **this process** (state
 is per process: another replica, or a restart, starts empty), that `register` did not return
@@ -361,7 +387,7 @@ instead of applied with `Router::layer` as the generated router's last
 traffic **unprotected**, not refused.
 
 **415 or 406 with code `payload_type_unsupported` / `payload_type_not_acceptable`**
-*(unreleased, cratestack#1168)*. Unsigned, answered before any key is looked up, so
+*(since 0.15.4, cratestack#1168)*. Unsigned, answered before any key is looked up, so
 nothing was verified: the request's `Cratestack-Payload-Type` is a type the op does not allow
 (415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
 layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
@@ -404,7 +430,7 @@ only). And a **failing service registry** is a `500` even for a device signer wi
 off, because it is asked first; that is an error, not an anonymous answer.
 Source: `crates/cratestack-cose/src/auth/signer_provider.rs`.
 
-### Dart: sealing and opening with `cratestack_cbor` *(unreleased, cratestack#1151)*
+### Dart: sealing and opening with `cratestack_cbor` *(since 0.15.4, cratestack#1151)*
 
 For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 `cratestack-clients`). Source: `dart-packages/cratestack_cbor/lib/src/cose/errors.dart`.

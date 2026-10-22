@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -46,15 +46,25 @@ Anything else is `unsupported top-level declaration`. **`config` and `version`
 are not keywords** — `@version` is a *field* attribute. `transport grpc` is
 rejected with a migration message; gRPC was removed in 0.8.5.
 
-## The 16 built-in types, and the two you will reach for that do not exist
+## The 17 built-in types, and the one you will reach for that does not exist
 
 ```
-String  Cuid  Int  Float  Boolean  DateTime  Decimal  Json  Bytes  Uuid
+String  Cuid  Int  BigInt  Float  Boolean  DateTime  Decimal  Json  Bytes  Uuid
 Page  PageInput  FindMany  Vector  Geography  Geometry
 ```
 
-**`BigInt` is not a `.cstack` type** — `Int` already maps to `i64` / `BIGINT`.
-**`Date` is not one either** (the docs site shows it in one snippet; that snippet
+**`BigInt` is a `.cstack` type** *(since 0.15.4, ADR 0019)*, valid wherever `Int` is: a
+model, view, mixin or `type` field, a procedure argument or return, a `query` parameter,
+`@version`, `@range`, a numeric `@default`, a policy literal. Use it for a value that can pass
+2^53 (an amount in minor units, a counter): `Int` is still an `i64`, but it is still a JSON
+**number**, and every JavaScript or dart2js consumer rounds a number past 2^53 without an
+error. A `BigInt` travels as a canonical decimal **string** on JSON and CBOR, and is a
+`bigint` in TypeScript, `dart:core`'s `BigInt` in Dart and `cratestack::BigInt` (a `Copy`
+newtype over `i64`) in Rust. A user `type`, `model` or `enum` named `BigInt` is a
+duplicate-name error. Wire form, policies and the rest of the contract:
+[cratestack-clients](../cratestack-clients/SKILL.md). On 0.15.3 and earlier there is no
+`BigInt`: `Int` is the only 64-bit integer.
+**`Date` is not a type** (the docs site shows it in one snippet; that snippet
 would not parse). There is no `@db.JsonB`; use the `Json` scalar.
 
 Arity suffixes go at the end: `T` required, `T?` optional, `T[]` list. On a
@@ -112,15 +122,15 @@ Note the has-many side carries `@relation` too. That is mandatory.
 
 | | |
 | --- | --- |
-| `@id` | Primary key. **Exactly one per model** — a second is now a hard error. Bare `@id` only *(since 0.14.0)*: `@id(...)` is refused, and `@identity` / `@id_foo` are unknown (inert) attributes, not keys. |
-| `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. |
+| `@id` | Primary key. **Exactly one per model** — a second is now a hard error. Bare `@id` only *(since 0.14.0)*: `@id(...)` is refused, and `@identity` / `@id_foo` are unknown attributes, not keys (inert through 0.15.3, refused *(since 0.15.4)*). |
+| `@default(…)` | `@default(false)`, `@default(dbgenerated())`, `@default(auth().organization.id)`. `dbgenerated()` takes **no argument**. `@default(autoincrement())` is refused, pointing at `dbgenerated()` *(unreleased, cratestack#1128)*: cratestack emits no sequence or identity, so create one in hand-written migration SQL. Before that, `migrate diff` wrote `DEFAULT autoincrement()` into `up.sql` and it failed at apply time. |
 | `@unique` | Single-column unique index. |
 | `@relation(fields: [local], references: [target], onDelete: X, onUpdate: X)` | See below. At most one per field *(since 0.14.0)*. |
 | `@readonly` / `@server_only` | Out of inputs; `@server_only` also strips from responses (procedure outputs with `@computed` fields included *(since 0.13.0)*), is ignored in a procedure argument that decodes the model *(since 0.13.0, #1051)*, and is never a filter or sort key *(since 0.13.0)*. Mutually exclusive, and neither may sit on the PK. Write both bare: `@readonly()` or `@server_only(true)` did nothing on 0.14.0 and is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. `@server_only` belongs on a model's stored scalar column only; on a `type` or `auth` field, a relation field, a relation key (use `@readonly`) or a `@version` field it did nothing and is refused *(since 0.14.1)*. |
 | `@pii` / `@sensitive` | Audit redaction only; no effect on inputs or outputs. |
-| `@version` | Optimistic locking. Required `Int`, at most one, never the PK. |
+| `@version` | Optimistic locking. Required `Int` (or `BigInt` *(since 0.15.4)*), at most one, never the PK. |
 | `@computed` / `@computed(params: T?)` | Resolver-backed response field. |
-| `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | Validators — see below. |
+| `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | Validators — see [references/attributes.md](references/attributes.md). On a `type` field too *(since 0.15.4)*, where they run on procedure arguments. |
 | `@@allow("action", expr)` / `@@deny(…)` | Model policy. Actions: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Write it exactly so, either quote, the line ending at its `)`: on 0.14.0 any other spelling or action was **silently skipped**; now it is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. See `cratestack-policy-auth`. |
 | `@@id([a,b])` `@@unique([a,b])` `@@index([a,b], using: gist, opclass: "…", where: "…")` | Model-level keys and indexes. |
 | `@@paged` `@@audit` `@@soft_delete` `@@retain(days: N)` `@@emit(created, updated, deleted)` `@@subscribe` `@@internal("action")` *(since 0.8.14)* | Behaviour markers. |
@@ -148,11 +158,47 @@ write `@computed(params: X?)`. The same holds for every procedure, query, model 
 view attribute *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: `@deny (x)`, which the
 generator silently skipped on 0.14.0, is refused, and so is `@@sql ("…")`.
 
-**Field attributes: unknown ones are inert, near-misses are rejected** *(since 0.8.15)*. `@reedonly` is caught
-as a typo of `@readonly`; a genuinely unknown `@whatever` on a field parses, reports
-`schema OK`, and enforces nothing. Do not assume silence means it worked. This
-remains true for fields only — since 0.14.1, procedure, query and `@@`
-attributes are closed lists instead (next entry).
+**Field attributes are a closed list per declaration kind** *(since 0.15.4, ADR 0019 D5,
+cratestack#679)*. Through 0.15.3 only a near-miss (`@reedonly`, caught since 0.8.15) was
+refused; a genuinely unknown `@whatever`, `@immutable`, `@string`, `@Id` or `@ID` parsed,
+reported `schema OK` and enforced nothing, and `@Id` was **not** a primary key. Now a field
+takes only what its kind lists, each in its one exact spelling:
+
+| Declaration | Accepts |
+| --- | --- |
+| `model` | `@id` `@unique` `@default(…)` `@relation(…)` `@computed` `@readonly` `@server_only` `@version` `@pii` `@sensitive` `@db_enforce` `@email` `@uri` `@iso4217` `@length(…)` `@range(…)` `@regex(…)` `@rename(from = "…")` |
+| `view` | `@id` `@server_only` `@from(Model.field)` |
+| `mixin` | a model's list without `@id` and `@computed` |
+| `type` | `@computed` `@length(…)` `@range(…)` `@regex(…)` `@email` `@uri` `@iso4217` |
+| `auth` | none |
+
+Anything else is an error naming the attribute, the kind and this list. A name that was
+silently inert on a kind is refused there: on a `view` field the validators, `@unique`,
+`@default`, `@relation`, `@readonly`, `@version`, `@pii`, `@sensitive`, `@db_enforce`; on a
+`type` field `@id`, `@unique`, `@relation`, `@readonly`, `@version`, `@pii`, `@sensitive`,
+`@db_enforce`, `@default` (a `type` is decoded as sent, so a default never applied; make the
+field optional) and a validator on a **list** field; every attribute on an `auth` field; `@from`
+off a view. A bare `@default` / `@default()` and a bare `@relation` on a scalar are refused,
+as is `@db_enforce` with no `@range` / `@length` / `@iso4217` beside it (it emitted no
+`CHECK`), and `@from(Model.field)` must name a real model and field. Delete a newly refused
+attribute: it did nothing, so do not swap it for the nearest accepted name unless you want
+that behaviour (`@immutable` meant `@readonly`). **On 0.15.3 and earlier none of this is
+checked, so `schema OK` proves nothing about a field attribute.** Since 0.14.1, procedure,
+query, model and view attributes are closed lists as well (next entry).
+
+**Validators on a `type` field run on everything a client sends — breaking** *(since 0.15.4)*.
+On 0.15.3 and earlier `@length` on a `type` field was accepted and validated nothing, so a
+`type` used as a procedure argument accepted values its author believed were checked. Now a
+`type` takes the full validator family, and the generated check is the first statement of the
+procedure's `authorize`, `authorize_with_db`, `invoke` and `invoke_with_db`, before `@allow`,
+for every argument that is or holds such a `type` (or a `model`, direct, listed, optional or
+nested). A failure is `422` `VALIDATION_ERROR` on REST and `invalid_argument` on RPC, naming
+the path in the body (`args.owner.tags[1].label`) and never the value. A `model` passed as an
+argument validates its stored fields as `POST` does, and a `@computed` field's `params` type is
+validated before any database read. So callers that sent invalid arguments now get `422`: fix
+the caller, or delete a rule that was never meant. A validator on a `type` that only a
+procedure *returns* is refused by `check` (the server builds it, so it would never run).
+Return values are never validated, and generated clients do not validate before sending.
 
 **Procedure, query, model and view attributes are closed lists** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. Any other name, a case variant (`@Deny`, `@@DENY`) or a typo
@@ -234,8 +280,8 @@ view needs **exactly one `@id` field** unless it declares `@@no_unique`.
 `@@materialized` requires a server body and cannot combine with `@@no_unique`.
 `@@allow` on a view supports only `"read"`; a view's `@@deny` must name `"read"` or
 `"all"` *(since 0.14.1; on 0.14.0 any other action was silently skipped)*.
-**`@from(...)` is completely inert** —
-documentation of provenance, checked by nothing.
+**`@from(...)` changes nothing** — documentation of provenance that no generator
+reads. Since 0.15.4 it must name a real `Model.field`; through 0.15.3 nothing checked it.
 
 A `query` block *(since 0.11.0)* is raw Postgres SQL with positional parameters:
 

@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -387,7 +387,7 @@ It is off unless you enable a facade feature:
 Both are on `cratestack-pg` and `cratestack-api`. The generated function exists
 only for schemas compiled through a facade with `envelope` on. The Rust client
 signs since 0.15.0 (`cratestack-client-rust`'s `ClientEnvelope`, feature `cose`,
-cratestack#1007); the Dart client is in `cratestack_cbor` *(unreleased, cratestack#1151)*,
+cratestack#1007); the Dart client is in `cratestack_cbor` *(since 0.15.4, cratestack#1151)*,
 see `cratestack-clients`.
 
 ```rust
@@ -426,7 +426,7 @@ cratestack_schema::SCHEMA_SHA256_BYTES).policy(..).rest(prefix, ROUTE_TRANSPORTS
 Source: `crates/cratestack-axum/src/envelope_layer/` and
 `crates/cratestack-api/tests/cose_envelope_*.rs`.
 
-**Keys enrolled at run time** *(unreleased, cratestack#1149)*. `StaticVerifierResolver`
+**Keys enrolled at run time** *(since 0.15.4, cratestack#1149)*. `StaticVerifierResolver`
 is fixed when built. For devices that enrol after start-up use
 `cratestack::cose::RegistryVerifierResolver` (`cratestack_cose::RegistryVerifierResolver`):
 share one `Arc`, hand a clone to `CoseEnvelope::server(..)` as its
@@ -474,7 +474,7 @@ id), path parameters (a parameterised mount's too), the canonical query,
 the schema digest, the payload type, and `Idempotency-Key` / `If-Match` exactly
 as sent. **Response headers (`ETag`, `Retry-After`) are not bound.**
 
-**Payload types** *(unreleased, cratestack#1168)*. The payload inside a seal is CBOR unless
+**Payload types** *(since 0.15.4, cratestack#1168)*. The payload inside a seal is CBOR unless
 the client names another type in two **unbound** selector headers (the `Cratestack-Contract`
 pattern): `Cratestack-Payload-Type` (the sealed request's type; on a sealed response, that
 response's type, which the layer always sends) and `Cratestack-Payload-Accept` (the response

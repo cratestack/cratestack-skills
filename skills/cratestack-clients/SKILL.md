@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -222,7 +222,7 @@ you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
 macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
 
-### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, unreleased, cratestack#1168)*
+### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, since 0.15.4, cratestack#1168)*
 
 `CratestackClient::with_envelope` (feature `cose`) used to refuse every codec but CBOR. It takes
 any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed
@@ -260,7 +260,7 @@ signs through `ExternalSigner::ed25519(&public_key, sign)`, beside `esp256`; the
 `crates/cratestack-client-rust/src/envelope/` and
 `crates/cratestack-client-rust/tests/cose_payload_types.rs`, `cose_seal_call.rs`.
 
-### Signing requests from Dart *(unreleased, cratestack#1151)*
+### Signing requests from Dart *(since 0.15.4, cratestack#1151)*
 
 The generated Dart client sends **unsigned** requests. A server behind the COSE
 envelope layer (`cratestack-server`) accepts only sealed ones, and a Dart or
@@ -383,6 +383,26 @@ related `Account.total: String` and the relation included, a flat set threw
 corrupted a numeric-looking `"00123"` into `Decimal("123")`.
 
 Use `revivePagedWireFields` for `@@paged` responses.
+
+### `BigInt` is a string on the wire *(since 0.15.4, ADR 0019 D2, D3)*
+
+A schema `BigInt` field never travels as a number: it is a canonical decimal string (`0`, or
+an optional `-`, a non-zero digit and at most 18 more digits, inside `i64`) on JSON and CBOR
+alike, because a JSON number past 2^53 is rounded by JavaScript and dart2js without an error.
+The server refuses a number, a CBOR integer or bignum, `+5`, `007`, `-0` and anything
+outside `i64`, on a body, a query filter and `?computedParams=`.
+
+| Client | Type | Notes |
+| --- | --- | --- |
+| Rust | `cratestack::BigInt` | `Copy` newtype over `i64`, `checked_*` only, no operator impls |
+| TypeScript | `bigint`, filter `BigIntFilter` | **Strict revival**: a number or non-canonical string at a `BigInt` key throws `TypeError` naming the field. Every `bigint` is stringified before the codec; a custom `options.codec` is not wrapped, so call `encodeWireFields` first. Query keys store a `bigint` as its string. |
+| Dart | `dart:core`'s `BigInt`, filter `BigIntFilter` | Decoded by a generated `cratestackDecodeBigInt(value, 'Owner.field')` (a `FormatException` names the field); RPC `get` / `update` / `delete` send the key as `id.toString()` |
+
+Regenerate every client and rebuild every server together: a client from before 0.15.4 has
+no `bigint`. `--rtk` clients need `@reduxjs/toolkit` `^2.2.7` *(floor raised from `^2.0.0`
+in 0.15.4)*, and RTK's development-only serializability check does not know `bigint` (the
+generated README shows the `serializableCheck` option). `Int` is unchanged: still `i64`
+and still a JSON number until a later cutover.
 
 ### The schema-SHA header
 

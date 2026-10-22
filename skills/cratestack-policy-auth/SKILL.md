@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -136,6 +136,18 @@ Terms combined with `&&`, `||` and parentheses.
 
 Procedure policy adds predicates over the decoded arguments —
 `InputFieldIsTrue { field }` and friends.
+
+**A wrong-typed claim denies; `!=` and `not in` pass only on a decided difference**
+*(since 0.15.4, ADR 0019)*. Comparisons are three-valued (equal, different, undecidable) and an
+undecidable pair satisfies neither `==` nor `!=`, as a SQL `NULL` does; a `@deny` on it
+fires. On 0.15.3 and earlier a `"7"` claim satisfied `auth().tenantId != 7` (a string is not
+an integer), so a policy fed by a claim your identity provider may issue as a string could
+pass for the wrong caller. In a model policy any claim whose type does not match the literal
+is undecidable; in a procedure policy only an integer against a string is, in either order,
+and a `Bool`, `Float` or `Null` operand still passes `!=` (a known gap, in the framework's
+`ROADMAP.md`). A string claim in a numeric comparison denies, and a `BigInt` claim must be a JSON
+integer in a policy comparison. A pushed-down string claim renders as `$N::text`. Audit every
+`!=` and `not in` policy for the claim types it can actually receive.
 
 ## The one behaviour that surprises everyone
 

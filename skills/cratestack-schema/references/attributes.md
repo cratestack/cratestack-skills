@@ -15,10 +15,10 @@ When this file and `cratestack check` disagree, the checker is right — report 
 | `@server_only` | bare | Out of inputs, stripped from responses, omitted from audit snapshots. Never read from a request either: a procedure argument that names the model (directly or through a `type`) gets the field's default whatever the client sent *(since 0.13.0, #1051)*. Before that, a client could set it that way. Never a filter or sort key: refused like an undeclared field on REST, RPC, relation paths and `FindMany`, and absent from the generated `<M>Where` / `<M>SortField` *(since 0.13.0, GHSA-ch54-jqw2-vpp5)*. Before 0.13.0 a request could test its value that way, and a procedure output containing a model with a `@computed` field sent it (0.8.11–0.12.0). Only on a model's stored scalar column: see the placement rules below *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. |
 | `@pii` | bare | Audit redaction as `"[redacted-pii]"`. No effect on inputs or outputs. |
 | `@sensitive` | bare | Audit redaction as `"[redacted-sensitive]"`. |
-| `@version` | bare | Required `Int`. At most one per model. Never the PK, never inside `@@id([...])`. |
+| `@version` | bare | Required `Int`, or `BigInt` *(since 0.15.4)*. At most one per model. Never the PK, never inside `@@id([...])`. |
 | `@computed` | bare or `@computed(params: T?)` | `type` and `model` only. Once per field. **Cannot combine with any other field attribute.** The `?` on `params` is mandatory; `T` must be a declared `type` block. |
-| `@from(Model.field)` | opaque | **Completely inert.** Provenance documentation on view fields, checked by nothing. |
-| `@db_enforce` | bare | Alongside a validator, promotes it to a real Postgres `CHECK`. The parser checks only its spelling (`@db_enforce()` refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*), not that a validator is present. |
+| `@from(Model.field)` | `Model.field`: two identifiers and one dot | View fields only. Provenance documentation that **no generator reads**, so it changes nothing. *(since 0.15.4)* it must name a model and a field the schema declares (the error lists the candidates); through 0.15.3 it was checked by nothing. |
+| `@db_enforce` | bare | Alongside `@range`, `@length` or `@iso4217`, promotes it to a real Postgres `CHECK`. `@db_enforce()` is refused *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. *(since 0.15.4)* a `model` or `mixin` field with `@db_enforce` and none of those three is an error (`@email @db_enforce` emitted no constraint), and it is refused on a `type` field (no table). Through 0.15.3 nothing checked that a validator was present. |
 | `@rename(from = "<old_column>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate` — see `cratestack-migrations`. The value is the old SQL column name (a camelCase name is snake-cased first). *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: any other form (`@rename(from: "x")`, `@rename("x")`, `@rename()`, bare `@rename`, text after its `)`) is refused, and so are a second `@rename` on the field and a `@rename` on a field of a `view`, `type` or `auth` block or on a relation field. On 0.14.0 each of those checked as `schema OK` and the migrator read no marker: the next migration dropped the column and added a new one, losing its data. |
 | `@length` `@range` `@regex` `@email` `@uri` `@iso4217` | see below | Validators. |
 
@@ -44,10 +44,36 @@ When this file and `cratestack check` disagree, the checker is right — report 
   name (`@unique_per_tenant`) is a different, unknown attribute.
 - **Separate attributes with a space.** `@server_only@unique` is refused. An `@`
   inside a string (`@default("a@b.c")`) is not affected.
-- **Unknown field attributes are still inert.** Only a near-miss of a known name
-  (`@reedonly`, `@renam`, `@Readonly`) is refused. A name too short for the
-  near-miss check stays inert: `@Id` and `@ID` report `schema OK` and are **not**
-  a primary key (measured with `cratestack check` built from 0.14.1).
+- **Unknown field attributes were inert through 0.15.3.** Only a near-miss of a known name
+  (`@reedonly`, `@renam`, `@Readonly`) was refused. A name too short for the
+  near-miss check stayed inert: `@Id` and `@ID` reported `schema OK` and are **not**
+  a primary key (measured with `cratestack check` built from 0.14.1). *(since 0.15.4)*
+  the list below closes it.
+
+### Which attributes each declaration kind accepts *(since 0.15.4, ADR 0019 D5, cratestack#679)*
+
+A field takes only the attributes its kind lists. Any other name, another case or a typo is
+an error naming the attribute, the kind and the whole list, with "did you mean" when close.
+
+| Declaration | Accepts |
+| --- | --- |
+| `model` | `@id`, `@unique`, `@default(…)`, `@relation(…)`, `@computed`, `@readonly`, `@server_only`, `@version`, `@pii`, `@sensitive`, `@db_enforce`, `@email`, `@uri`, `@iso4217`, `@length(…)`, `@range(…)`, `@regex(…)`, `@rename(from = "…")` |
+| `view` | `@id`, `@server_only`, `@from(Model.field)` |
+| `mixin` | what a `model` accepts except `@id` and `@computed` |
+| `type` | `@computed`, `@length(…)`, `@range(…)`, `@regex(…)`, `@email`, `@uri`, `@iso4217` |
+| `auth` | none |
+
+Each name is shape-checked too: the no-argument names refuse an argument list;
+`@default`, `@relation`, `@length`, `@range`, `@regex` and `@rename` refuse a missing or
+empty one; text after an attribute or a run-on second attribute is refused. `@allow`,
+`@deny`, `@pb` and `@custom` keep their own messages (below) and are checked first.
+These parsed on 0.15.3 and fail now: on a `view` field every validator and `@unique`,
+`@default`, `@relation`, `@readonly`, `@version`, `@pii`, `@sensitive`, `@db_enforce`; on a
+`type` field `@id`, `@unique`, `@relation`, `@readonly`, `@version`, `@pii`, `@sensitive`,
+`@db_enforce`, `@default`, `@from`, and any validator on a list field (`tags String[]
+@length(max: 3)`: declare a `type` whose field carries it and take `Tag[]`); every attribute
+on an `auth` field; `@from` on a `model` or `mixin` field. `cratestack-lsp` completions read
+the same lists, and `cratestack_parser::field_attribute_names(FieldHost)` returns one.
 
 ### Rejected at field position
 
@@ -65,17 +91,29 @@ field position rejects them.
 | Attribute | Arguments | Valid on | Notes |
 | --- | --- | --- | --- |
 | `@length(min: N, max: N)` | both optional, non-negative | `String`, `Bytes` | `min <= max` enforced. |
-| `@range(min: N, max: N)` | both optional, signed | `Int`, `Decimal` | `min <= max` enforced. |
+| `@range(min: N, max: N)` | both optional, signed | `Int`, `Decimal`, and `BigInt` *(since 0.15.4; bounds parse as `i64`)* | `min <= max` enforced. |
 | `@regex("pattern")` | one quoted string | `String` | **Compiled at parse time** — an invalid regex fails `cratestack check`. |
 | `@email` | bare | `String` | |
 | `@uri` | bare | `String` | |
 | `@iso4217` | bare | `String` | |
 
-**Validator type-checking runs only on `model` fields.** A validator on a `type`,
-`mixin`, `view` or `auth` field is not type-checked (it still passes the
-near-miss and removed-attribute checks). Runtime enforcement lives in generated
-`validate()` impls on the Create/Update inputs — and on the **embedded** backend
-nothing calls them automatically.
+**Where validators are accepted and type-checked.** Through 0.15.3, type-checking ran only on
+`model` fields and a validator on a `type`, `mixin`, `view` or `auth` field was accepted and
+not checked. *(since 0.15.4)* a `type` field takes the whole family with the same scalar rules
+as a model field (`@length` on `String` / `Bytes`, `@range` on `Int` / `BigInt` / `Decimal`, the
+others on `String`); a validator on a `view` or `auth` field, or on a list field, is refused.
+
+**Where they run.** In generated `validate()` impls on the Create/Update inputs, and on the
+**embedded** backend nothing calls those automatically. *(since 0.15.4)* the macros also
+generate `validate_at` / `validate()` (the public `cratestack::ValidateFields` trait, with
+`cratestack::FieldPath`) for every `type`, and for every `model`, that holds a validator on a
+client-filled field, and run it as the first statement of every procedure helper on each
+argument that is or holds one, and on a `@computed` field's `?computedParams=`. REST, RPC unary
+and batch, MCP and a worker therefore agree. A failure is `422` `VALIDATION_ERROR` (REST) or
+`invalid_argument` (RPC), naming the body path and never the value. A `type` that only a
+procedure returns is not reached, so a validator on it is refused by `check`. Through 0.15.3 a
+validator on a `type` field validated nothing, so a caller that sent an invalid argument was
+accepted: after upgrading it gets `422`.
 
 ## Model attributes
 
