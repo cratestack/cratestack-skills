@@ -192,6 +192,19 @@ is written down so a port needs no redesign, and it records the trap: Dio's
 individually and never merges them. A plain `Interceptor.onRequest` that holds
 the handler is the right primitive.
 
+**The generated Dart RPC client** *(unreleased, cratestack#1204)* sends through one adapter,
+`CratestackRpcHttpAdapter(transport, baseUri:, format:)`, over a `CratestackHttpTransport`
+seam; Dio is `CratestackDioTransport(dio)`, one transport among several, and the four
+`*DioAdapter` classes are gone. An error answer is `CratestackRpcException` (`status` plus
+the `RpcErrorBody` `code`), no answer is the sealed `CratestackTransportException`.
+`CratestackRpcCallOptions` has `headers`, `idempotencyKey` (unary `call` only) and `abort`.
+`stream()` yields `application/cbor-seq` items as they arrive instead of buffering, and a
+trailing `Tag(48900, RpcErrorBody)` item becomes a `CratestackRpcException`; because it is an
+`async*` generator, every failure is the stream's error. A rejected field is `422
+invalid_argument`. Detail and the upgrade steps: `cratestack-clients`,
+`references/dart-transport.md`. There is still no Dart port of the automatic batch link
+(the trap above stands); `batch()` on the adapter sends an explicit batch.
+
 Client middleware links are **RPC-only**; the REST binding has no link chain yet.
 Streaming runs through a **separate** `RpcStreamLink` chain, deliberately not a
 variant of `RpcLink` — a stream has no batch URL, and folding it in would break

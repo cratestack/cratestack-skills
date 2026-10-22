@@ -32,6 +32,30 @@ into it, not a replacement.
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **Breaking: the generated Dart client sends through an HTTP transport seam; the four
+  `*DioAdapter` classes are removed** (cratestack#1204, PR #1206) *(unreleased)*. Every
+  generated `runtime.dart` (all presets, REST and RPC) declares `CratestackHttpTransport`; one
+  adapter per protocol, `CratestackHttpAdapter` (REST) and `CratestackRpcHttpAdapter` (RPC),
+  takes `baseUri` and `format` (`CratestackWireFormat.cbor` default, `.json`). Dio is
+  `CratestackDioTransport(dio)`. `CratestackDioAdapter`, `CratestackCborDioAdapter`,
+  `CratestackRpcDioAdapter` and `CratestackRpcCborDioAdapter` are deleted with no aliases;
+  `dio.options.baseUrl` is replaced by `baseUri`. Errors: new `CratestackRestException`
+  (REST used to leak a `DioException`), `CratestackRpcException` unchanged, and a sealed
+  `CratestackTransportException` (`Aborted`, `Unsent`, `TimedOut`, `Broken`) for a call with no
+  answer. Call options gain `abort` (both) and `idempotencyKey` (REST). RPC `stream()` no
+  longer buffers. A canonical query encoder replaces Dio's: a `null` query value is omitted
+  instead of sent as a bare key. The wire is otherwise unchanged. Owner: `cratestack-clients`
+  (`references/dart-transport.md`), with the exception rows in `cratestack-troubleshooting`
+  and the Dart client note in `cratestack-rpc`.
+- **`generate-dart --preset fespalier`, `--fespalier-ref`** (cratestack#1204, PR #1206)
+  *(unreleased)*. The `riverpod` preset sending through fespalier's `HttpTransport`
+  (`package:fespalier_transport`, a git dependency) with no `dio`: `CratestackFespalierTransport`,
+  `<prefix>TransportProvider` and `<prefix>BaseUriProvider` the app overrides, abort merged with
+  fespalier's `TransportZone`. `--fespalier-ref` (default `v0.21.0`) is an error with any other
+  preset. Known gaps, both open: call options cannot carry transport attributes
+  (cratestack#1207) and an `AuthProvider` refusal cannot shape its body (cratestack#1208).
+  Owners: `cratestack-clients`, `cratestack-cli`, with the #1208 limit in
+  `cratestack-policy-auth`.
 - **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
   `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind ADR 0020, which is
   *Proposed*. Nothing installable ships. There is no `@@sync` attribute, and the crate's API is

@@ -235,6 +235,16 @@ Every generated handler authenticates, then calls
 `&ctx` to the delegates. That is where client IP resolution happens — see
 `cratestack-data-integrity`.
 
+**An `AuthProvider` cannot shape its refusal** *(unreleased limit, cratestack#1208, open)*.
+`Self::Error: Into<CratestackError>` goes through the standard `{code, message}` envelope, with
+the status that error maps to, on REST and RPC alike. There is no way to add a member such as
+`{"error": "attestation_expired"}` or to pick an arbitrary status. A client that classifies a
+refusal by such a member (fespalier's device-signed sessions: "renew and retry" versus "wipe
+the keys") cannot be served by the provider alone. The workaround in fespalier's
+`examples/cratestack` is a verification layer in front of the router that writes its own 401/403
+and records the verified caller as a request extension; the `AuthProvider` only turns that
+extension into a `CratestackContext`. Check the issue before assuming it is still open.
+
 `CachedAuthProvider::new(ctx)` returns a fixed context for every call. It is what
 `POST /rpc/batch` uses so a signing provider authenticates the real batch
 envelope once rather than per frame.

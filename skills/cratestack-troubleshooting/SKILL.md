@@ -1,6 +1,6 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, and attributes refused by the strict attribute parsing since 0.14.1 (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, attributes refused by the strict attribute parsing since 0.14.1 (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form), and Dart-client errors after the HTTP transport change (removed *DioAdapter classes, CratestackTransportException kinds, fespalier provider UnimplementedError). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
@@ -419,6 +419,26 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 | `StateError` from `ClientEnvelope.contractHeaderValue` | The backend has not started: call it after `ClientEnvelope.create` or `createCborCodec()` |
 | `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
 | `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
+
+### Dart: the HTTP transport and its exceptions *(unreleased, cratestack#1204)*
+
+For an app using a generated Dart client. The package: `skills/cratestack-clients/references/dart-transport.md`.
+
+| What the app sees | It means |
+| --- | --- |
+| `CratestackDioAdapter`, `CratestackCborDioAdapter`, `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter` is an undefined name | The package was regenerated and those four classes are deleted, with no aliases. Use `CratestackHttpAdapter(CratestackDioTransport(dio), baseUri: ...)` (REST) or `CratestackRpcHttpAdapter(...)` (RPC); the JSON adapters become `format: CratestackWireFormat.json` |
+| `on DioException` no longer catches anything | A generated call throws `CratestackRestException` / `CratestackRpcException` for an HTTP error answer and `CratestackTransportException` when there is no answer. The `DioException` is `.cause` at most |
+| Requests go to the wrong host or lose a path prefix after the swap | `dio.options.baseUrl` is not read any more; `baseUri` is. A path on `baseUri` (`https://example.com/v1`) is kept |
+| A query key that used to arrive as a bare `key` is gone | A `null` in a query map is omitted by the canonical encoder. Generated query builders never emit `null`; hand-built `queryParameters` do. Send an explicit value |
+| `FormatException` from a JSON REST call | The answer had a `Content-Type` that is neither CBOR nor JSON. The JSON adapter used to return the raw string; it throws now |
+| `CratestackTransportUnsent` | The request provably never left the device (refused, DNS, connect timeout, TLS before any byte): resend, even a non-idempotent call |
+| `CratestackTransportTimedOut` / `CratestackTransportBroken` | The request may have reached the server. Retry only with an `idempotencyKey` |
+| `CratestackTransportAborted` | The call's `abort` future completed (or, under `--preset fespalier`, the surrounding `TransportZone` aborted: a page that was left) |
+| `UnimplementedError: Override <prefix>TransportProvider ...` (or `BaseUriProvider`, or `AdapterProvider`) | The provider has no default: the app must override it. Under `--preset fespalier` override `<prefix>TransportProvider` and `<prefix>BaseUriProvider`; under `default` / `riverpod`, `<prefix>AdapterProvider` |
+| `pub get` cannot resolve `fespalier_transport` | It is a git dependency at `--fespalier-ref` (default `v0.21.0`), not on pub.dev. Check the ref exists and the network reaches GitHub, or point it at a checkout with `pubspec_overrides.yaml` |
+| `--fespalier-ref only applies to --preset fespalier` | The flag with another preset, or an empty or whitespace ref |
+| A 422 `invalid_argument` over RPC is not shown as field errors | `fespalier_cratestack` reads it like REST's `VALIDATION_ERROR` only from fespalier `v0.21.1` (and `main`); the `v0.21.0` tag does not have it. Pass `--fespalier-ref v0.21.1` or upgrade fespalier |
+| An `AuthRejected` (or another decorator error) that is not a `CratestackTransportException` | `CratestackFespalierTransport` rethrows anything it does not map. Only the fespalier `Transport*` failures are mapped |
 
 ## Getting more signal
 
