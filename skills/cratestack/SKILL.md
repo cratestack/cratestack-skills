@@ -5,7 +5,7 @@ description: Entry point and router for CrateStack, the Rust schema-first framew
 
 # CrateStack
 
-> **Verified against CrateStack 0.15.4.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -123,7 +123,7 @@ rusqlite-only code; `include_client_schema!` emits axum-free client code. No
 cross-backend impl leaks between them. If you are tempted to "share" a runtime
 type across two of these paths, that is the boundary talking.
 
-## Known limits, current as of 0.15.4
+## Known limits, current as of 0.14.2
 
 Worth knowing before you design around them:
 

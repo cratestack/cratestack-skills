@@ -13,12 +13,15 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.15.4**, the latest release (tag
-`v0.15.4`, 2026-10-11), unless a marker says
+Everything in these skills is verified against **0.14.2** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
+
+The latest release is **0.15.4** (tag `v0.15.4`, 2026-10-11). Its changes are recorded
+below and marked *(since 0.15.4)* where they are taught; the banners stay at 0.14.2
+until every skill has been re-checked against 0.15.4, as AGENTS.md requires.
 
 ## Reading order for an upgrade
 
@@ -738,7 +741,7 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.15.4, each of these parses, validates, and then does nothing:
+As of 0.14.2, each of these parses, validates, and then does nothing (re-checked for 0.15.4's field-attribute change only):
 
 - `@from(Model.field)` on a view field: since 0.15.4 its shape and target are
   checked (a real model and field), but no generator reads it, so it still changes
