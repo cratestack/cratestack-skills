@@ -32,6 +32,11 @@ into it, not a replacement.
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
+  `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind ADR 0020, which is
+  *Proposed*. Nothing installable ships. There is no `@@sync` attribute, and the crate's API is
+  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
+  must not depend on it.
 - **A COSE-verified signer authenticates through the service and device registries**
   (cratestack#1077, PR #1188) *(unreleased)*. `cratestack_cose::auth::CoseAuthProvider` wraps
   the header `AuthProvider`, so a signed client with no `Authorization` header can satisfy
