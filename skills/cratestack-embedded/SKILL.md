@@ -47,6 +47,19 @@ SQLite migration SQL (`cratestack migrate diff --backend sqlite`), but nothing
 applies it for you — execute it yourself with `conn.execute_batch`. The
 checksum-guarded applier in `cratestack-sqlx` is Postgres-only.
 
+**There is no supported sync engine** *(unreleased, prototype only)*. Server-to-device
+sync is not a released feature. The framework repository does contain an
+**unpublished** prototype, the `cratestack-sync` crate (`publish = false`) and
+`examples/sync-notes`, behind ADR 0020, which is still *Proposed*
+(`cratestack-docs/internals/sync-engine-adr.md`). It is not on crates.io, it is not
+generated from the schema (its registries are hand-written, and the `@@sync`
+attribute it proposes does not exist), and its API will change. Do not add it as a
+dependency, and do not write `@@sync`.
+
+If a user needs sync today, it is application code. Do not use an `updatedAt`
+timestamp as the pull cursor: it skips transactions that commit late. The ADR
+explains why, and what the prototype uses instead.
+
 ## The smallest program that works
 
 ```rust
