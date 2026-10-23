@@ -301,7 +301,7 @@ write a row and then fail to encode.
 codec.
 
 A CBOR request body must be exactly one item. Bytes after the item are a 400
-(`CODEC_ERROR` on REST, `invalid_argument` on `/rpc`), not ignored, *(unreleased,
+(`CODEC_ERROR` on REST, `invalid_argument` on `/rpc`), not ignored, *(since 0.16.0,
 cratestack#1153)*. JSON already refused trailing characters the same way.
 
 **The practical trap:** generated `transport rpc` TypeScript clients default to
@@ -530,13 +530,13 @@ Traps:
    generated handlers record the `VerifiedSigner` on the context
    (`ctx.verified_signer()`). It is a recorded fact, not an identity. To turn a
    verified signer into an identity, wrap your `AuthProvider` in
-   `CoseAuthProvider` *(unreleased, cratestack#1077)*, below. Otherwise keep
+   `CoseAuthProvider` *(since 0.16.0, cratestack#1077)*, below. Otherwise keep
    authenticating in your `AuthProvider`.
 6. **Responses are re-buffered** to be sealed, up to
    `MAX_RESPONSE_REBUFFER_BYTES` (8 MiB); longer is a sealed `500`. A
    `Router::fallback` handler is **not** protected (no `MatchedPath`).
 
-### Signer identity: `CoseAuthProvider` *(unreleased, cratestack#1077)*
+### Signer identity: `CoseAuthProvider` *(since 0.16.0, cratestack#1077)*
 
 A signed client sends no `Authorization` header, so your header `AuthProvider` has
 nothing to authenticate. `CoseAuthProvider` wraps it and, when the header path gives no

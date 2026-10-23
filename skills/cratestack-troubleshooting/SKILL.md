@@ -247,7 +247,7 @@ resolver is not `Clone`, so one instance cannot be passed to both.
 CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)` or regenerate with
 `--no-native-cbor`.
 
-**A CBOR request is answered `400` `CODEC_ERROR` (REST) or `invalid_argument` (`/rpc`), with the public message `invalid request payload`** *(unreleased, cratestack#1153)*.
+**A CBOR request is answered `400` `CODEC_ERROR` (REST) or `invalid_argument` (`/rpc`), with the public message `invalid request payload`** *(since 0.16.0, cratestack#1153)*.
 The operator detail says `failed to decode CBOR body: N bytes left unconsumed after the value`:
 the body has bytes after its first CBOR item. A client that sends a `subarray` of a larger
 pooled buffer, or two items back to back, does this. Send exactly one item per body. There is
@@ -262,7 +262,7 @@ parameter of `router()` / `rpc_router()`.
 **A `Decimal` field arrives as a string in TypeScript.** You skipped
 `reviveWireFields`. It type-checks because the generated call sites use an `as`
 cast. See `cratestack-clients`. A `Decimal[]` field is revived element by element
-*(unreleased, cratestack#1155)*; before that fix the array stayed strings even after
+*(since 0.16.0, cratestack#1155)*; before that fix the array stayed strings even after
 `reviveWireFields`.
 
 **An upsert on a soft-deleted model "created" a row that already existed.** The
@@ -412,11 +412,11 @@ user.** The layer hands the router the opened payload as `application/cbor`.
 Generated handlers record `VerifiedSigner` on the context
 (`ctx.verified_signer()`), but that is a recorded fact, not an authentication:
 nothing turns it into an identity unless the provider is wrapped in
-`CoseAuthProvider` *(unreleased, cratestack#1077)*. Without that wrapper, keep
+`CoseAuthProvider` *(since 0.16.0, cratestack#1077)*. Without that wrapper, keep
 authenticating in the `AuthProvider`.
 
 **An enrolled device's sealed request is still anonymous (403 on a mutation or procedure,
-404 on a read).** *(unreleased, cratestack#1077)* The envelope verified the signer, but
+404 on a read).** *(since 0.16.0, cratestack#1077)* The envelope verified the signer, but
 `auth() != null` refuses it. Check, in order: the router is given the `CoseAuthProvider`,
 not the bare header provider (otherwise the signer is never consulted); **device
 authentication is switched on** with `.authenticate_devices(true)`, which is **off by
@@ -446,7 +446,7 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 | `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
 | `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
 
-### Dart: the HTTP transport and its exceptions *(unreleased, cratestack#1204)*
+### Dart: the HTTP transport and its exceptions *(since 0.16.0, cratestack#1204)*
 
 For an app using a generated Dart client. The package: `skills/cratestack-clients/references/dart-transport.md`.
 

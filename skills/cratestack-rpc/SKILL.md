@@ -192,7 +192,7 @@ is written down so a port needs no redesign, and it records the trap: Dio's
 individually and never merges them. A plain `Interceptor.onRequest` that holds
 the handler is the right primitive.
 
-**The generated Dart RPC client** *(unreleased, cratestack#1204)* sends through one adapter,
+**The generated Dart RPC client** *(since 0.16.0, cratestack#1204)* sends through one adapter,
 `CratestackRpcHttpAdapter(transport, baseUri:, format:)`, over a `CratestackHttpTransport`
 seam; Dio is `CratestackDioTransport(dio)`, one transport among several, and the four
 `*DioAdapter` classes are gone. An error answer is `CratestackRpcException` (`status` plus
