@@ -17,7 +17,7 @@ Three generated languages, one wire contract.
 | Language | Produced by | Ships |
 | --- | --- | --- |
 | Rust | `include_client_schema!` | typed model + procedure clients over a reqwest runtime |
-| Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*unreleased*), `--preset riverpod` / `fespalier` layers |
+| Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*since 0.16.0*), `--preset riverpod` / `fespalier` layers |
 | TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers |
 
 ## Rust — `include_client_schema!`
@@ -125,12 +125,12 @@ through fespalier's `HttpTransport` with no Dio. Which to pick:
 | --- | --- |
 | `default` | a plain package, or you wrap the client yourself; Dio or your own transport |
 | `riverpod` | a Riverpod app; Dio or your own transport |
-| `fespalier` *(unreleased, cratestack#1204)* | the app's HTTP stack is a `fespalier_transport` chain (session, signing, portal check, spans), so a second client under it is wrong |
+| `fespalier` *(since 0.16.0, cratestack#1204)* | the app's HTTP stack is a `fespalier_transport` chain (session, signing, portal check, spans), so a second client under it is wrong |
 
 Choose by the HTTP stack the app already owns. `fespalier` changes the transport
 and its providers, not the call sites.
 
-### Sending: one seam, Dio is one transport *(unreleased, cratestack#1204)*
+### Sending: one seam, Dio is one transport *(since 0.16.0, cratestack#1204)*
 
 > **Never write `CratestackDioAdapter`, `CratestackCborDioAdapter`,
 > `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter`.** They are deleted,
@@ -202,9 +202,9 @@ ProviderScope(overrides: [
 values), the full contract of the seam, how to write a transport, the exception
 table, and `--preset fespalier` (`--fespalier-ref`, default `v0.21.0`; the
 `examples/cratestack` reference in fespalier): all in
-[references/dart-transport.md](references/dart-transport.md). The change is on
-`main` and in no release (0.15.4 is the latest). On an older CLI the generated
-package still has the four adapters and none of the above exists.
+[references/dart-transport.md](references/dart-transport.md). The change shipped in
+0.16.0. On a 0.15.x or older CLI the generated package still has the four adapters and
+none of the above exists.
 
 Generated data classes carry hand-rolled `fromWire` / `toWire`, both routing every
 field through JSON-plain values (ISO-8601 for `DateTime`, `List<int>` for `Bytes`,
@@ -355,7 +355,7 @@ wire response still goes through revival, and REST endpoints use
 | Rust | `CborCodec` |
 | TypeScript, `transport rpc` | native CBOR via `@cratestack/cbor` |
 | **TypeScript, `transport rest`** | **JSON, hardcoded — there is no codec seam at all** |
-| Dart REST | CBOR: `CratestackHttpAdapter(format:)` defaults to `CratestackWireFormat.cbor` *(unreleased; before it, the consumer picked a `Dio` adapter)* |
+| Dart REST | CBOR: `CratestackHttpAdapter(format:)` defaults to `CratestackWireFormat.cbor` *(since 0.16.0; before it, the consumer picked a `Dio` adapter)* |
 
 **Regeneration hazard:** native CBOR became the default for generated TypeScript
 RPC clients *in 0.8.14* (#746). Re-running `generate-typescript` on an RPC package

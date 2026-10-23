@@ -94,7 +94,7 @@ All three generators share a `--check` drift mode and `--base-path` (default
 | `--run-build-runner` | off |
 | `--no-native-cbor` | off (native CBOR is on) |
 
-`--preset fespalier` *(unreleased, cratestack#1204)* is the `riverpod` layout sending
+`--preset fespalier` *(since 0.16.0, cratestack#1204)* is the `riverpod` layout sending
 through fespalier's `HttpTransport` instead of Dio: no `dio` in the pubspec, a generated
 `CratestackFespalierTransport`, and `<prefix>TransportProvider` / `<prefix>BaseUriProvider`
 the app overrides. `--fespalier-ref` is the git tag, branch or commit of
