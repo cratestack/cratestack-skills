@@ -54,7 +54,7 @@ If there are no ops, it prints `no changes` and writes nothing.
 | --- | --- | --- |
 | Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(unreleased, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
 | **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
-| **Blocking** | add a required column with no default (`dbgenerated()` does not count), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
+| **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
 `AlterColumnType` is lossy *unconditionally* — the IR has no dialect-aware
 widening view, so even a widening change needs the flag.
@@ -122,6 +122,12 @@ Hand-write any destructive reversal.
 
 **Enums on SQLite** — not emitted at all; variant changes are Rust-side only.
 
+*(unreleased, cratestack#1209)* `@default(auth().field)` is never written to DDL (through 0.15.4 it
+was emitted as `DEFAULT auth().field`), and a snapshot written by an older cratestack is read back
+normalised: a stored `now()` / `uuid()` / `cuid()` default as cratestack's own, `auth().field` as
+no default. `migrate baseline` reads Postgres's `now()` and `gen_random_uuid()` as `now()` and
+`uuid()`.
+
 You also get a stderr warning listing every `@default(dbgenerated())` on a
 required column, because the emitter cannot verify the database actually has that
 default.
@@ -183,6 +189,7 @@ Without that crate, the glue is yours.
 | `DROP COLUMN` | native | native (SQLite ≥ 3.35) — no table-rebuild dance |
 | Introspection / `baseline` | supported | **not supported** |
 | Runner | `cratestack-sqlx` | **none exists** |
+| Function defaults *(unreleased, cratestack#1209)* | `now()` → `now()`, `uuid()` → `gen_random_uuid()`, `cuid()` → none, a registered function verbatim | `now()` / `uuid()` → expressions the embedded runtime decodes, `cuid()` → none, a registered function in parentheses. `ADD COLUMN` with an expression default fails once the table has rows; the migration carries a note there |
 
 BLOB everywhere is because BLOB affinity is the only one that preserves the bound
 storage class. Native enums are avoided because generated row decoders read enum

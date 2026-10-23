@@ -65,6 +65,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | Validators on `type` fields enforced on procedure arguments *(since 0.15.4, ADR 0019 D5)*: `cratestack::ValidateFields`, `FieldPath`, `ProcedureArgs::validate_fields`, `?computedParams=` validation, `422` / `invalid_argument` with the body path | `cratestack-schema` (where validators run) + `cratestack-troubleshooting` (the new `422`) |
 | `BigInt` scalar *(since 0.15.4, ADR 0019 D2, D3)*: canonical-string wire form, `cratestack::BigInt`, TypeScript `bigint` + strict revival + `BigIntFilter`, Dart `BigInt` + `cratestackDecodeBigInt`, `--rtk` floor `^2.2.7`, `SqlValue::BigInt`, three-valued policy comparisons | `cratestack-schema` (the type) + `cratestack-clients` (wire contract) + `cratestack-policy-auth` (wrong-typed claim denies) + `cratestack-troubleshooting` (`TypeError`) |
 | `@default(autoincrement())` refused, `dbgenerated()` must be the whole default *(unreleased, cratestack#1128)* | `cratestack-schema` (`@default`) + `cratestack-migrations` |
+| `@default` functions *(unreleased, cratestack#1209)*: builtin `now()` / `uuid()` / `cuid()` generated on create, datasource `functions = [...]` registration, per-dialect DDL, `auth()` never in DDL | `cratestack-schema` (`@default`, `references/attributes.md`) + `cratestack-migrations` |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |

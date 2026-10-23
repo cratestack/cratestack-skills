@@ -89,6 +89,17 @@ security fix merged from a private fork with no PR number.
   and emit a broken `DEFAULT dbgenerated (...)` clause, is refused too. A pre-existing snapshot holding
   `Function("autoincrement()")` is read as `DbGenerated`. Owner: `cratestack-migrations`,
   `cratestack-schema`.
+- **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
+  (cratestack#1209) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
+  verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised
+  function default (`now()` included), and `@default(auth().id)` became `DEFAULT auth().id`.
+  On the embedded runtime any `@default` column was written as NULL. Now `now()`, `uuid()` and
+  `cuid()` are cratestack's own, generated in Rust on create by both runtimes, with the matching
+  database default emitted where one exists (`now()`, `gen_random_uuid()`; none for `cuid()`);
+  a database function is registered with `datasource db { functions = ["my_fn"] }` and written
+  verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
+  `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
+  `cratestack-migrations`.
 - **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
   `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind ADR 0020, which is
   *Proposed*. Nothing installable ships. There is no `@@sync` attribute, and the crate's API is
