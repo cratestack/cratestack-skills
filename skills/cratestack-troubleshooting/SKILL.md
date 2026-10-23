@@ -462,8 +462,9 @@ For an app using a generated Dart client. The package: `skills/cratestack-client
 | `CratestackTransportAborted` | The call's `abort` future completed (or, under `--preset fespalier`, the surrounding `TransportZone` aborted: a page that was left) |
 | `UnimplementedError: Override <prefix>TransportProvider ...` (or `BaseUriProvider`, or `AdapterProvider`) | The provider has no default: the app must override it. Under `--preset fespalier` override `<prefix>TransportProvider` and `<prefix>BaseUriProvider`; under `default` / `riverpod`, `<prefix>AdapterProvider` |
 | `pub get` cannot resolve `fespalier_transport` | It is a git dependency at `--fespalier-ref` (default `v0.21.0`), not on pub.dev. Check the ref exists and the network reaches GitHub, or point it at a checkout with `pubspec_overrides.yaml` |
-| `--fespalier-ref only applies to --preset fespalier` | The flag with another preset, or an empty or whitespace ref |
-| A 422 `invalid_argument` over RPC is not shown as field errors | `fespalier_cratestack` reads it like REST's `VALIDATION_ERROR` only from fespalier `v0.21.1` (and `main`); the `v0.21.0` tag does not have it. Pass `--fespalier-ref v0.21.1` or upgrade fespalier |
+| `--fespalier-ref only applies to --preset fespalier` | The flag was passed with another preset (`crates/cratestack-cli/src/cli_handlers.rs`) |
+| `invalid fespalier ref "<ref>": expected a git tag, branch or commit, e.g. v0.21.0` | The ref is empty or holds whitespace or control characters (`DartGeneratorError::InvalidFespalierRef`) |
+| A 422 `invalid_argument` over RPC is not shown as field errors | `fespalier_cratestack` reads it like REST's `VALIDATION_ERROR` only from fespalier `v0.21.1` (and `main`); the `v0.21.0` tag does not have it. Depend on `fespalier_cratestack` at `v0.21.1` or later, and pass the same ref to `--fespalier-ref` so the generated client's `fespalier_transport` matches it |
 | An `AuthRejected` (or another decorator error) that is not a `CratestackTransportException` | `CratestackFespalierTransport` rethrows anything it does not map. Only the fespalier `Transport*` failures are mapped |
 
 ## Getting more signal

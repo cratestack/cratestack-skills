@@ -48,8 +48,9 @@ sequenceDiagram
 | A transport | `CratestackDioTransport(dio)`, `CratestackFespalierTransport(httpTransport)`, or your own | one HTTP stack |
 
 The seam, the request and response types and the exceptions have no dependency.
-Only `lib/src/dio_transport.dart` names Dio, and only
-`lib/src/fespalier_transport.dart` names `fespalier_transport`.
+Only `lib/src/dio_transport.dart` names Dio. Under `--preset fespalier`,
+`fespalier_transport` is imported by `lib/src/fespalier_transport.dart` and by the
+provider file `lib/src/client.dart` (its providers are `Provider<HttpTransport>`).
 
 ## Constructing an adapter
 
@@ -276,8 +277,10 @@ cratestack generate-dart --schema schema.cstack --out ./client \
   must be non-empty with no whitespace. Default `v0.21.0`, a generator constant.
   fespalier has tags `v0.21.0` and `v0.21.1`; both have the transport types the
   generated file uses, and only `v0.21.1` has the RPC validation reading in
-  `fespalier_cratestack` (see above), so an RPC app that wants field errors passes
-  `--fespalier-ref v0.21.1`.
+  `fespalier_cratestack` (see above). `--fespalier-ref` pins only the generated
+  package's `fespalier_transport`; it must match the ref of the app's other fespalier
+  packages, or pub reports a git-source conflict. An RPC app that wants field errors
+  depends on `fespalier_cratestack` at `v0.21.1` or later and passes that same ref.
 - The pubspec depends on `fespalier_transport` by **git**
   (`url: https://github.com/fespalier/fespalier`, `path: packages/fespalier_transport`,
   `ref: <fespalier-ref>`). It is not on pub.dev, and `dio` is not a dependency.

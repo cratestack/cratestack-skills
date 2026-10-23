@@ -83,9 +83,10 @@ security fix merged from a private fork with no PR number.
   sequence, an identity column, a trigger, hand-written migration SQL), and cratestack emits
   none of those itself: create the sequence or identity in hand-authored migration SQL.
   `dbgenerated()` must also be the whole default expression, so
-  `@default(dbgenerated() || 'x')`, `@default(dbgenerated()::text)`, an unclosed
-  `dbgenerated(` and a spaced `dbgenerated ("x")` are refused where they used to drop the
-  rest of the expression from the migration. A pre-existing snapshot holding
+  `@default(dbgenerated() || 'x')`, `@default(dbgenerated()::text)` and an unclosed
+  `dbgenerated(` are refused where they used to drop the rest of the expression from the
+  migration, and a spaced `dbgenerated ("x")`, which used to slip past the argument check
+  and emit a broken `DEFAULT dbgenerated (...)` clause, is refused too. A pre-existing snapshot holding
   `Function("autoincrement()")` is read as `DbGenerated`. Owner: `cratestack-migrations`,
   `cratestack-schema`.
 - **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
