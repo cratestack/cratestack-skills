@@ -19,9 +19,10 @@ otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.15.4** (tag `v0.15.4`, 2026-10-11). Its changes are recorded
-below and marked *(since 0.15.4)* where they are taught; the banners stay at 0.14.2
-until every skill has been re-checked against 0.15.4, as AGENTS.md requires.
+The latest release is **0.16.0** (tag `v0.16.0`, 2026-10-23). Its changes, and
+0.15.4's, are recorded below and marked *(since 0.16.0)* / *(since 0.15.4)* where they
+are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
+latest release, as AGENTS.md requires.
 
 ## Reading order for an upgrade
 
@@ -39,19 +40,53 @@ each step's breaking changes assume the one before:
 3. [0.15.4](#0154-2026-10-11): field attributes become a closed list too, validators
    on `type` fields start running, and `BigInt` exists. Re-run `cratestack check`
    first; every error it adds is an attribute that did nothing before.
-4. [Unreleased on `main`](#unreleased-on-main-after-0154) only if you build `main`.
+4. [0.16.0](#0160-2026-10-23): `@default(autoincrement())` is refused, and the
+   generated Dart client loses its four `*DioAdapter` classes (regenerate, then move
+   to `CratestackHttpAdapter` / `CratestackRpcHttpAdapter`). A CBOR body with
+   trailing bytes becomes a `400`.
+5. [Unreleased on `main`](#unreleased-on-main-after-0160) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
-## Unreleased on `main`, after 0.15.4
+## Unreleased on `main`, after 0.16.0
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number.
+security fix merged from a private fork with no PR number. When 0.16.0 was recorded
+here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the
+sync-engine entry below is in the tag's source but in no published crate.
+
+- **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
+  (cratestack#1209, PR #1211) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
+  verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised
+  function default (`now()` included), and `@default(auth().id)` became `DEFAULT auth().id`.
+  On the embedded runtime any `@default` column was written as NULL. Now `now()`, `uuid()` and
+  `cuid()` are cratestack's own, generated in Rust on create by both runtimes, with the matching
+  database default emitted where one exists (`now()`, `gen_random_uuid()`; none for `cuid()`);
+  a database function is registered with `datasource db { functions = ["my_fn"] }` and written
+  verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
+  `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
+  `cratestack-migrations`.
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
+  ADR 0020, which is *Proposed*. The source is in the `v0.16.0` tag and the 0.16.0 changelog
+  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
+  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
+  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
+  must not depend on it.
+
+## 0.16.0 (2026-10-23)
+
+0.16.0 carries two breaking changes (the Dart transport seam, the `autoincrement()`
+refusal) and the fixes merged after 0.15.4 (`v0.15.4..v0.16.0`). It is **not** the rest
+of ADR 0019: the 32-bit `Int` cutover, the
+`cratestack upgrade int-to-bigint` codemod and snapshot format 3 are not in the tag
+(`SNAPSHOT_FORMAT_VERSION` is still `2`), so `Int` is still an `i64`. Skills mark these
+*(since 0.16.0)*.
 
 - **Breaking: the generated Dart client sends through an HTTP transport seam; the four
-  `*DioAdapter` classes are removed** (cratestack#1204, PR #1206) *(unreleased)*. Every
+  `*DioAdapter` classes are removed** (cratestack#1204, PR #1206) *(since 0.16.0)*. Every
   generated `runtime.dart` (all presets, REST and RPC) declares `CratestackHttpTransport`; one
   adapter per protocol, `CratestackHttpAdapter` (REST) and `CratestackRpcHttpAdapter` (RPC),
   takes `baseUri` and `format` (`CratestackWireFormat.cbor` default, `.json`). Dio is
@@ -66,7 +101,7 @@ security fix merged from a private fork with no PR number.
   (`references/dart-transport.md`), with the exception rows in `cratestack-troubleshooting`
   and the Dart client note in `cratestack-rpc`.
 - **`generate-dart --preset fespalier`, `--fespalier-ref`** (cratestack#1204, PR #1206)
-  *(unreleased)*. The `riverpod` preset sending through fespalier's `HttpTransport`
+  *(since 0.16.0)*. The `riverpod` preset sending through fespalier's `HttpTransport`
   (`package:fespalier_transport`, a git dependency) with no `dio`: `CratestackFespalierTransport`,
   `<prefix>TransportProvider` and `<prefix>BaseUriProvider` the app overrides, abort merged with
   fespalier's `TransportZone`. `--fespalier-ref` (default `v0.21.0`) is an error with any other
@@ -75,7 +110,7 @@ security fix merged from a private fork with no PR number.
   Owners: `cratestack-clients`, `cratestack-cli`, with the #1208 limit in
   `cratestack-policy-auth`.
 - **Breaking: `@default(autoincrement())` is refused, pointing at `@default(dbgenerated())`**
-  (cratestack#1128, PR #1167) *(unreleased)*. The parser accepted it and `migrate diff` wrote
+  (cratestack#1128, PR #1167) *(since 0.16.0)*. The parser accepted it and `migrate diff` wrote
   `DEFAULT autoincrement()` into `up.sql`, DDL neither Postgres nor SQLite has, labelled
   `(safe)`; it failed at apply time, one step after `schema OK`. `cratestack check` now
   refuses the spelling (any case, any spacing, any argument form, and the bare word) at the
@@ -89,24 +124,8 @@ security fix merged from a private fork with no PR number.
   and emit a broken `DEFAULT dbgenerated (...)` clause, is refused too. A pre-existing snapshot holding
   `Function("autoincrement()")` is read as `DbGenerated`. Owner: `cratestack-migrations`,
   `cratestack-schema`.
-- **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
-  (cratestack#1209) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
-  verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised
-  function default (`now()` included), and `@default(auth().id)` became `DEFAULT auth().id`.
-  On the embedded runtime any `@default` column was written as NULL. Now `now()`, `uuid()` and
-  `cuid()` are cratestack's own, generated in Rust on create by both runtimes, with the matching
-  database default emitted where one exists (`now()`, `gen_random_uuid()`; none for `cuid()`);
-  a database function is registered with `datasource db { functions = ["my_fn"] }` and written
-  verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
-  `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
-  `cratestack-migrations`.
-- **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
-  `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind ADR 0020, which is
-  *Proposed*. Nothing installable ships. There is no `@@sync` attribute, and the crate's API is
-  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
-  must not depend on it.
 - **A COSE-verified signer authenticates through the service and device registries**
-  (cratestack#1077, PR #1188) *(unreleased)*. `cratestack_cose::auth::CoseAuthProvider` wraps
+  (cratestack#1077, PR #1188) *(since 0.16.0)*. `cratestack_cose::auth::CoseAuthProvider` wraps
   the header `AuthProvider`, so a signed client with no `Authorization` header can satisfy
   `auth() != null`. It matches the verified signer by full thumbprint against the service
   registry (`with_service_keys`) and, only after `.authenticate_devices(true)` (off by default),
@@ -117,55 +136,58 @@ security fix merged from a private fork with no PR number.
   Owners: `cratestack-server` (wiring, the gate), with the anonymous-device row in
   `cratestack-troubleshooting` and the `auth()` note in `cratestack-policy-auth`.
 - **A validator CHECK on a table the same migration creates is Safe** (cratestack#1129,
-  PR #1188). `migrate diff` classed it Blocking, so the first migration of any
+  PR #1188) *(since 0.16.0)*. `migrate diff` classed it Blocking, so the first migration of any
   `@db_enforce` schema printed "blocks on existing data", wrote a comment-only
   `up.pre.sql`, and put a WARNING in `up.sql`, though the table has no rows to reject.
   Now it is `safe`, with no scaffold and no WARNING. A CHECK added to an existing table
   is still Blocking. `migrate baseline`'s drift report follows the same rule. No change to
   the generated DDL. Owner: `cratestack-migrations`.
 - **The Redis nonce store keeps one managed connection, and recovers without a restart**
-  (cratestack#1070, PR #1188). It used to open a connection per claim. Now a claim shares
+  (cratestack#1070, PR #1188) *(since 0.16.0)*. It used to open a connection per claim. Now a claim shares
   one connection, and any failure other than a server reply (I/O error, timeout, dropped
   connection, failed re-authentication after a password change) discards it, so the next
   claim reconnects. A `SET` that times out answers `NonceStoreUnavailable`, never
   `NonceReused`. The known limitation recorded with #1005 (a connection per claim) no
   longer applies. Owner: `cratestack-policy-auth`.
 - **Generated procedure and route spans no longer leak across `.await`** (cratestack#1081,
-  PR #1188). The generated `invoke`, `invoke_with_db`, and the procedure and model list
+  PR #1188) *(since 0.16.0)*. The generated `invoke`, `invoke_with_db`, and the procedure and model list
   route handlers held a span guard across every `.await`, so an unrelated task polled on
   the same thread could see that span as its own. The body is now attached with
   `Instrument::instrument`. Bug fix only: span names, fields and events are unchanged, and
   no public API moves. Owner: `cratestack-server`.
 - **`cratestack check` locates an error after non-ASCII text** (cratestack#1157,
-  PR #1187). A schema error's byte offset was handed to a code frame that counts
+  PR #1187) *(since 0.16.0)*. A schema error's byte offset was handed to a code frame that counts
   characters, so a multi-byte character before the error dropped the location and
   snippet, or pointed up to dozens of lines away. The renderer now converts the span
   once, in `SchemaError::render`; ASCII-only schemas and the JSON output are unchanged.
   Owner: `cratestack-cli`, with the macro-error path in `cratestack-troubleshooting`.
 - **CBOR bodies with bytes after the first item are refused with 400** (cratestack#1153,
-  PR #1187). `CborCodec::decode` now errors unless the value consumes the whole body, as
+  PR #1187) *(since 0.16.0)*. `CborCodec::decode` now errors unless the value consumes the whole body, as
   `JsonCodec` already did for trailing characters, so a request that relied on prefix
   decoding gets `CODEC_ERROR` (REST) or `invalid_argument` (RPC) where it got a 200.
   `application/cbor-seq` is unaffected. Owners: `cratestack-server`, `cratestack-clients`,
   with the row in `cratestack-troubleshooting`.
 - **`generate-typescript --swr` hooks import `<Model>ComputedParams`** (cratestack#1154,
-  PR #1187). A model with a parameterized `@computed` field failed `tsc` with TS2304 in
+  PR #1187) *(since 0.16.0)*. A model with a parameterized `@computed` field failed `tsc` with TS2304 in
   `<model>.hooks.ts`; the hooks file now imports the type on REST and RPC, only when a
   hook uses it. Owner: `cratestack-clients`.
 - **A generated TypeScript client revives each element of a `Decimal[]` field**
-  (cratestack#1155, PR #1187). A `Decimal[]` on a model or `type` came back as strings
+  (cratestack#1155, PR #1187) *(since 0.16.0)*. A `Decimal[]` on a model or `type` came back as strings
   while its type said `Decimal[]`, so `.plus()` threw; a bare `Decimal[]` procedure
   return was already revived. Generated code only, no wire change. Owner:
   `cratestack-clients`.
+- **CI: every example pnpm lockfile root pins `packageManager`** (cratestack#1060, PR #1188)
+  *(since 0.16.0)*. `just verify-pnpm-pins` now requires a pin in every tracked
+  `pnpm-lock.yaml` root. Framework-repository CI only; no user-facing surface.
 
 ## 0.15.4 (2026-10-11)
 
 0.15.4 is the first half of ADR 0019: the closed field-attribute lists and the `BigInt`
-scalar. The changelog says the ADR "ships as 0.16.0", but these entries are in the 0.15.4
-tag (`v0.15.3..v0.15.4`, tagged 2026-10-11); the 32-bit `Int` cutover, the
-`cratestack upgrade int-to-bigint` codemod and snapshot format 3 have **not** landed, so
-`Int` is still an `i64`, still `BIGINT`, still a JSON number. Skills mark it
-*(since 0.15.4)*.
+scalar. The changelog and ADR 0019 say the ADR "ships as 0.16.0", but these entries are
+in the 0.15.4 tag (`v0.15.3..v0.15.4`, tagged 2026-10-11), and the released 0.16.0 did not
+bring the rest: the 32-bit `Int` cutover, the `cratestack upgrade int-to-bigint` codemod
+and snapshot format 3 are in **neither** tag, so `Int` is still an `i64`, still `BIGINT`,
+still a JSON number. Skills mark it *(since 0.15.4)*.
 
 - **Breaking: a field accepts only the attributes its declaration kind lists** (ADR 0019 D5,
   cratestack#679) *(since 0.15.4)*. Field attributes were the last open position: through
@@ -753,7 +775,7 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.14.2, each of these parses, validates, and then does nothing (re-checked for 0.15.4's field-attribute change only):
+As of 0.14.2, each of these parses, validates, and then does nothing (re-checked for 0.15.4's field-attribute change, and against the `v0.15.4..v0.16.0` diff, which touches none of them):
 
 - `@from(Model.field)` on a view field: since 0.15.4 its shape and target are
   checked (a real model and field), but no generator reads it, so it still changes

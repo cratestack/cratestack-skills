@@ -332,7 +332,7 @@ Env knobs: `CRATESTACK_AUTH_SIGNATURE_TRUSTED_KEYS`,
 Bridges back into the framework: `auth_error_to_cratestack_error` and
 `principal_to_cratestack_context`.
 
-**A COSE signer as `auth()`** *(unreleased, cratestack#1077)*. `cratestack_cose::auth::CoseAuthProvider`
+**A COSE signer as `auth()`** *(since 0.16.0, cratestack#1077)*. `cratestack_cose::auth::CoseAuthProvider`
 authenticates a verified signer through the service key registry, and through the device
 key registry only after `.authenticate_devices(true)`, which is **off by default**. With
 the gate on, `auth() != null` holds for any enrolled device key, with no user behind it.

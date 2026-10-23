@@ -52,7 +52,7 @@ If there are no ops, it prints `no changes` and writes nothing.
 
 | Class | Which ops | Behaviour |
 | --- | --- | --- |
-| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(unreleased, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
+| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(since 0.16.0, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
 | **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
 | **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
@@ -61,7 +61,7 @@ widening view, so even a widening change needs the flag.
 
 The run prints its label: `safe`, `lossy`, `blocking`, or `blocking+lossy`.
 
-**A CHECK on a new table is safe** *(unreleased, cratestack#1129)*. A validator
+**A CHECK on a new table is safe** *(since 0.16.0, cratestack#1129)*. A validator
 CHECK (`@range`, `@length`, `@iso4217` with `@db_enforce`) on a table the same
 migration creates cannot reject a row, because the table has none yet. So a
 first migration of a `@db_enforce` schema is labelled `safe`, gets no
@@ -122,7 +122,7 @@ Hand-write any destructive reversal.
 
 **Enums on SQLite** — not emitted at all; variant changes are Rust-side only.
 
-*(unreleased, cratestack#1209)* `@default(auth().field)` is never written to DDL (through 0.15.4 it
+*(unreleased, cratestack#1209)* `@default(auth().field)` is never written to DDL (through 0.16.0 it
 was emitted as `DEFAULT auth().field`), and a snapshot written by an older cratestack is read back
 normalised: a stored `now()` / `uuid()` / `cuid()` default as cratestack's own, `auth().field` as
 no default. `migrate baseline` reads Postgres's `now()` and `gen_random_uuid()` as `now()` and

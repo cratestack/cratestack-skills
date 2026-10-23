@@ -1,14 +1,14 @@
 # The generated Dart client's HTTP transport
 
-*(unreleased, cratestack#1204, PR #1206.)* Everything here is on `main` and in
-no published release (0.15.4 is the latest). If `cratestack --version` is older,
-the generated `runtime.dart` still has the four `*DioAdapter` classes and none of
-this exists: regenerate with a CLI built from `main`, or do not use this page.
+*(since 0.16.0, cratestack#1204, PR #1206.)* Everything here shipped in 0.16.0.
+If `cratestack --version` is older, the generated `runtime.dart` still has the four
+`*DioAdapter` classes and none of this exists: regenerate with a 0.16.0 or newer CLI,
+or do not use this page.
 
 Source of truth, in the framework repo: `crates/cratestack-client-dart/templates/`
 (`http_runtime/seam.dart.j2`, `rest_runtime/http_adapter.dart.j2`,
 `rpc_runtime/http_adapter.dart.j2`, `rpc_runtime/types.dart.j2`,
-`dio-transport.dart.j2`, `fespalier-transport.dart.j2`), the `## Unreleased`
+`dio-transport.dart.j2`, `fespalier-transport.dart.j2`), the `## 0.16.0`
 entries for #1204 in `CHANGELOG.md`, and `crates/cratestack-client-dart/README.md`.
 Every name below was read from those templates.
 
