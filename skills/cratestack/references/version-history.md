@@ -54,9 +54,20 @@ each step's breaking changes assume the one before:
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number. When 0.16.0 was recorded
-here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the one
-entry below is in the tag's source but in no published crate.
+here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the
+sync-engine entry below is in the tag's source but in no published crate.
 
+- **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
+  (cratestack#1209, PR #1211) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
+  verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised
+  function default (`now()` included), and `@default(auth().id)` became `DEFAULT auth().id`.
+  On the embedded runtime any `@default` column was written as NULL. Now `now()`, `uuid()` and
+  `cuid()` are cratestack's own, generated in Rust on create by both runtimes, with the matching
+  database default emitted where one exists (`now()`, `gen_random_uuid()`; none for `cuid()`);
+  a database function is registered with `datasource db { functions = ["my_fn"] }` and written
+  verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
+  `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
+  `cratestack-migrations`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the `v0.16.0` tag and the 0.16.0 changelog
