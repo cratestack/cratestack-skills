@@ -1,6 +1,6 @@
 ---
 name: cratestack-troubleshooting
-description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, and attributes refused by the strict attribute parsing since 0.14.1 (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
+description: Diagnosing CrateStack build, test and macro failures — E0583 on a fresh checkout, --all-features compile errors, the empty cratestack vitrine crate's false green, Postgres tests that skip and still print ok, rootless Docker's silent testcontainers skip, the schema compile errors the macros emit with what each actually means, envelope-layer (COSE signed transport) 500/401/415/406 answers, @isolation compile errors and 409 TRANSACTION_ABORTED, relation filters or @server_only keys refused or returning fewer rows since 0.13.0, attributes refused by the strict attribute parsing since 0.14.1 (unsupported attribute, not directly under a signature, invisible character, @rename / @@rename form), and Dart-client errors after the HTTP transport change (removed *DioAdapter classes, CratestackTransportException kinds, fespalier provider UnimplementedError). Load when a cargo, just, or cratestack check command fails in a way that is not self-explanatory, or when a green test run looks too good.
 ---
 
 # Troubleshooting
@@ -119,12 +119,39 @@ they appear at the `include_*_schema!` call site.
 And from `cratestack check` itself, the families that generate the most confusion:
 
 **``uses unknown attribute `@reedonly` — did you mean `@readonly`?``** *(since
-0.8.15)* — the single
+0.8.15; replaced by the next entry in 0.15.4)* — the single
 most valuable error in the set. An unrecognised attribute is **inert**: it
 parses, reports `schema OK`, and enforces nothing. The near-miss check converts
-that silent no-op into a hard failure. Note it runs on **field** attributes only,
-so on 0.14.0 and earlier a mistyped `@@` model attribute was still silently inert.
-Since 0.14.1, `@@` attributes are a closed list (next entry).
+that silent no-op into a hard failure for a typo of a known name. On 0.15.3 and earlier
+only that near-miss was caught: `@whatever`, `@immutable`, `@Id` still passed, and a
+mistyped `@@` model attribute was silently inert before 0.14.1.
+
+**``unsupported attribute `@x` on a model field``** (or `view`, `mixin`, `type`, `auth`
+field) *(since 0.15.4, ADR 0019 D5, cratestack#679)*. Field attributes are a closed list
+per declaration kind; the message names the attribute, the kind and the accepted list,
+with "did you mean" when close. This is a newly **visible** defect, not a new one: the
+attribute did nothing before, so `@immutable` never protected the field and `@string`
+never changed the generated type. Delete it, or write the accepted attribute you
+actually meant (`@immutable` meant `@readonly`). Surprises when upgrading: validators,
+`@unique`, `@default`, `@pii` and the like on a `view` field; `@id`, `@default`,
+`@db_enforce`, `@pii` and any validator on a `String[]` field of a `type`; **any**
+attribute on an `auth` field; `@from` on a model field; `@db_enforce` with no
+`@range` / `@length` / `@iso4217` beside it; a bare `@default`. The lists are in
+`cratestack-schema/references/attributes.md`.
+
+**A procedure that accepted a call before answers `422` `VALIDATION_ERROR` (REST) or
+`invalid_argument` (RPC), naming a path like `args.owner.tags[1].label`** *(since 0.15.4)*.
+A validator (`@length`, `@range`, `@regex`, `@email`, `@uri`, `@iso4217`) on a `type`
+field used to validate nothing; now it runs on every procedure argument that is or holds
+that `type`, before `@allow`. The server was accepting invalid input, so fix the caller; if
+the rule was never meant, delete the attribute. The message never echoes the value.
+
+**A TypeScript client throws `TypeError` naming a `BigInt` field** *(since 0.15.4)*. Revival
+accepts only a canonical decimal string inside `i64`; a JSON number at a `BigInt` key means
+a server built before `BigInt` whose value may already be rounded. Regenerate every client
+and rebuild every server together. Requests the other way fail the same way: a number, a
+CBOR integer, `+5`, `007`, `-0` or a value outside `i64` is refused as an invalid request
+body.
 
 **Attribute refusals after upgrading past 0.14.0** *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*. Each names the declaration and the attribute. On 0.14.0
@@ -338,8 +365,7 @@ the mount-prefix values of a parameterised mount, and the schema digest (a
 comment-only `.cstack` edit changes it, cratestack#1065). A header sent **twice**
 is a 400, not a 401.
 
-**A device that enrolled (or was revoked) gets the 401 you did not expect.** *(unreleased,
-cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same
+**A device that enrolled (or was revoked) gets the 401 you did not expect.** *(since 0.15.4, cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same
 coarse, unsigned 401 as a bad signature, so the response cannot tell you which. If the
 resolver is a `RegistryVerifierResolver`, check that `register` ran on **this process** (state
 is per process: another replica, or a restart, starts empty), that `register` did not return
@@ -361,7 +387,7 @@ instead of applied with `Router::layer` as the generated router's last
 traffic **unprotected**, not refused.
 
 **415 or 406 with code `payload_type_unsupported` / `payload_type_not_acceptable`**
-*(unreleased, cratestack#1168)*. Unsigned, answered before any key is looked up, so
+*(since 0.15.4, cratestack#1168)*. Unsigned, answered before any key is looked up, so
 nothing was verified: the request's `Cratestack-Payload-Type` is a type the op does not allow
 (415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
 layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
@@ -404,7 +430,7 @@ only). And a **failing service registry** is a `500` even for a device signer wi
 off, because it is asked first; that is an error, not an anonymous answer.
 Source: `crates/cratestack-cose/src/auth/signer_provider.rs`.
 
-### Dart: sealing and opening with `cratestack_cbor` *(unreleased, cratestack#1151)*
+### Dart: sealing and opening with `cratestack_cbor` *(since 0.15.4, cratestack#1151)*
 
 For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 `cratestack-clients`). Source: `dart-packages/cratestack_cbor/lib/src/cose/errors.dart`.
@@ -419,6 +445,27 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 | `StateError` from `ClientEnvelope.contractHeaderValue` | The backend has not started: call it after `ClientEnvelope.create` or `createCborCodec()` |
 | `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
 | `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
+
+### Dart: the HTTP transport and its exceptions *(unreleased, cratestack#1204)*
+
+For an app using a generated Dart client. The package: `skills/cratestack-clients/references/dart-transport.md`.
+
+| What the app sees | It means |
+| --- | --- |
+| `CratestackDioAdapter`, `CratestackCborDioAdapter`, `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter` is an undefined name | The package was regenerated and those four classes are deleted, with no aliases. Use `CratestackHttpAdapter(CratestackDioTransport(dio), baseUri: ...)` (REST) or `CratestackRpcHttpAdapter(...)` (RPC); the JSON adapters become `format: CratestackWireFormat.json` |
+| `on DioException` no longer catches anything | A generated call throws `CratestackRestException` / `CratestackRpcException` for an HTTP error answer and `CratestackTransportException` when there is no answer. The `DioException` is `.cause` at most |
+| Requests go to the wrong host or lose a path prefix after the swap | `dio.options.baseUrl` is not read any more; `baseUri` is. A path on `baseUri` (`https://example.com/v1`) is kept |
+| A query key that used to arrive as a bare `key` is gone | A `null` in a query map is omitted by the canonical encoder. Generated query builders never emit `null`; hand-built `queryParameters` do. Send an explicit value |
+| `FormatException` from a JSON REST call | The answer had a `Content-Type` that is neither CBOR nor JSON. The JSON adapter used to return the raw string; it throws now |
+| `CratestackTransportUnsent` | The request provably never left the device (refused, DNS, connect timeout, TLS before any byte): resend, even a non-idempotent call |
+| `CratestackTransportTimedOut` / `CratestackTransportBroken` | The request may have reached the server. Retry only with an `idempotencyKey` |
+| `CratestackTransportAborted` | The call's `abort` future completed (or, under `--preset fespalier`, the surrounding `TransportZone` aborted: a page that was left) |
+| `UnimplementedError: Override <prefix>TransportProvider ...` (or `BaseUriProvider`, or `AdapterProvider`) | The provider has no default: the app must override it. Under `--preset fespalier` override `<prefix>TransportProvider` and `<prefix>BaseUriProvider`; under `default` / `riverpod`, `<prefix>AdapterProvider` |
+| `pub get` cannot resolve `fespalier_transport` | It is a git dependency at `--fespalier-ref` (default `v0.21.0`), not on pub.dev. Check the ref exists and the network reaches GitHub, or point it at a checkout with `pubspec_overrides.yaml` |
+| `--fespalier-ref only applies to --preset fespalier` | The flag was passed with another preset (`crates/cratestack-cli/src/cli_handlers.rs`) |
+| `invalid fespalier ref "<ref>": expected a git tag, branch or commit, e.g. v0.21.0` | The ref is empty or holds whitespace or control characters (`DartGeneratorError::InvalidFespalierRef`) |
+| A 422 `invalid_argument` over RPC is not shown as field errors | `fespalier_cratestack` reads it like REST's `VALIDATION_ERROR` only from fespalier `v0.21.1` (and `main`); the `v0.21.0` tag does not have it. Depend on `fespalier_cratestack` at `v0.21.1` or later, and pass the same ref to `--fespalier-ref` so the generated client's `fespalier_transport` matches it |
+| An `AuthRejected` (or another decorator error) that is not a `CratestackTransportException` | `CratestackFespalierTransport` rethrows anything it does not map. Only the fespalier `Transport*` failures are mapped |
 
 ## Getting more signal
 

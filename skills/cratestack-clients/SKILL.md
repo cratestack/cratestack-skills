@@ -1,6 +1,6 @@
 ---
 name: cratestack-clients
-description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (with the riverpod preset), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when generating an SDK, wiring a React/Flutter front end to a CrateStack service, or debugging a Decimal or Bytes value that arrived as a string.
+description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (default, riverpod and fespalier presets; the HTTP transport seam, CratestackHttpAdapter, CratestackDioTransport, CratestackRestException / CratestackTransportException), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when generating an SDK, wiring a React/Flutter front end to a CrateStack service, upgrading from the removed CratestackDioAdapter classes, or debugging a Decimal or Bytes value that arrived as a string.
 ---
 
 # Clients
@@ -17,7 +17,7 @@ Three generated languages, one wire contract.
 | Language | Produced by | Ships |
 | --- | --- | --- |
 | Rust | `include_client_schema!` | typed model + procedure clients over a reqwest runtime |
-| Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, `--preset riverpod` layer |
+| Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*unreleased*), `--preset riverpod` / `fespalier` layers |
 | TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers |
 
 ## Rust — `include_client_schema!`
@@ -115,24 +115,101 @@ cratestack generate-dart --schema schema.cstack --out ./client \
   --library-name my_client --preset riverpod --run-build-runner
 ```
 
-`--preset riverpod` replaces the default layout's monolithic models/APIs with one
-file per model plus a provider per operation (reads are providers, writes are
-controllers); the runtime and constants are shared with the default preset.
-Consumption in Flutter is one override of `<libraryName>AdapterProvider` — the
-prefix is the camel-cased `--library-name`:
+Three presets (`--preset default|riverpod|fespalier`, default `default`). `riverpod`
+replaces the default layout's monolithic models/APIs with one file per model plus a
+provider per operation (reads are providers, writes are controllers); the runtime
+and constants are shared with the default preset. `fespalier` is `riverpod` sending
+through fespalier's `HttpTransport` with no Dio. Which to pick:
+
+| Pick | When |
+| --- | --- |
+| `default` | a plain package, or you wrap the client yourself; Dio or your own transport |
+| `riverpod` | a Riverpod app; Dio or your own transport |
+| `fespalier` *(unreleased, cratestack#1204)* | the app's HTTP stack is a `fespalier_transport` chain (session, signing, portal check, spans), so a second client under it is wrong |
+
+Choose by the HTTP stack the app already owns. `fespalier` changes the transport
+and its providers, not the call sites.
+
+### Sending: one seam, Dio is one transport *(unreleased, cratestack#1204)*
+
+> **Never write `CratestackDioAdapter`, `CratestackCborDioAdapter`,
+> `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter`.** They are deleted,
+> with no aliases. Older docs, blog posts and the docs site may still show them.
+
+Every generated `runtime.dart` declares `CratestackHttpTransport` (one method,
+`send`). There is one adapter per protocol, written over it, and the HTTP stack is
+a transport:
+
+| | REST | RPC (`transport rpc`) |
+| --- | --- | --- |
+| Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:)` |
+| Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
+| HTTP error answer | `CratestackRestException` (`status`, `body`) | `CratestackRpcException` (`status`, `code`, `message`, `details`) |
+| Call options | `CratestackCallOptions(headers, idempotencyKey, abort)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort)` |
+
+`format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
+decoded by its own `Content-Type` either way. `baseUri` replaces
+`dio.options.baseUrl`, which the transport no longer reads.
+
+```dart
+final adapter = CratestackHttpAdapter(        // CratestackRpcHttpAdapter under transport rpc
+  CratestackDioTransport(dio),
+  baseUri: Uri.parse('https://api.example.com'),
+);
+```
+
+In Flutter, override `<libraryName>AdapterProvider` (the prefix is the camel-cased
+`--library-name`). The default and `riverpod` presets have no default adapter and
+throw until you do:
 
 ```dart
 ProviderScope(overrides: [
-  myClientAdapterProvider.overrideWithValue(CratestackDioAdapter(dio: dio)),
+  myClientAdapterProvider.overrideWithValue(CratestackHttpAdapter(
+    CratestackDioTransport(dio),
+    baseUri: Uri.parse('https://api.example.com'),
+  )),
 ])
 ```
 
-Two REST adapters ship — `CratestackDioAdapter` (JSON) and
-`CratestackCborDioAdapter` (CBOR) — and the consumer picks. Generated data
-classes carry hand-rolled `fromWire` / `toWire`, both routing every field through
-JSON-plain values (ISO-8601 for `DateTime`, `List<int>` for `Bytes`, decimal
-string text), which is why bridging `cratestack_cbor`'s JSON-text boundary is
-safe.
+Under `--preset fespalier` you override the transport and the origin instead, and
+`<prefix>AdapterProvider` is built for you:
+
+```dart
+ProviderScope(overrides: [
+  myClientTransportProvider.overrideWith((ref) =>
+      SessionTransport(WriteGuardTransport(HttpClientTransport(client)), credentials)),
+  myClientBaseUriProvider.overrideWithValue(Uri.parse('https://api.example.com')),
+])
+```
+
+- **Errors.** A non-2xx answer is `CratestackRestException` / `CratestackRpcException`.
+  No answer at all is the sealed `CratestackTransportException`, with four kinds:
+  `Unsent` (provably never left, always safe to resend), `Aborted`, `TimedOut` and
+  `Broken` (the server may have acted). Nothing is a `DioException` any more; it is
+  at most the `cause`. Catch these, not Dio's.
+- **`abort`** on both option types: complete the future to cancel the call, which
+  throws `CratestackTransportAborted`. **`idempotencyKey`** is now on both.
+- **`stream()` streams** *(RPC)*: items are yielded as the `cbor-seq` body arrives.
+- **A `null` in a query map is omitted**, not sent as a bare `key`. The generated
+  query builders never emit one, so this only affects hand-built `queryParameters`.
+- **Known gaps (open):** call options cannot carry transport attributes
+  (cratestack#1207), and an `AuthProvider` refusal cannot shape its status or body
+  (cratestack#1208). Both have workarounds in
+  [references/dart-transport.md](references/dart-transport.md).
+
+**Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
+`dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query
+values), the full contract of the seam, how to write a transport, the exception
+table, and `--preset fespalier` (`--fespalier-ref`, default `v0.21.0`; the
+`examples/cratestack` reference in fespalier): all in
+[references/dart-transport.md](references/dart-transport.md). The change is on
+`main` and in no release (0.15.4 is the latest). On an older CLI the generated
+package still has the four adapters and none of the above exists.
+
+Generated data classes carry hand-rolled `fromWire` / `toWire`, both routing every
+field through JSON-plain values (ISO-8601 for `DateTime`, `List<int>` for `Bytes`,
+decimal string text), which is why bridging `cratestack_cbor`'s JSON-text boundary
+is safe.
 
 `cratestack_cbor` on pub.dev is the native codec, auto-selecting
 flutter_rust_bridge natively and wasm-bindgen on web, byte-identical to the
@@ -145,7 +222,7 @@ you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
 macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
 
-### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, unreleased, cratestack#1168)*
+### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, since 0.15.4, cratestack#1168)*
 
 `CratestackClient::with_envelope` (feature `cose`) used to refuse every codec but CBOR. It takes
 any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed
@@ -183,7 +260,7 @@ signs through `ExternalSigner::ed25519(&public_key, sign)`, beside `esp256`; the
 `crates/cratestack-client-rust/src/envelope/` and
 `crates/cratestack-client-rust/tests/cose_payload_types.rs`, `cose_seal_call.rs`.
 
-### Signing requests from Dart *(unreleased, cratestack#1151)*
+### Signing requests from Dart *(since 0.15.4, cratestack#1151)*
 
 The generated Dart client sends **unsigned** requests. A server behind the COSE
 envelope layer (`cratestack-server`) accepts only sealed ones, and a Dart or
@@ -278,7 +355,7 @@ wire response still goes through revival, and REST endpoints use
 | Rust | `CborCodec` |
 | TypeScript, `transport rpc` | native CBOR via `@cratestack/cbor` |
 | **TypeScript, `transport rest`** | **JSON, hardcoded — there is no codec seam at all** |
-| Dart REST | consumer picks the adapter |
+| Dart REST | CBOR: `CratestackHttpAdapter(format:)` defaults to `CratestackWireFormat.cbor` *(unreleased; before it, the consumer picked a `Dio` adapter)* |
 
 **Regeneration hazard:** native CBOR became the default for generated TypeScript
 RPC clients *in 0.8.14* (#746). Re-running `generate-typescript` on an RPC package
@@ -306,6 +383,26 @@ related `Account.total: String` and the relation included, a flat set threw
 corrupted a numeric-looking `"00123"` into `Decimal("123")`.
 
 Use `revivePagedWireFields` for `@@paged` responses.
+
+### `BigInt` is a string on the wire *(since 0.15.4, ADR 0019 D2, D3)*
+
+A schema `BigInt` field never travels as a number: it is a canonical decimal string (`0`, or
+an optional `-`, a non-zero digit and at most 18 more digits, inside `i64`) on JSON and CBOR
+alike, because a JSON number past 2^53 is rounded by JavaScript and dart2js without an error.
+The server refuses a number, a CBOR integer or bignum, `+5`, `007`, `-0` and anything
+outside `i64`, on a body, a query filter and `?computedParams=`.
+
+| Client | Type | Notes |
+| --- | --- | --- |
+| Rust | `cratestack::BigInt` | `Copy` newtype over `i64`, `checked_*` only, no operator impls |
+| TypeScript | `bigint`, filter `BigIntFilter` | **Strict revival**: a number or non-canonical string at a `BigInt` key throws `TypeError` naming the field. Every `bigint` is stringified before the codec; a custom `options.codec` is not wrapped, so call `encodeWireFields` first. Query keys store a `bigint` as its string. |
+| Dart | `dart:core`'s `BigInt`, filter `BigIntFilter` | Decoded by a generated `cratestackDecodeBigInt(value, 'Owner.field')` (a `FormatException` names the field); RPC `get` / `update` / `delete` send the key as `id.toString()` |
+
+Regenerate every client and rebuild every server together: a client from before 0.15.4 has
+no `bigint`. `--rtk` clients need `@reduxjs/toolkit` `^2.2.7` *(floor raised from `^2.0.0`
+in 0.15.4)*, and RTK's development-only serializability check does not know `bigint` (the
+generated README shows the `serializableCheck` option). `Int` is unchanged: still `i64`
+and still a JSON number until a later cutover.
 
 ### The schema-SHA header
 

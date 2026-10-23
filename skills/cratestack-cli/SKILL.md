@@ -50,7 +50,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 ```yaml
 - uses: cratestack/cratestack/.github/actions/install-cratestack-cli@main
   with:
-    version: "0.14.2"   # optional, defaults to "latest"
+    version: "0.15.4"   # optional, defaults to "latest"
 ```
 
 Pin `@main` to a tag or SHA for reproducibility.
@@ -88,10 +88,19 @@ All three generators share a `--check` drift mode and `--base-path` (default
 | `--library-name` | `cratestack_client` |
 | `--base-path` | `/api` |
 | `--template-dir` | none |
-| `--preset default\|riverpod` | `default` |
+| `--preset default\|riverpod\|fespalier` | `default` |
+| `--fespalier-ref <REF>` | `v0.21.0` (`--preset fespalier` only) |
 | `--check` | off |
 | `--run-build-runner` | off |
 | `--no-native-cbor` | off (native CBOR is on) |
+
+`--preset fespalier` *(unreleased, cratestack#1204)* is the `riverpod` layout sending
+through fespalier's `HttpTransport` instead of Dio: no `dio` in the pubspec, a generated
+`CratestackFespalierTransport`, and `<prefix>TransportProvider` / `<prefix>BaseUriProvider`
+the app overrides. `--fespalier-ref` is the git tag, branch or commit of
+`github.com/fespalier/fespalier` that the pubspec pins `fespalier_transport` at; it is an
+error with any other preset (`--fespalier-ref only applies to --preset fespalier`) and with an
+empty value or one holding whitespace. See `cratestack-clients` for when to pick which preset.
 
 `--run-build-runner` shells out to
 `dart run build_runner build --delete-conflicting-outputs` in `--out`, and **has

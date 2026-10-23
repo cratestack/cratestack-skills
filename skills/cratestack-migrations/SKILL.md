@@ -92,7 +92,7 @@ applied.
   not work. `@@rename(from = "OldModel")` checks as `schema OK`, matches no table,
   and the diff is a drop plus a create. `migrate diff` then refuses it as lossy,
   and with `--allow-destructive` it drops the rows. This holds on every release,
-  0.14.2 included. `check` validates only the marker's form, not that the table
+  0.15.4 included. `check` validates only the marker's form, not that the table
   exists.
 - `@rename(from = "…")` takes the old **column** name. The migrator snake-cases
   it first, so `"old_field"` and `"oldField"` both work.

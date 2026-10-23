@@ -19,19 +19,76 @@ otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
+The latest release is **0.15.4** (tag `v0.15.4`, 2026-10-11). Its changes are recorded
+below and marked *(since 0.15.4)* where they are taught; the banners stay at 0.14.2
+until every skill has been re-checked against 0.15.4, as AGENTS.md requires.
+
 ## Reading order for an upgrade
 
 The framework's own `CHANGELOG.md` is the authority and is unusually detailed —
 entries explain the defect, not just the change. This file is a routing index
 into it, not a replacement.
 
+Going from 0.14.x or earlier to the latest release, read in this order, because
+each step's breaking changes assume the one before:
+
+1. [0.14.1](#0141-2026-09-27): the closed attribute lists and `@isolation`
+   enforcement. A schema that was `schema OK` on 0.14.0 can fail `check`.
+2. [0.15.0](#0150-2026-09-29) and [0.15.2](#0152-2026-09-30): the schema digest,
+   and the signed transport's contract digest (a flag day for signed clients).
+3. [0.15.4](#0154-2026-10-11): field attributes become a closed list too, validators
+   on `type` fields start running, and `BigInt` exists. Re-run `cratestack check`
+   first; every error it adds is an attribute that did nothing before.
+4. [Unreleased on `main`](#unreleased-on-main-after-0154) only if you build `main`.
+
+0.15.3 changed nothing over 0.15.2.
+
 ---
 
-## Unreleased on `main`, after 0.15.3
+## Unreleased on `main`, after 0.15.4
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number.
 
+- **Breaking: the generated Dart client sends through an HTTP transport seam; the four
+  `*DioAdapter` classes are removed** (cratestack#1204, PR #1206) *(unreleased)*. Every
+  generated `runtime.dart` (all presets, REST and RPC) declares `CratestackHttpTransport`; one
+  adapter per protocol, `CratestackHttpAdapter` (REST) and `CratestackRpcHttpAdapter` (RPC),
+  takes `baseUri` and `format` (`CratestackWireFormat.cbor` default, `.json`). Dio is
+  `CratestackDioTransport(dio)`. `CratestackDioAdapter`, `CratestackCborDioAdapter`,
+  `CratestackRpcDioAdapter` and `CratestackRpcCborDioAdapter` are deleted with no aliases;
+  `dio.options.baseUrl` is replaced by `baseUri`. Errors: new `CratestackRestException`
+  (REST used to leak a `DioException`), `CratestackRpcException` unchanged, and a sealed
+  `CratestackTransportException` (`Aborted`, `Unsent`, `TimedOut`, `Broken`) for a call with no
+  answer. Call options gain `abort` (both) and `idempotencyKey` (REST). RPC `stream()` no
+  longer buffers. A canonical query encoder replaces Dio's: a `null` query value is omitted
+  instead of sent as a bare key. The wire is otherwise unchanged. Owner: `cratestack-clients`
+  (`references/dart-transport.md`), with the exception rows in `cratestack-troubleshooting`
+  and the Dart client note in `cratestack-rpc`.
+- **`generate-dart --preset fespalier`, `--fespalier-ref`** (cratestack#1204, PR #1206)
+  *(unreleased)*. The `riverpod` preset sending through fespalier's `HttpTransport`
+  (`package:fespalier_transport`, a git dependency) with no `dio`: `CratestackFespalierTransport`,
+  `<prefix>TransportProvider` and `<prefix>BaseUriProvider` the app overrides, abort merged with
+  fespalier's `TransportZone`. `--fespalier-ref` (default `v0.21.0`) is an error with any other
+  preset. Known gaps, both open: call options cannot carry transport attributes
+  (cratestack#1207) and an `AuthProvider` refusal cannot shape its body (cratestack#1208).
+  Owners: `cratestack-clients`, `cratestack-cli`, with the #1208 limit in
+  `cratestack-policy-auth`.
+- **Breaking: `@default(autoincrement())` is refused, pointing at `@default(dbgenerated())`**
+  (cratestack#1128, PR #1167) *(unreleased)*. The parser accepted it and `migrate diff` wrote
+  `DEFAULT autoincrement()` into `up.sql`, DDL neither Postgres nor SQLite has, labelled
+  `(safe)`; it failed at apply time, one step after `schema OK`. `cratestack check` now
+  refuses the spelling (any case, any spacing, any argument form, and the bare word) at the
+  field. `@default(dbgenerated())` is the marker for a value the database generates (a
+  sequence, an identity column, a trigger, hand-written migration SQL), and cratestack emits
+  none of those itself: create the sequence or identity in hand-authored migration SQL.
+  `dbgenerated()` must also be the whole default expression, so
+  `@default(dbgenerated() || 'x')`, `@default(dbgenerated()::text)` and an unclosed
+  `dbgenerated(` are refused where they used to drop the rest of the expression from the
+  migration, and a spaced `dbgenerated ("x")`, which used to slip past the argument check
+  and emit a broken `DEFAULT dbgenerated (...)` clause, is refused too. A pre-existing snapshot holding
+  `Function("autoincrement()")` is read as `DbGenerated`. Owner: `cratestack-migrations`,
+  `cratestack-schema`.
 - **Offline sync engine: prototype only** *(unreleased, unpublished)*. The framework adds
   `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind ADR 0020, which is
   *Proposed*. Nothing installable ships. There is no `@@sync` attribute, and the crate's API is
@@ -89,8 +146,82 @@ security fix merged from a private fork with no PR number.
   while its type said `Decimal[]`, so `.plus()` threw; a bare `Decimal[]` procedure
   return was already revived. Generated code only, no wire change. Owner:
   `cratestack-clients`.
+
+## 0.15.4 (2026-10-11)
+
+0.15.4 is the first half of ADR 0019: the closed field-attribute lists and the `BigInt`
+scalar. The changelog says the ADR "ships as 0.16.0", but these entries are in the 0.15.4
+tag (`v0.15.3..v0.15.4`, tagged 2026-10-11); the 32-bit `Int` cutover, the
+`cratestack upgrade int-to-bigint` codemod and snapshot format 3 have **not** landed, so
+`Int` is still an `i64`, still `BIGINT`, still a JSON number. Skills mark it
+*(since 0.15.4)*.
+
+- **Breaking: a field accepts only the attributes its declaration kind lists** (ADR 0019 D5,
+  cratestack#679) *(since 0.15.4)*. Field attributes were the last open position: through
+  0.15.3 an unknown name (`@immutable`, `@string`, `@wire(string)`, `@Id`) parsed, reported
+  `schema OK` and did nothing, and only a near-miss typo of a known name was refused. Now any
+  other name, case or typo is an error naming the attribute, the kind and the accepted list
+  (with "did you mean"). The lists: `model` takes `@id`, `@unique`, `@default(…)`,
+  `@relation(…)`, `@computed`, `@readonly`, `@server_only`, `@version`, `@pii`, `@sensitive`,
+  `@db_enforce`, `@email`, `@uri`, `@iso4217`, `@length(…)`, `@range(…)`, `@regex(…)`,
+  `@rename(from = "…")`; `view` takes `@id`, `@server_only`, `@from(Model.field)`; `mixin`
+  takes a model's list minus `@id` and `@computed`; `type` takes `@computed`, `@length`,
+  `@range`, `@regex`, `@email`, `@uri`, `@iso4217`; `auth` takes **none**. Each name is
+  shape-checked too: no-argument names refuse an argument list, `@default` / `@relation` /
+  `@length` / `@range` / `@regex` / `@rename` refuse a missing or empty one, and text after
+  an attribute or a run-on second attribute is refused. Names that were inert on a kind are
+  now refused there: on a `view` field every validator, `@unique`, `@default`, `@relation`,
+  `@readonly`, `@version`, `@pii`, `@sensitive`, `@db_enforce`; on a `type` field `@id`,
+  `@unique`, `@relation`, `@readonly`, `@version`, `@pii`, `@sensitive`, `@db_enforce`,
+  `@default`, `@from`, and any validator on a **list** field (`tags String[] @length(max: 3)`;
+  declare a `type` whose field carries it and take `Tag[]`); on an `auth` field every
+  attribute; on a `model` or `mixin` field `@from`. A bare `@default` / `@default()` and a
+  bare `@relation` on a scalar are refused (both were inert). `@allow`, `@deny`, `@pb` and
+  `@custom` keep their own messages. `@db_enforce` with none of `@range` / `@length` /
+  `@iso4217` on the same field is refused (it emitted no `CHECK`), and `@from(Model.field)`
+  on a view field must name a real model and field (still read by no generator). Do not
+  swap a newly refused attribute for the nearest accepted name unless you want that
+  behaviour (`@immutable` meant `@readonly`). `cratestack-lsp` completions read the same
+  lists. Owners: `cratestack-schema`, `cratestack-troubleshooting`.
+- **Breaking: validators on a `type` or `model` field run on everything a client sends**
+  (ADR 0019 D5) *(since 0.15.4)*. `@length` on a `type` field used to validate nothing, and
+  now `type` fields take the whole family (`@length`, `@range`, `@regex`, `@email`, `@uri`,
+  `@iso4217`). The generated `validate` runs as the first statement of every procedure's
+  `authorize`, `authorize_with_db`, `invoke` and `invoke_with_db`, before `@allow`, on every
+  argument that is or holds such a `type` or a `model` (direct, in a list, optional, nested):
+  REST, RPC unary and batch, MCP and a worker agree. A `model` passed as an argument runs its
+  stored fields' validators as `POST` does; `?computedParams=` is validated before any
+  database read. A request that used to pass with an invalid argument now answers `422`
+  `VALIDATION_ERROR` (REST) / `invalid_argument` (RPC), the message naming the path in the
+  body (`args.owner.tags[1].label`) and never the value. New public `cratestack::ValidateFields`
+  and `FieldPath`; `ProcedureArgs::validate_fields()`. A validator on a `type` that no client
+  input reaches (one only returned) is refused by `check`. Return values are not validated,
+  and generated clients do not validate before sending. Owners: `cratestack-schema`,
+  `cratestack-troubleshooting` (a `422` on a procedure that used to accept the call).
+- **`BigInt`: an exact 64-bit integer on every codec and client** (ADR 0019 D2, D3)
+  *(since 0.15.4)*. A built-in scalar beside `Int`, valid wherever `Int` is. The reason: a JSON
+  number past 2^53 is rounded by every JavaScript and dart2js consumer without an error. On
+  the wire it is a **canonical decimal string** on JSON and CBOR alike (never a number, never
+  a CBOR integer or bignum); a JSON number, a CBOR integer, `+5`, `007`, `-0`, `" 1"` or a
+  value outside `i64` is refused on a body, a query filter and `?computedParams=`. Rust
+  `cratestack::BigInt` is a `Copy` newtype over `i64` with `checked_*` methods and no
+  operator impls. SQL `BIGINT`. TypeScript `bigint` with strict revival (a number or
+  non-canonical string at a `BigInt` key throws `TypeError`); Dart `dart:core`'s `BigInt`
+  (RPC `get`/`update`/`delete` send the key as a string). A user type named `BigInt` is now a
+  duplicate-name error. Codec decode errors now name the field in `detail()` for every type.
+  Policies fail closed: `!=` / `not in` pass only on a **decided** difference, so
+  `auth().tenantId != 7` with a `"7"` claim now denies instead of passing, and a string claim in
+  a numeric comparison denies (a pushed-down string claim renders as `$N::text`). Other
+  changes for a schema with no `BigInt`: the RTK floor for `--rtk` is `^2.2.7`; `SqlValue`
+  gains `BigInt` / `NullBigInt` and `CreateDefaultType` gains `BigInt`, so an exhaustive
+  `match` outside the repo needs an arm; a generated TypeScript REST body no longer turns a
+  `Decimal` into an object. Regenerate every client and rebuild every server together. Known
+  and not fixed here: `Int` -> `BigInt` in `migrate diff` emits a no-op `ALTER COLUMN ... TYPE
+  BIGINT` classed `Lossy`. Owners: `cratestack-schema` (the type), `cratestack-clients`
+  (wire form, revival), `cratestack-policy-auth` (the three-valued comparison),
+  `cratestack-troubleshooting`.
 - **Negotiated payload types inside a seal; `seal_call`; `ExternalSigner::ed25519`**
-  (cratestack#1168, PR #1169). Additive: the payload inside a COSE envelope may be
+  (cratestack#1168, PR #1169) *(since 0.15.4)*. Additive: the payload inside a COSE envelope may be
   JSON or form-urlencoded as well as CBOR, selected by the unbound
   `Cratestack-Payload-Type` / `Cratestack-Payload-Accept` headers and bound in the
   AAD; absent means CBOR, byte-identical to 0.15.3. New layer refusals `415
@@ -98,19 +229,20 @@ security fix merged from a private fork with no PR number.
   `EnvelopeError::UnexpectedPayloadType`; public `ClientEnvelope::seal_call` /
   `PendingResponse::open`; `ExternalSigner::ed25519`. Owners: `cratestack-server`,
   `cratestack-clients`, with the 415/406 rows in `cratestack-troubleshooting`.
-- **`cratestack_cose::RegistryVerifierResolver`** (cratestack#1149, PR #1150).
-  Additive: a runtime-mutable `CoseVerifierResolver` (`register` / `revoke` /
+- **`cratestack_cose::RegistryVerifierResolver`** (cratestack#1149, PR #1150)
+  *(since 0.15.4)*. Additive: a runtime-mutable `CoseVerifierResolver` (`register` / `revoke` /
   `revoke_key`, optional `with_max_keys` bound) for keys enrolled after the
   server starts. Owner: `cratestack-server` (signed transport), with the 401
   note in `cratestack-troubleshooting`.
 - **The facades re-export `CborCodec` and `JsonCodec` at the crate root**
-  (cratestack#1147, PR #1148). Additive: `cratestack-api`, `-pg`, `-sqlite` and
+  (cratestack#1147, PR #1148)
+  *(since 0.15.4)*. Additive: `cratestack-api`, `-pg`, `-sqlite` and
   `-client` expose `cratestack::CborCodec` (and `JsonCodec` behind the default
   `codec-json` feature), the same types as `cratestack::client_rust::CborCodec`,
   so a `db = None` server no longer needs `cratestack-codec-cbor` as a direct
   dependency to build `envelope_layer`, `rpc_router` or a client.
-- **Dart and Flutter clients can seal and open COSE** (cratestack#1151, #1026).
-  Additive: `package:cratestack_cbor/cose.dart` (`ClientEnvelope`, `CallBinding`,
+- **Dart and Flutter clients can seal and open COSE** (cratestack#1151, #1026)
+  *(since 0.15.4)*. Additive: `package:cratestack_cbor/cose.dart` (`ClientEnvelope`, `CallBinding`,
   `HmacSigner`, `Ed25519Signer`, `CoseServerKey`, the `CoseException` family) reaches
   `cratestack-cose` over flutter_rust_bridge and the `cratestack-cbor-wasm` build,
   with no Dart reimplementation. Required mode only, in-memory signers only: no
@@ -610,20 +742,25 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.14.2, each of these parses, validates, and then does nothing:
+As of 0.14.2, each of these parses, validates, and then does nothing (re-checked for 0.15.4's field-attribute change only):
 
-- An unknown **field** attribute (`@whatever`, and `@Id` / `@ID`, which are not a
-  primary key) still parses and does nothing; only near-misses are refused. An
-  unknown `@@`, procedure or query attribute did the same through 0.14.0 and is
-  refused since 0.14.1 *(GHSA-69g4-xvcm-vm2j)*.
+- `@from(Model.field)` on a view field: since 0.15.4 its shape and target are
+  checked (a real model and field), but no generator reads it, so it still changes
+  nothing. (An unknown **field** attribute stopped being inert in 0.15.4; see below.)
 - `@@retain(days: N)` — descriptor metadata; no GC job exists.
-- `@from(Model.field)` on a view field — checked by nothing.
 - `prefer_for` in `studio.toml` — parsed and never consulted.
 - The per-frame `idem` field on `/rpc/batch` — decoded and never read.
 - `@@id([a, b])` — parses, emits correct DDL, then every entry macro rejects it
   (issue #136).
 - The five `batch_*` ORM primitives — complete, and reachable from no generated
   route.
+
+**No longer inert since 0.15.4.** An unknown or wrong-kind **field** attribute
+(`@whatever`, `@Id` / `@ID`, `@immutable`, `@string`, `@unique` on a `view` field,
+anything on an `auth` field, a validator on a list field) is refused by `check`
+against the closed list for its declaration kind. A validator on a `type` field is now enforced on procedure
+arguments, and `@default`, `@db_enforce` and a bare `@default` / `@relation` on the
+kinds that ignored them are refused. See [0.15.4](#0154-2026-10-11).
 
 **No longer inert since 0.14.1.** Three entries left this list in the same
 release: `@isolation(level)` is now enforced (see [0.14.1](#0141-2026-09-27)

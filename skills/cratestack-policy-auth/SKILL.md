@@ -137,6 +137,18 @@ Terms combined with `&&`, `||` and parentheses.
 Procedure policy adds predicates over the decoded arguments —
 `InputFieldIsTrue { field }` and friends.
 
+**A wrong-typed claim denies; `!=` and `not in` pass only on a decided difference**
+*(since 0.15.4, ADR 0019)*. Comparisons are three-valued (equal, different, undecidable) and an
+undecidable pair satisfies neither `==` nor `!=`, as a SQL `NULL` does; a `@deny` on it
+fires. On 0.15.3 and earlier a `"7"` claim satisfied `auth().tenantId != 7` (a string is not
+an integer), so a policy fed by a claim your identity provider may issue as a string could
+pass for the wrong caller. In a model policy any claim whose type does not match the literal
+is undecidable; in a procedure policy only an integer against a string is, in either order,
+and a `Bool`, `Float` or `Null` operand still passes `!=` (a known gap, in the framework's
+`ROADMAP.md`). A string claim in a numeric comparison denies, and a `BigInt` claim must be a JSON
+integer in a policy comparison. A pushed-down string claim renders as `$N::text`. Audit every
+`!=` and `not in` policy for the claim types it can actually receive.
+
 ## The one behaviour that surprises everyone
 
 **A denied model read is not a 403.**
@@ -234,6 +246,16 @@ Every generated handler authenticates, then calls
 `enrich_context_from_headers(ctx, &headers, trusted_proxy, peer)` before handing
 `&ctx` to the delegates. That is where client IP resolution happens — see
 `cratestack-data-integrity`.
+
+**An `AuthProvider` cannot shape its refusal** *(open limit in every release, cratestack#1208)*.
+`Self::Error: Into<CratestackError>` goes through the standard `{code, message}` envelope, with
+the status that error maps to, on REST and RPC alike. There is no way to add a member such as
+`{"error": "attestation_expired"}` or to pick an arbitrary status. A client that classifies a
+refusal by such a member (fespalier's device-signed sessions: "renew and retry" versus "wipe
+the keys") cannot be served by the provider alone. The workaround in fespalier's
+`examples/cratestack` is a verification layer in front of the router that writes its own 401/403
+and records the verified caller as a request extension; the `AuthProvider` only turns that
+extension into a `CratestackContext`. Check the issue before assuming it is still open.
 
 `CachedAuthProvider::new(ctx)` returns a fixed context for every call. It is what
 `POST /rpc/batch` uses so a signing provider authenticates the real batch
