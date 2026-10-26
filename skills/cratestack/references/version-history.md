@@ -68,6 +68,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
   `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
   `cratestack-migrations`.
+- **Enum bodies parse explicit ordinals, then refuse them** (cratestack#1229) *(unreleased)*.
+  Slice 1 of `docs/design/enum-ordinals.md`: `Pending = 1` and one `@@reserved(n, …)` line are
+  read and checked (all-or-none, 0 to 32767, unique, a reserved number unused), and then refused
+  with "declares explicit ordinals, which this release parses but does not generate". **Declared
+  but refused, not inert**: no release stores or sends an enum as its ordinal. Also: a trailing
+  `//` comment on a variant line is now a comment, and a line starting with `@` other than
+  `@@reserved(..)` is refused rather than read as a variant name. Owner: `cratestack-schema`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the `v0.16.0` tag and the 0.16.0 changelog
