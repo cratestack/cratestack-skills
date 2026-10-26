@@ -68,6 +68,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
   `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
   `cratestack-migrations`.
+- **`cratestack diff` reports enum changes** (enum ordinals slice 2) *(unreleased)*. It ignored
+  enums entirely, so removing or renaming a variant reported "no structural changes" and exited
+  0. Now: an enum or variant removed is breaking; a variant added is breaking if a response can
+  carry the enum (models, views, procedure and query results, transitively), additive if only
+  requests do; a reorder is internal; categories `enum_removed`, `enum_added`,
+  `enum_variant_removed`, `enum_variant_added`, `enum_variants_reordered`, plus
+  `enum_variant_renamed` and `enum_encoding_changed` for ordinal enums. Owner: `cratestack-cli`.
 - **Enum bodies parse explicit ordinals, then refuse them** (cratestack#1229) *(unreleased)*.
   Slice 1 of `docs/design/enum-ordinals.md`: `Pending = 1` and one `@@reserved(n, …)` line are
   read and checked (all-or-none, 0 to 32767, unique, a reserved number unused), and then refused

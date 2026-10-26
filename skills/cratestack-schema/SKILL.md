@@ -84,8 +84,9 @@ in slices, is `docs/design/enum-ordinals.md`. Do not hand-roll a status
 `Int` with a "1 = Pending" comment to save bytes. That loses the `CHECK`, the typed client
 enums and the filter's named-value validation, and buys about 1 % once the response is
 gzipped. For a closed set, use an `enum` rather than a `String`. Renaming or removing a variant
-breaks the wire, and `cratestack diff` does not report it: `cli/src/schema_diff/` has no enum
-handling. `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
+breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(unreleased)* on
+`main` it does, and adding a variant to an enum responses carry is breaking too (see
+[cratestack-cli](../cratestack-cli/SKILL.md)). `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
 is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are
