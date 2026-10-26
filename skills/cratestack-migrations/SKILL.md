@@ -52,9 +52,9 @@ If there are no ops, it prints `no changes` and writes nothing.
 
 | Class | Which ops | Behaviour |
 | --- | --- | --- |
-| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(since 0.16.0, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
+| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check that keeps every value (*(unreleased)* one that loses a value is Blocking), **non-enum add check on a table the same migration creates** *(since 0.16.0, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
 | **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
-| **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
+| **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists**, *(unreleased)* an enum check rebuilt without a value it had (a variant removed, or an ordinal retired into `@@reserved`; `ir/blocking/narrowing.rs`) | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
 `AlterColumnType` is lossy *unconditionally* — the IR has no dialect-aware
 widening view, so even a widening change needs the flag.
@@ -129,10 +129,12 @@ when a variant's number changes, a variant is removed without its number in `@@r
 number is dropped from `@@reserved`, or a reserved number is reused. A rename that keeps the
 number moves no data. Adding or removing the numbers on an existing enum emits the data
 conversion: Postgres `ALTER COLUMN … TYPE SMALLINT USING (CASE col WHEN 'A' THEN 1 … END)` (the
-old default is dropped first, then re-set), classified **lossy**; SQLite
-`UPDATE … SET col = CASE col WHEN 'A' THEN 1 … END`. Limits: removing a reserved variant narrows
-the `CHECK` but is classified safe, as for a string enum; `baseline` against a live database
-reports drift on an ordinal column (`SMALLINT` is unmapped).
+old default is dropped first, then re-set), classified **lossy**, so it needs
+`--allow-destructive`; SQLite
+`UPDATE … SET col = CASE col WHEN 'A' THEN 1 … END`. Removing a variant (or retiring an ordinal)
+is Blocking, for string enums too: `up.pre.sql` gets `UPDATE t SET col = <a value the enum keeps>
+WHERE col IN (…)`. Limit: `baseline` against a live database reports drift on an ordinal column
+(`SMALLINT` is unmapped).
 
 *(unreleased, cratestack#1209)* `@default(auth().field)` is never written to DDL (through 0.16.0 it
 was emitted as `DEFAULT auth().field`), and a snapshot written by an older cratestack is read back

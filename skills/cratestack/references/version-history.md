@@ -68,6 +68,11 @@ sync-engine entry below is in the tag's source but in no published crate.
   verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
   `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
   `cratestack-migrations`.
+- **`migrate diff`: removing an enum value is Blocking** (enum ordinals slice 3) *(unreleased)*.
+  An enum `CHECK` rebuilt without a value it had (a variant removed, an ordinal retired) used to be
+  classified Safe and failed at apply time on rows holding it; now `up.sql` warns and `up.pre.sql`
+  is scaffolded with the `UPDATE … WHERE col IN (…)` backfill. String enums too. Owner:
+  `cratestack-migrations`.
 - **Ordinal enums ship: `Pending = 1` is stored and sent as its number** (enum ordinals slices
   3–6) *(unreleased)*. Postgres `SMALLINT` + numeric `CHECK`, `@default(V)` → `DEFAULT n`; SQLite
   the integer; CBOR/JSON bodies the number on REST and RPC, the server accepting the name too;
