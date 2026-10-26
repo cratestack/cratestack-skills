@@ -71,6 +71,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |
 | `cratestack-service` (config, health, run) | `cratestack-server` |
 | Views, `@@materialized`, `query` blocks | `cratestack-schema` |
+| Enum storage and wire form (`TEXT` + `CHECK`, variant name on both codecs), `DateTime` / `Uuid` wire size; explicit enum ordinals *(proposed, unimplemented: `docs/design/enum-ordinals.md`)*, owned as a **limit** ("no ordinal syntax") until it ships | `cratestack-schema` |
 | Migrations, snapshots, baselines | `cratestack-migrations` |
 | The `cratestack` binary, any subcommand | `cratestack-cli` |
 | `cratestack diff` severities | `cratestack-cli` |

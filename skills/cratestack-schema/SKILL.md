@@ -72,6 +72,22 @@ schema with a `datasource`, a **list-arity scalar or enum model field is rejecte
 there is no SQL bind representation for it. Model it as a relation, or drop the
 datasource block if the schema is client-only.
 
+**An `enum` is a string at rest and on the wire.** Postgres gets a `TEXT` column plus a
+membership `CHECK` (no `CREATE TYPE`; `cratestack-migrate/src/emit/postgres/columns.rs`), and
+both codecs send the variant name (`#[serde(rename)]` in
+`cratestack-macros/src/types/enums.rs`). **No release generates an ordinal enum.** On 0.16.0
+and earlier, `Pending = 1` and `@@reserved(4)` do not parse. *(Unreleased)* on `main` they parse
+and are checked, then refused with "declares explicit ordinals, which this release parses but
+does not generate". So write neither until a release notes that they ship.
+`Pending @value(1)` was never the syntax and never parses. The design, accepted and being built
+in slices, is `docs/design/enum-ordinals.md`. Do not hand-roll a status
+`Int` with a "1 = Pending" comment to save bytes. That loses the `CHECK`, the typed client
+enums and the filter's named-value validation, and buys about 1 % once the response is
+gzipped. For a closed set, use an `enum` rather than a `String`. Renaming or removing a variant
+breaks the wire, and `cratestack diff` does not report it: `cli/src/schema_diff/` has no enum
+handling. `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
+is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
+
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are
 argument-position only; `Vector(n)` and the spatial types *(PostGIS since 0.10.0)* are field-position
 only and each requires its `extension` block to be declared.
