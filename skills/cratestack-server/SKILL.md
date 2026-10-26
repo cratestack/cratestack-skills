@@ -592,6 +592,48 @@ device can act as the user in another device's header. An ESP256 or WebCrypto de
 authenticates only through the service registry (as `kind` `service`), because
 `DeviceKeyResolver` is Ed25519-only.
 
+### Claim objects: a signed payload with no freshness check *(unreleased, cratestack#1231)*
+
+The envelope above is bound to one request and is refused outside a ±300 s `iat` window or on a
+repeated `cti`. For a payload signed offline by one device and delivered later by another (a QR
+relay, a payment at an online terminal), `cratestack_cose::claims` signs a separate, standalone
+object whose expiry and replay the **application** decides. `cratestack::cose` re-exports it with
+the `cose` feature; it is a library call, not part of `EnvelopeLayer`, and it never touches a
+router.
+
+```rust
+use cratestack::cose::{CwtClaims, open_claims, sign_claims};
+
+const TYP: &str = "application/vnd.example.grant+cwt";
+let claims = CwtClaims { exp: Some(now + 3_600), ..CwtClaims::default() };
+let bytes = sign_claims(&signer, TYP, &claims, payload, aad).await?;      // any CoseSigner
+let opened = open_claims(&resolver, &bytes, TYP, aad).await?;             // any CoseVerifierResolver
+// opened.{kid, alg, key_thumbprint, claims, payload}: verified, NOT fresh
+```
+
+- **Wire shape:** tag-18 `COSE_Sign1`, protected `{1: alg, 4: kid, ? 15: {3: aud, 4: exp, 6: iat, 7: cti}, 16: typ}`,
+  empty unprotected header, embedded payload, deterministic CBOR, low-`s` ESP256. Ed25519 and
+  ESP256 only; an HMAC signer is `ClaimsError::Misuse`, an HMAC `alg` on receipt is `Malformed`.
+- **`open_claims` checks the signature and the `typ`, nothing else.** There is no skew window and
+  no nonce store. Enforce `exp`, `aud` and `cti` yourself on `opened.claims`; an object with no
+  `exp` never expires and opens every time it is presented. For single use, give it a `cti` and
+  record the ones accepted.
+- **`typ` is mandatory and is the domain separator.** The envelope's parser refuses header label 16
+  and the claim opener requires it, so neither format opens as the other (a claim object sent to
+  the layer is a `401`; an envelope given to `open_claims` is `Malformed`). `external_aad` is
+  signed, not sent, and must match on open.
+- **Bounds:** `MAX_AUD_LEN` 256, `MAX_TYP_LEN` 128, `MAX_CTI_LEN` 64 bytes; `aud` is one string
+  (the array form is not accepted); `exp` / `iat` are whole seconds.
+- **Errors:** `ClaimsError` (`#[non_exhaustive]`): `Malformed`, `WrongType`, `Unverified` (an
+  unknown `kid`, a bad signature and a different `external_aad` look the same), `Resolver`,
+  `Signer`, `Misuse`. `into_error()` gives the envelope's `401` / `500`.
+- **Not a request seal.** It carries no binding to a request and does no replay protection, so do
+  not use it where an envelope is needed. Rust only: `package:cratestack_cbor/cose.dart` does not
+  expose it (no `sign_claims` / `open_claims` in `dart-packages/`).
+
+Source: `crates/cratestack-cose/src/claims/`, `crates/cratestack-cose/tests/claims*.rs`
+(`claims_domain_separation.rs` checks both directions).
+
 ## Service scaffolding and observability
 
 `cratestack-service` gives you `telemetry::init(prefix)`,

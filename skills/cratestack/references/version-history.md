@@ -57,6 +57,15 @@ security fix merged from a private fork with no PR number. When 0.16.0 was recor
 here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the
 sync-engine entry below is in the tag's source but in no published crate.
 
+- **Standalone signed claim objects in `cratestack-cose`** (cratestack#1231) *(unreleased)*.
+  Additive: `cratestack_cose::claims` (re-exported at the crate root) has `sign_claims` /
+  `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError` and `MAX_AUD_LEN` / `MAX_TYP_LEN` /
+  `MAX_CTI_LEN`. A tag-18 `COSE_Sign1` with a mandatory `typ` and optional CWT claims
+  (`aud`, `exp`, `iat`, `cti`), for a payload signed offline and delivered later. **No
+  freshness window and no nonce store**: the caller enforces `exp`, `aud` and `cti`. It is
+  domain-separated from the transport envelope, which is unchanged. Ed25519 and ESP256 only.
+  Owners: `cratestack-server` (the API), with a row in `cratestack-troubleshooting` and a
+  limit in `cratestack-clients`.
 - **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
   (cratestack#1209, PR #1211) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
   verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised

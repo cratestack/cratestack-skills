@@ -325,6 +325,9 @@ final opened = await envelope.openResponse(
   460 KB (Linux x86_64) or 270 KB (web `.wasm`) for it whether it signs or not.
 - **`cose_testing.dart`** pins `iat` and `cti` for the shared vectors. Never use
   it outside tests: a pinned `cti` is a replayed request.
+- **No claim objects in Dart.** *(unreleased, cratestack#1231)* The standalone signed payload
+  that outlives a request (`sign_claims` / `open_claims`, see `cratestack-server`) is Rust
+  only; `cratestack_cbor` has no binding for it.
 
 ## TypeScript
 
