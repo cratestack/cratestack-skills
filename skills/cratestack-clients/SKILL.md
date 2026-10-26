@@ -404,6 +404,22 @@ in 0.15.4)*, and RTK's development-only serializability check does not know `big
 generated README shows the `serializableCheck` option). `Int` is unchanged: still `i64`
 and still a JSON number until a later cutover.
 
+### Ordinal enums are numbers on the wire *(unreleased)*
+
+An enum whose variants are numbered (`Pending = 1`, see
+[cratestack-schema](../cratestack-schema/SKILL.md)) travels as that number in every body, REST and
+RPC. Servers decode the number **or** the name, so mixed client versions keep working; query
+strings and filters still use names.
+
+| Client | Type | Notes |
+| --- | --- | --- |
+| Rust | the same enum, `#[repr(i16)]`; `ordinal()`, `TryFrom<i16>` | `Serialize` writes the number, `Deserialize` takes either; `<Model>Where` filters send the name |
+| TypeScript | unchanged: `'Pending' \| 'Approved'` | responses are revived from numbers to names (`ordinalEnumNames`/`ordinalEnumFields` in `models.ts`); an unknown number throws `TypeError` naming the field. Requests still send names |
+| Dart | the same constants, plus `int wireValue` beside `wireName` | `toWire()` returns the number; `fromWire` takes the number or the name, else `ArgumentError` |
+
+A client generated before the enum was numbered cannot read the numbers: regenerate and ship
+clients with the server.
+
 ### The schema-SHA header
 
 Every generated client stamps its schema's hex SHA-256 as
@@ -444,6 +460,9 @@ through a separate `RpcStreamLink` chain. See `cratestack-rpc`.
 for contract tests without a live server. A REST stub for an `@api_version`
 procedure matches `/<version>/$procs/<name>` *(since 0.13.0)*. Before 0.13.0 it
 matched the unversioned path, the same wrong path the clients called.
+
+*(Unreleased)* An ordinal enum's example is its first variant's **number**, and a model field of
+one is a fixed example, never echoed from the request body.
 
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have
 **no per-record statefulness** — they always answer the same synthesised example
