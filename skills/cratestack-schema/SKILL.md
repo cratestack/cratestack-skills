@@ -75,17 +75,40 @@ datasource block if the schema is client-only.
 **An `enum` is a string at rest and on the wire.** Postgres gets a `TEXT` column plus a
 membership `CHECK` (no `CREATE TYPE`; `cratestack-migrate/src/emit/postgres/columns.rs`), and
 both codecs send the variant name (`#[serde(rename)]` in
-`cratestack-macros/src/types/enums.rs`). **No release generates an ordinal enum.** On 0.16.0
-and earlier, `Pending = 1` and `@@reserved(4)` do not parse. *(Unreleased)* on `main` they parse
-and are checked, then refused with "declares explicit ordinals, which this release parses but
-does not generate". So write neither until a release notes that they ship.
-`Pending @value(1)` was never the syntax and never parses. The design, accepted and being built
-in slices, is `docs/design/enum-ordinals.md`. Do not hand-roll a status
-`Int` with a "1 = Pending" comment to save bytes. That loses the `CHECK`, the typed client
-enums and the filter's named-value validation, and buys about 1 % once the response is
-gzipped. For a closed set, use an `enum` rather than a `String`. Renaming or removing a variant
-breaks the wire, and `cratestack diff` does not report it: `cli/src/schema_diff/` has no enum
-handling. `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
+`cratestack-macros/src/types/enums.rs`).
+
+**Ordinal enums** *(unreleased; on 0.16.0 and earlier `Pending = 1` is a parse error)*. Number
+every variant and the enum is stored and sent as that number:
+
+```cstack
+enum PaymentStatus {
+  Pending = 1
+  Approved = 2
+  Refunded = 5
+
+  @@reserved(3, 4)   // retired numbers; never reuse
+}
+```
+
+Postgres gets `SMALLINT` + `CHECK (col IN (1, 2, 5))` and `@default(Pending)` becomes
+`DEFAULT 1`; SQLite stores the integer; bodies carry the number on both codecs and both
+transports, and the server also accepts the name. Names stay everywhere a human types one:
+query strings (`?status=Approved`; `?status=2` is a 400), policy literals
+(`status != Refunded`), `@default(...)`. The Rust type is `#[repr(i16)]` with `ordinal()` and
+`TryFrom<i16>`; client shapes are in [cratestack-clients](../cratestack-clients/SKILL.md).
+`check` refuses: a partly numbered enum, a number outside 0..=32767 or used twice, a variant on a
+`@@reserved` number, `@@reserved` on a string enum, and an `auth` field whose type is an ordinal
+enum. The numbers are append-only; `cratestack migrate diff` enforces it
+([cratestack-migrations](../cratestack-migrations/SKILL.md)). Never renumber; retire a removed
+variant's number in `@@reserved`. `Pending @value(1)` was never the syntax and never parses.
+Choose ordinals for high-volume, machine-read enums (event kinds, hot-table statuses); keep names
+where people read the database raw (`psql` shows the integer). Design and limits:
+`docs/design/enum-ordinals.md` §9.1. Do not hand-roll a status `Int` with a "1 = Pending" comment
+instead: that loses the `CHECK`, the typed client enums and the filter's named-value
+validation. For a closed set, use an `enum` rather than a `String`. Renaming or removing a variant
+breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(unreleased)* on
+`main` it does, and adding a variant to an enum responses carry is breaking too (see
+[cratestack-cli](../cratestack-cli/SKILL.md)). `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
 is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are

@@ -170,9 +170,16 @@ gate on the *baseline*. The strict attribute parsing since 0.14.1
 
 | Severity | Examples |
 | --- | --- |
-| `BREAKING` | removing a model/field/procedure; **adding or removing `@@paged`** (it flips `.list()` between `T[]` and `Page<T>`); **adding `@@internal(...)`**; adding a required field with no default; retyping anything; narrowing arity |
-| `ADDITIVE` | adding a model, an optional field, a procedure; widening arity; **removing `@@internal(...)`** |
-| `INTERNAL` | `@@soft_delete`, `@@audit`, `@@retain`, `@@emit` — a known scope gap, not an oversight |
+| `BREAKING` | removing a model/field/procedure; **adding or removing `@@paged`** (it flips `.list()` between `T[]` and `Page<T>`); **adding `@@internal(...)`**; adding a required field with no default; retyping anything; narrowing arity; *(unreleased)* removing an enum or a variant, and **adding a variant to an enum a response can carry** |
+| `ADDITIVE` | adding a model, an optional field, a procedure; widening arity; **removing `@@internal(...)`**; *(unreleased)* adding an enum, or a variant to an enum only requests carry |
+| `INTERNAL` | `@@soft_delete`, `@@audit`, `@@retain`, `@@emit` — a known scope gap, not an oversight; *(unreleased)* reordering an enum's variants |
+
+**Enums** *(unreleased, `cratestack-cli/src/schema_diff/enums.rs`)*: on 0.16.0 and earlier `diff`
+never reads them, so an enum change reports nothing and exits 0. On `main` an added variant is
+breaking when the enum is reachable from any model, view, procedure result or query result
+(through fields, `type`s, generic arguments), because the generated Dart and Rust decoders refuse
+an unknown value; otherwise it is additive. A rename is a removal plus an addition. `type`
+declarations and views are still not diffed as declarations.
 
 Output is printed **first**, then the process exits 1 if there is any breaking
 change — so a JSON consumer always gets a complete document even on a gating

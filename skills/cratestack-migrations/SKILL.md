@@ -52,9 +52,9 @@ If there are no ops, it prints `no changes` and writes nothing.
 
 | Class | Which ops | Behaviour |
 | --- | --- | --- |
-| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check, **non-enum add check on a table the same migration creates** *(since 0.16.0, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
+| Safe | create table, add optional column (or required with a real `@default`), add/drop index, add/drop foreign key, alter default, rename table/column, enum add check that keeps every value (*(unreleased)* one that loses a value is Blocking), **non-enum add check on a table the same migration creates** *(since 0.16.0, cratestack#1129)*, drop check, required→optional, create/replace view, ensure extension | written |
 | **Lossy** | drop table, drop column, drop view / materialized view, **any `AlterColumnType`**, list↔scalar arity flips | **refuses without `--allow-destructive`** |
-| **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists** | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
+| **Blocking** | add a required column with no default (`dbgenerated()` does not count, nor *(unreleased, cratestack#1209)* `cuid()`, which has no database default), optional→required, non-enum add check **on a table that already exists**, *(unreleased)* an enum check rebuilt without a value it had (a variant removed, or an ordinal retired into `@@reserved`; `ir/blocking/narrowing.rs`) | written, plus a scaffolded `up.pre.sql` and a loud stderr warning |
 
 `AlterColumnType` is lossy *unconditionally* — the IR has no dialect-aware
 widening view, so even a widening change needs the flag.
@@ -122,6 +122,20 @@ Hand-write any destructive reversal.
 
 **Enums on SQLite** — not emitted at all; variant changes are Rust-side only.
 
+**Ordinal enums** *(unreleased)* (`Pending = 1`, see
+[cratestack-schema](../cratestack-schema/SKILL.md)). `migrate diff` keeps each enum's numbers in
+the snapshot (`Projections::enums`) and **refuses** the diff (`MigrateError::EnumOrdinalHistory`)
+when a variant's number changes, a variant is removed without its number in `@@reserved`, a
+number is dropped from `@@reserved`, or a reserved number is reused. A rename that keeps the
+number moves no data. Adding or removing the numbers on an existing enum emits the data
+conversion: Postgres `ALTER COLUMN … TYPE SMALLINT USING (CASE col WHEN 'A' THEN 1 … END)` (the
+old default is dropped first, then re-set), classified **lossy**, so it needs
+`--allow-destructive`; SQLite
+`UPDATE … SET col = CASE col WHEN 'A' THEN 1 … END`. Removing a variant (or retiring an ordinal)
+is Blocking, for string enums too: `up.pre.sql` gets `UPDATE t SET col = <a value the enum keeps>
+WHERE col IN (…)`. Limit: `baseline` against a live database reports drift on an ordinal column
+(`SMALLINT` is unmapped).
+
 *(unreleased, cratestack#1209)* `@default(auth().field)` is never written to DDL (through 0.16.0 it
 was emitted as `DEFAULT auth().field`), and a snapshot written by an older cratestack is read back
 normalised: a stored `now()` / `uuid()` / `cuid()` default as cratestack's own, `auth().field` as
@@ -184,6 +198,7 @@ Without that crate, the glue is yours.
 | --- | --- | --- |
 | Column types | real mapping (`String→TEXT`, `Int→BIGINT`, `Uuid→UUID`, …) | **every column is `BLOB`** |
 | Enums | `TEXT` + `CHECK (col IN (…))`, deliberately not a native enum type | not emitted |
+| Ordinal enums *(unreleased)* | `SMALLINT` + `CHECK (col IN (1, 2, …))`, `@default(V)` → `DEFAULT n` | the integer; no `CHECK` |
 | Extensions | `EnsureExtension` DDL | n/a |
 | `up.pre.sql` | scaffolded when blocking | **never** — guidance goes into `up.sql`, because SQLite has no runner to read a pre file |
 | `DROP COLUMN` | native | native (SQLite ≥ 3.35) — no table-rebuild dance |
@@ -193,7 +208,7 @@ Without that crate, the glue is yours.
 
 BLOB everywhere is because BLOB affinity is the only one that preserves the bound
 storage class. Native enums are avoided because generated row decoders read enum
-fields as `String`.
+fields as `String` (an ordinal enum's *(unreleased)* as an integer).
 
 On device, the usual pattern is not migrations at all: call
 `create_table_sql(&DESCRIPTOR)` (a `CREATE TABLE IF NOT EXISTS`) at app start.

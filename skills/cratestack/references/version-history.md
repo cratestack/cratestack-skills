@@ -77,11 +77,32 @@ sync-engine entry below is in the tag's source but in no published crate.
   verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
   `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
   `cratestack-migrations`.
-- **Enum bodies parse explicit ordinals, then refuse them** (cratestack#1229) *(unreleased)*.
-  Slice 1 of `docs/design/enum-ordinals.md`: `Pending = 1` and one `@@reserved(n, …)` line are
-  read and checked (all-or-none, 0 to 32767, unique, a reserved number unused), and then refused
-  with "declares explicit ordinals, which this release parses but does not generate". **Declared
-  but refused, not inert**: no release stores or sends an enum as its ordinal. Also: a trailing
+- **`migrate diff`: removing an enum value is Blocking** (enum ordinals slice 3) *(unreleased)*.
+  An enum `CHECK` rebuilt without a value it had (a variant removed, an ordinal retired) used to be
+  classified Safe and failed at apply time on rows holding it; now `up.sql` warns and `up.pre.sql`
+  is scaffolded with the `UPDATE … WHERE col IN (…)` backfill. String enums too. Owner:
+  `cratestack-migrations`.
+- **Ordinal enums ship: `Pending = 1` is stored and sent as its number** (enum ordinals slices
+  3–6) *(unreleased)*. Postgres `SMALLINT` + numeric `CHECK`, `@default(V)` → `DEFAULT n`; SQLite
+  the integer; CBOR/JSON bodies the number on REST and RPC, the server accepting the name too;
+  names stay in query strings (`?status=2` is a 400), policy literals and `@default`. Clients:
+  Rust `#[repr(i16)]`, TypeScript keeps its name union (responses revived, requests send names),
+  Dart adds `int wireValue`; WireMock, Studio, JSON Schema/MCP and LSP hover follow. New refusals:
+  an `auth` field of an ordinal enum type (`check`); renumbering, unreserved removal, dropping or
+  reusing a `@@reserved` number (`migrate diff`). Converting an existing enum emits the data
+  migration (Postgres `USING (CASE …)`, lossy; SQLite `UPDATE`). Owners: `cratestack-schema`,
+  `cratestack-migrations`, `cratestack-clients`.
+- **`cratestack diff` reports enum changes** (enum ordinals slice 2) *(unreleased)*. It ignored
+  enums entirely, so removing or renaming a variant reported "no structural changes" and exited
+  0. Now: an enum or variant removed is breaking; a variant added is breaking if a response can
+  carry the enum (models, views, procedure and query results, transitively), additive if only
+  requests do; a reorder is internal; categories `enum_removed`, `enum_added`,
+  `enum_variant_removed`, `enum_variant_added`, `enum_variants_reordered`, plus
+  `enum_variant_renamed` and `enum_encoding_changed` for ordinal enums. Owner: `cratestack-cli`.
+- **Enum bodies parse explicit ordinals** (cratestack#1229) *(unreleased)*. Slice 1 of
+  `docs/design/enum-ordinals.md`: `Pending = 1` and one `@@reserved(n, …)` line are read and
+  checked (all-or-none, 0 to 32767, unique, a reserved number unused). Slice 1 alone refused a
+  well-formed ordinal enum; the entry above lifts that, so `main` generates them. Also: a trailing
   `//` comment on a variant line is now a comment, and a line starting with `@` other than
   `@@reserved(..)` is refused rather than read as a variant name. Owner: `cratestack-schema`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
