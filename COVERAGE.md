@@ -67,6 +67,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | `BigInt` scalar *(since 0.15.4, ADR 0019 D2, D3)*: canonical-string wire form, `cratestack::BigInt`, TypeScript `bigint` + strict revival + `BigIntFilter`, Dart `BigInt` + `cratestackDecodeBigInt`, `--rtk` floor `^2.2.7`, `SqlValue::BigInt`, three-valued policy comparisons | `cratestack-schema` (the type) + `cratestack-clients` (wire contract) + `cratestack-policy-auth` (wrong-typed claim denies) + `cratestack-troubleshooting` (`TypeError`) |
 | `@default(autoincrement())` refused, `dbgenerated()` must be the whole default *(since 0.16.0, cratestack#1128)* | `cratestack-schema` (`@default`) + `cratestack-migrations` |
 | `@default` functions *(unreleased, cratestack#1209)*: builtin `now()` / `uuid()` / `cuid()` generated on create, datasource `functions = [...]` registration, per-dialect DDL, `auth()` never in DDL | `cratestack-schema` (`@default`, `references/attributes.md`) + `cratestack-migrations` |
+| Literal `@default` type checks and single-quoted DDL strings; embedded defaults (runtime-bound literals, `create_table_sql` `DEFAULT`s, `auth()` required / `dbgenerated()` optional inputs, `RusqliteError::UnfilledDefault`) *(unreleased, cratestack#1234)* | `cratestack-schema` (`references/attributes.md`) + `cratestack-embedded` + `cratestack-migrations` |
 | `@computed` authoring rules | `cratestack-schema` |
 | `@computed` runtime and wire surface | `cratestack-data-integrity` |
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |

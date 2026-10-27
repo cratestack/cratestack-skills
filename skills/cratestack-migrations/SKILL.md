@@ -142,6 +142,13 @@ normalised: a stored `now()` / `uuid()` / `cuid()` default as cratestack's own, 
 no default. `migrate baseline` reads Postgres's `now()` and `gen_random_uuid()` as `now()` and
 `uuid()`.
 
+*(unreleased, cratestack#1234)* a literal default is written as the SQL literal it stands for:
+strings single-quoted (`@default("draft")` → `DEFAULT 'draft'`, inner quotes doubled), on both
+trees. Through 0.16.0 a double-quoted string was written verbatim as `DEFAULT "draft"`, which
+Postgres reads as a column reference, so the migration failed. A stored `"draft"` in an older
+snapshot reads back as `'draft'`, so the next diff sees no change. Embedded tables do not come
+from these migrations; see `cratestack-embedded`.
+
 You also get a stderr warning listing every `@default(dbgenerated())` on a
 required column, because the emitter cannot verify the database actually has that
 default.

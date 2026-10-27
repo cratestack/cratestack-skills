@@ -57,6 +57,16 @@ security fix merged from a private fork with no PR number. When 0.16.0 was recor
 here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the
 sync-engine entry below is in the tag's source but in no published crate.
 
+- **Breaking: literal `@default`s are typed, and every default works on embedded**
+  (cratestack#1234) *(unreleased)*. On the embedded runtime every `@default` but
+  `now()`/`uuid()`/`cuid()` used to be written as NULL, failing the create. Now literals are
+  bound by the runtime (and written as `DEFAULT` by `create_table_sql`); an `auth()` field stays
+  in the embedded `Create*Input` as required, a `dbgenerated()` or registered-function field as
+  an `Option`, and a required one left NULL is refused with `RusqliteError::UnfilledDefault`.
+  `check` refuses a literal that does not fit its field (an unquoted word on a `String`,
+  `CURRENT_TIMESTAMP`, `null`, literals on `Json`/`Bytes`/lists), and migrations write strings
+  single-quoted where `@default("x")` used to become `DEFAULT "x"`. Owners: `cratestack-schema`,
+  `cratestack-embedded`, `cratestack-migrations`.
 - **Standalone signed claim objects in `cratestack-cose`** (cratestack#1231) *(unreleased)*.
   Additive: `cratestack_cose::claims` (re-exported at the crate root) has `sign_claims` /
   `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError` and `MAX_AUD_LEN` / `MAX_TYP_LEN` /
