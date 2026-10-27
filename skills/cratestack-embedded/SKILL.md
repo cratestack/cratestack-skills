@@ -47,6 +47,22 @@ SQLite migration SQL (`cratestack migrate diff --backend sqlite`), but nothing
 applies it for you — execute it yourself with `conn.execute_batch`. The
 checksum-guarded applier in `cratestack-sqlx` is Postgres-only.
 
+**Defaults are applied by the runtime, not the table** *(unreleased, cratestack#1234)*.
+`create_table_sql` never alters an existing table, so the runtime binds literal defaults and
+`now()`/`uuid()`/`cuid()` itself on create, and writes matching `DEFAULT` clauses only for new
+tables (`cuid()` gets none). Nothing on the device can fill the other kinds, so the embedded
+`Create*Input` keeps those fields, where the server input drops them:
+
+- **`@default(auth().field)`:** a required field. Pass the current user's value.
+- **`@default(dbgenerated())` and registered functions:** an `Option`. `Some` is bound; `None`
+  leaves the column to a trigger or `DEFAULT` the app adds through `with_connection`.
+- **A required one that comes back NULL:** refused with `RusqliteError::UnfilledDefault`
+  (`VALIDATION_ERROR` per batch item), and the insert is rolled back.
+
+Before this, every non-builtin `@default` was written as NULL and the create failed decoding
+the row. Verified against `crates/cratestack-sqlite/tests/embedded_literal_defaults.rs` and
+`embedded_database_defaults.rs`.
+
 **There is no supported sync engine** *(unreleased, prototype only)*. Server-to-device
 sync is not a released feature. The framework repository does contain an
 **unpublished** prototype, the `cratestack-sync` crate (`publish = false`) and
