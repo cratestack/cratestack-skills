@@ -267,7 +267,10 @@ Err(AuthRefusal::unauthenticated("attestation expired")
   ignored.
 - REST, RPC unary and RPC batch send the same status, members and header. A batch refusal answers
   the whole batch.
-- `cratestack-mcp` and `cratestack-sync` still render refusals their own way.
+- `cratestack-mcp` renders it the same way (status, members, `details`, challenges after its own
+  `resource_metadata` one), and can let a non-bearer provider decide presence: see
+  `cratestack-mcp`. The prototype sync endpoints carry the members in their error body, with a new
+  `forbidden` code for a 403, and send the public message, never the error's detail.
 
 The envelope types gained a public `extra` map (`CratestackErrorResponse`, `RpcErrorBody`), and
 `cratestack-client-rust`'s `ClientError::Remote { error }` is now `Option<Box<_>>`. Struct literals

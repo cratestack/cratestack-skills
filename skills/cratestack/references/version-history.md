@@ -76,6 +76,11 @@ sync-engine entry below is in the tag's source but in no published crate.
   `cratestack-client-rust`'s `ClientError::Remote { error }` becomes `Option<Box<_>>`. MCP and
   sync still render refusals their own way. Closes the #1208 known gap listed under 0.16.0.
   Owners: `cratestack-policy-auth`, `cratestack-clients`.
+- **MCP credential presence is pluggable; MCP and sync render an `AuthRefusal`** (cratestack#1243)
+  *(unreleased, cratestack#1243)*. `CredentialPresence` (`bearer` default, `provider_decides`,
+  `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
+  prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
+  internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
 
 ## 0.17.0 (2026-10-28)
 
