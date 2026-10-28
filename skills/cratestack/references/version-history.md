@@ -19,9 +19,9 @@ otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.16.0** (tag `v0.16.0`, 2026-10-23). Its changes, and
-0.15.4's, are recorded below and marked *(since 0.16.0)* / *(since 0.15.4)* where they
-are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
+The latest release is **0.17.0** (tag `v0.17.0`, 2026-10-28). Its changes, 0.16.0's and
+0.15.4's, are recorded below and marked *(since 0.17.0)* / *(since 0.16.0)* /
+*(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
 latest release, as AGENTS.md requires.
 
 ## Reading order for an upgrade
@@ -44,21 +44,41 @@ each step's breaking changes assume the one before:
    generated Dart client loses its four `*DioAdapter` classes (regenerate, then move
    to `CratestackHttpAdapter` / `CratestackRpcHttpAdapter`). A CBOR body with
    trailing bytes becomes a `400`.
-5. [Unreleased on `main`](#unreleased-on-main-after-0160) only if you build `main`.
+5. [0.17.0](#0170-2026-10-28): `cratestack check` refuses a `@default(...)` function that is
+   neither `now()`/`uuid()`/`cuid()` nor registered on the datasource, and a literal that does
+   not fit its field (quote string defaults). On the embedded runtime the `Create*Input` gains
+   `auth()` fields (required) and `dbgenerated()`/registered-function fields (`Option`).
+6. [Unreleased on `main`](#unreleased-on-main-after-0170) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
-## Unreleased on `main`, after 0.16.0
+## Unreleased on `main`, after 0.17.0
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. When 0.16.0 was recorded
-here, framework `main` was the `v0.16.0` commit and its `## Unreleased` was empty; the
+security fix merged from a private fork with no PR number. When 0.17.0 was recorded
+here, framework `main` was the `v0.17.0` commit and its `## Unreleased` was empty; the
 sync-engine entry below is in the tag's source but in no published crate.
 
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
+  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
+  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
+  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
+  must not depend on it.
+
+## 0.17.0 (2026-10-28)
+
+0.17.0 carries two breaking changes, both to `@default(...)`: function defaults must be
+cratestack's own or registered (cratestack#1209), and literal defaults are typed, with every
+default working on the embedded runtime (cratestack#1234). It also ships ordinal enums with
+enum-aware `cratestack diff` and `migrate diff`, and standalone COSE claim objects
+(`v0.16.0..v0.17.0`). Skills mark these *(since 0.17.0)*.
+
 - **Breaking: literal `@default`s are typed, and every default works on embedded**
-  (cratestack#1234) *(unreleased)*. On the embedded runtime every `@default` but
+  (cratestack#1234) *(since 0.17.0)*. On the embedded runtime every `@default` but
   `now()`/`uuid()`/`cuid()` used to be written as NULL, failing the create. Now literals are
   bound by the runtime (and written as `DEFAULT` by `create_table_sql`); an `auth()` field stays
   in the embedded `Create*Input` as required, a `dbgenerated()` or registered-function field as
@@ -67,7 +87,7 @@ sync-engine entry below is in the tag's source but in no published crate.
   `CURRENT_TIMESTAMP`, `null`, literals on `Json`/`Bytes`/lists), and migrations write strings
   single-quoted where `@default("x")` used to become `DEFAULT "x"`. Owners: `cratestack-schema`,
   `cratestack-embedded`, `cratestack-migrations`.
-- **Standalone signed claim objects in `cratestack-cose`** (cratestack#1231) *(unreleased)*.
+- **Standalone signed claim objects in `cratestack-cose`** (cratestack#1231) *(since 0.17.0)*.
   Additive: `cratestack_cose::claims` (re-exported at the crate root) has `sign_claims` /
   `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError` and `MAX_AUD_LEN` / `MAX_TYP_LEN` /
   `MAX_CTI_LEN`. A tag-18 `COSE_Sign1` with a mandatory `typ` and optional CWT claims
@@ -77,7 +97,7 @@ sync-engine entry below is in the tag's source but in no published crate.
   Owners: `cratestack-server` (the API), with a row in `cratestack-troubleshooting` and a
   limit in `cratestack-clients`.
 - **Breaking: `@default` function calls must be `now()`, `uuid()`, `cuid()` or registered**
-  (cratestack#1209, PR #1211) *(unreleased)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
+  (cratestack#1209, PR #1211) *(since 0.17.0)*. `migrate diff` wrote any `@default(fn())` into `DEFAULT`
   verbatim: `uuid()` and `cuid()` do not exist in Postgres, SQLite rejected every unparenthesised
   function default (`now()` included), and `@default(auth().id)` became `DEFAULT auth().id`.
   On the embedded runtime any `@default` column was written as NULL. Now `now()`, `uuid()` and
@@ -87,13 +107,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   verbatim; `check` refuses anything else. Migrate: `gen_random_uuid()` → `uuid()`,
   `cs_cuid()` → `cuid()`, other functions → register them. Owners: `cratestack-schema`,
   `cratestack-migrations`.
-- **`migrate diff`: removing an enum value is Blocking** (enum ordinals slice 3) *(unreleased)*.
+- **`migrate diff`: removing an enum value is Blocking** (enum ordinals slice 3) *(since 0.17.0)*.
   An enum `CHECK` rebuilt without a value it had (a variant removed, an ordinal retired) used to be
   classified Safe and failed at apply time on rows holding it; now `up.sql` warns and `up.pre.sql`
   is scaffolded with the `UPDATE … WHERE col IN (…)` backfill. String enums too. Owner:
   `cratestack-migrations`.
 - **Ordinal enums ship: `Pending = 1` is stored and sent as its number** (enum ordinals slices
-  3–6) *(unreleased)*. Postgres `SMALLINT` + numeric `CHECK`, `@default(V)` → `DEFAULT n`; SQLite
+  3–6) *(since 0.17.0)*. Postgres `SMALLINT` + numeric `CHECK`, `@default(V)` → `DEFAULT n`; SQLite
   the integer; CBOR/JSON bodies the number on REST and RPC, the server accepting the name too;
   names stay in query strings (`?status=2` is a 400), policy literals and `@default`. Clients:
   Rust `#[repr(i16)]`, TypeScript keeps its name union (responses revived, requests send names),
@@ -102,27 +122,19 @@ sync-engine entry below is in the tag's source but in no published crate.
   reusing a `@@reserved` number (`migrate diff`). Converting an existing enum emits the data
   migration (Postgres `USING (CASE …)`, lossy; SQLite `UPDATE`). Owners: `cratestack-schema`,
   `cratestack-migrations`, `cratestack-clients`.
-- **`cratestack diff` reports enum changes** (enum ordinals slice 2) *(unreleased)*. It ignored
+- **`cratestack diff` reports enum changes** (enum ordinals slice 2) *(since 0.17.0)*. It ignored
   enums entirely, so removing or renaming a variant reported "no structural changes" and exited
   0. Now: an enum or variant removed is breaking; a variant added is breaking if a response can
   carry the enum (models, views, procedure and query results, transitively), additive if only
   requests do; a reorder is internal; categories `enum_removed`, `enum_added`,
   `enum_variant_removed`, `enum_variant_added`, `enum_variants_reordered`, plus
   `enum_variant_renamed` and `enum_encoding_changed` for ordinal enums. Owner: `cratestack-cli`.
-- **Enum bodies parse explicit ordinals** (cratestack#1229) *(unreleased)*. Slice 1 of
+- **Enum bodies parse explicit ordinals** (cratestack#1229) *(since 0.17.0)*. Slice 1 of
   `docs/design/enum-ordinals.md`: `Pending = 1` and one `@@reserved(n, …)` line are read and
   checked (all-or-none, 0 to 32767, unique, a reserved number unused). Slice 1 alone refused a
-  well-formed ordinal enum; the entry above lifts that, so `main` generates them. Also: a trailing
+  well-formed ordinal enum; the entry above lifts that, so 0.17.0 generates them. Also: a trailing
   `//` comment on a variant line is now a comment, and a line starting with `@` other than
   `@@reserved(..)` is refused rather than read as a variant name. Owner: `cratestack-schema`.
-- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
-  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the `v0.16.0` tag and the 0.16.0 changelog
-  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
-  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
-  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
-  must not depend on it.
-
 ## 0.16.0 (2026-10-23)
 
 0.16.0 carries two breaking changes (the Dart transport seam, the `autoincrement()`

@@ -592,7 +592,7 @@ device can act as the user in another device's header. An ESP256 or WebCrypto de
 authenticates only through the service registry (as `kind` `service`), because
 `DeviceKeyResolver` is Ed25519-only.
 
-### Claim objects: a signed payload with no freshness check *(unreleased, cratestack#1231)*
+### Claim objects: a signed payload with no freshness check *(since 0.17.0, cratestack#1231)*
 
 The envelope above is bound to one request and is refused outside a ±300 s `iat` window or on a
 repeated `cti`. For a payload signed offline by one device and delivered later by another (a QR

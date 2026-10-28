@@ -325,7 +325,7 @@ final opened = await envelope.openResponse(
   460 KB (Linux x86_64) or 270 KB (web `.wasm`) for it whether it signs or not.
 - **`cose_testing.dart`** pins `iat` and `cti` for the shared vectors. Never use
   it outside tests: a pinned `cti` is a replayed request.
-- **No claim objects in Dart.** *(unreleased, cratestack#1231)* The standalone signed payload
+- **No claim objects in Dart.** *(since 0.17.0, cratestack#1231)* The standalone signed payload
   that outlives a request (`sign_claims` / `open_claims`, see `cratestack-server`) is Rust
   only; `cratestack_cbor` has no binding for it.
 
@@ -407,7 +407,7 @@ in 0.15.4)*, and RTK's development-only serializability check does not know `big
 generated README shows the `serializableCheck` option). `Int` is unchanged: still `i64`
 and still a JSON number until a later cutover.
 
-### Ordinal enums are numbers on the wire *(unreleased)*
+### Ordinal enums are numbers on the wire *(since 0.17.0)*
 
 An enum whose variants are numbered (`Pending = 1`, see
 [cratestack-schema](../cratestack-schema/SKILL.md)) travels as that number in every body, REST and
@@ -464,7 +464,7 @@ for contract tests without a live server. A REST stub for an `@api_version`
 procedure matches `/<version>/$procs/<name>` *(since 0.13.0)*. Before 0.13.0 it
 matched the unversioned path, the same wrong path the clients called.
 
-*(Unreleased)* An ordinal enum's example is its first variant's **number**, and a model field of
+*(Since 0.17.0)* An ordinal enum's example is its first variant's **number**, and a model field of
 one is a fixed example, never echoed from the request body.
 
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have

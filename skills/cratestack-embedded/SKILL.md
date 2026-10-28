@@ -47,7 +47,7 @@ SQLite migration SQL (`cratestack migrate diff --backend sqlite`), but nothing
 applies it for you — execute it yourself with `conn.execute_batch`. The
 checksum-guarded applier in `cratestack-sqlx` is Postgres-only.
 
-**Defaults are applied by the runtime, not the table** *(unreleased, cratestack#1234)*.
+**Defaults are applied by the runtime, not the table** *(since 0.17.0, cratestack#1234)*.
 `create_table_sql` never alters an existing table, so the runtime binds literal defaults and
 `now()`/`uuid()`/`cuid()` itself on create, and writes matching `DEFAULT` clauses only for new
 tables (`cuid()` gets none). Nothing on the device can fill the other kinds, so the embedded
