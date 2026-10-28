@@ -68,6 +68,14 @@ sync-engine entry below is in the tag's source but in no published crate.
   it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
   expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
   must not depend on it.
+- **`AuthRefusal`: an `AuthProvider` refusal shapes its response** (cratestack#1208)
+  *(unreleased, cratestack#1208)*. A 401 or 403 with extra top-level envelope members (never
+  `code`, `message` or `details`), `details`, and `WWW-Authenticate` challenges, sent the same way
+  on REST, RPC unary and RPC batch. `CratestackErrorResponse` and `RpcErrorBody` gain a public
+  `extra` map, and their struct literals need `extra: Default::default()`.
+  `cratestack-client-rust`'s `ClientError::Remote { error }` becomes `Option<Box<_>>`. MCP and
+  sync still render refusals their own way. Closes the #1208 known gap listed under 0.16.0.
+  Owners: `cratestack-policy-auth`, `cratestack-clients`.
 
 ## 0.17.0 (2026-10-28)
 
