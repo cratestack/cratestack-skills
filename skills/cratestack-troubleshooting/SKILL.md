@@ -431,7 +431,7 @@ off, because it is asked first; that is an error, not an anonymous answer.
 Source: `crates/cratestack-cose/src/auth/signer_provider.rs`.
 
 **A claim object opens but `exp` was long past, or the same object opens twice.**
-*(unreleased, cratestack#1231)* Not a bug: `cratestack_cose::open_claims` verifies the signature
+*(since 0.17.0, cratestack#1231)* Not a bug: `cratestack_cose::open_claims` verifies the signature
 and the `typ` and stops. It has no clock and no nonce store, so `exp`, `aud` and `cti` are the
 caller's to check on `OpenedClaims::claims`, and an object signed with no `exp` never expires.
 `ClaimsError` tells the rest: `Malformed` (not the claim-object profile; **a transport
