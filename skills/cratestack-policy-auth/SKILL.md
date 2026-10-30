@@ -325,12 +325,13 @@ auth_conformance(MyProvider::new(keys))
 ```
 
 It runs REST, RPC unary, RPC batch (root and under a mount prefix) and MCP (with `ask_provider()`)
-and fails, listing every difference, unless the subject and the refusal rendering (status, code,
+and fails, listing every difference, unless the subject (`ctx.subject()`) and the refusal rendering (status, code,
 message, members, `details`, challenges) are the same everywhere, the provider gets the canonical
 request exactly, and it is called once per request. On MCP a plain (non-`AuthRefusal`) error keeps
 MCP's fixed message, so only status and code are compared there. SSE model subscriptions and sync
-are not driven yet. Copy from `crates/cratestack-auth-conformance/tests/kit.rs` and
-`in_house_cose.rs`.
+are not driven yet. `CoseAuthProvider` and `SignedRequestAuthProvider` pass it. Copy from
+`crates/cratestack-auth-conformance/tests/kit.rs`, `in_house_cose.rs` (extensions) and
+`in_house_signed.rs` (a header signed over `Canonical`).
 
 ## `@default(auth().x)` is not enforcement
 
