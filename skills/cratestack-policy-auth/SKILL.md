@@ -126,7 +126,7 @@ Terms combined with `&&`, `||` and parentheses.
 | --- | --- |
 | `auth() != null` / `auth() == null` | authenticated / anonymous |
 | `auth().isSystem()` | true only for a `SystemContext`-minted context; never survives deserialisation |
-| `hasRole("admin")` | the `roles` list contains that string, or `auth().role` is exactly it, or `auth().actor.role` is *(unreleased, cratestack#1243: `roles` is new and the two legacy reads are independent; through 0.17.0 one `role`, then `actor.role` only when `role` was absent)* |
+| `hasRole("admin")` | the `roles` list contains that string, or `auth().role` is exactly it, or `auth().actor.role` is exactly it *(unreleased, cratestack#1243: `roles` is new and the two legacy reads are independent; through 0.17.0 one `role`, then `actor.role` only when `role` was absent)* |
 | `inTenant("acme")` | `auth().tenant.id` is exactly that string |
 | `field == auth().x` | compare a column to an auth claim (dotted paths work: `auth().organization.id`) |
 | `field == "literal"` / `!=` | compare a column to a bool, int or string literal |
