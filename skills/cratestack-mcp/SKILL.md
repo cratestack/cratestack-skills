@@ -158,14 +158,16 @@ let app = Router::new()
 - **What reaches your procedure.** The token is stripped once the provider has run, and
   the call runs under the context the provider built.
 - **A provider that does not use bearer tokens** *(unreleased, cratestack#1243)*:
-  `.with_credential_presence(CredentialPresence::provider_decides())`, or
-  `CredentialPresence::when(|parts| ...)` over the request head (never the body). Add
+  `.with_credential_presence(CredentialPresence::provider_decides())`,
+  `CredentialPresence::ask_provider()` (the provider's own `AuthProvider::credential`: `Absent` is
+  the 401 challenge before the body is read, `Malformed` a 400, `Present`/`Unknown` reach the
+  provider), or `CredentialPresence::when(|parts| ...)` over the request head (never the body). Add
   `.with_credential_headers([...])` for the headers that carry the credential (e.g.
   `x-attestation`, `x-signature`): they are stripped before `rmcp` like `Authorization`, and
   redacted from the provider's logged detail. The default stays `CredentialPresence::bearer()`.
   An `AuthRefusal` keeps its status, members, `details` and challenges (after the guard's
-  `resource_metadata` one). Copy from `crates/cratestack-mcp/tests/http_credential.rs` and
-  `http_refusal.rs`.
+  `resource_metadata` one). Copy from `crates/cratestack-mcp/tests/http_credential.rs`,
+  `http_ask_provider.rs` and `http_refusal.rs`.
 - **`with_allowed_hosts`.** The default allowed `Host` is the resource identifier's
   `host[:port]`.
 

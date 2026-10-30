@@ -314,6 +314,29 @@ that extension into a `CratestackContext`.
 `POST /rpc/batch` uses so a signing provider authenticates the real batch
 envelope once rather than per frame.
 
+**The canonical request** *(unreleased, cratestack#1243)*. `RequestContext` is what a signing
+client signs: the declared method (`POST` for every RPC call), the declared route relative to the
+router's root (**never a mount prefix**: a router nested under `/api` hands `/rpc/<op_id>`), the raw
+query only where the operation reads one (REST model reads, MCP, sync; `None` on RPC and REST
+procedures), and the exact body bytes before decoding (a batch: the whole body, once). A REST
+model `/<id>` is the decoded id. Tests: `crates/cratestack-api/tests/canonical_request_{rest,rpc}.rs`.
+
+**Several credentials: `first_success`** *(unreleased, cratestack#1243)*. Compose providers
+instead of writing a wrapper:
+
+```rust
+let auth = cratestack::first_success(oauth).or(device_signature);
+```
+
+In order, a member is skipped uncalled when its `credential()` is `Credential::Absent`; its
+authenticated context wins; **its error wins, never rescued by a later member** (fail closed); an
+anonymous answer moves on. No member authenticating is anonymous. `AuthProvider::credential` is a
+defaulted method (default `Credential::Unknown`: always called), read from the request head only
+(the body may be empty). Return `Credential::bearer(request.headers)` or
+`Credential::header(request.headers, "x-signature")` from it so a chain can skip the provider and
+MCP's `CredentialPresence::ask_provider()` can answer 401 before reading the body. Tests:
+`crates/cratestack-core/src/chain_tests.rs`.
+
 ## `@default(auth().x)` is not enforcement
 
 It fills a column on create and nothing more. A model with
