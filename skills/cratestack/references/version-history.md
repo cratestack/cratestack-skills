@@ -81,6 +81,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
   prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
   internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
+- **`first_success` provider chain, `AuthProvider::credential`, `ask_provider`; the canonical
+  request** (cratestack#1243) *(unreleased, cratestack#1243)*. `first_success(a).or(b)` composes
+  providers (an absent credential skips a member, a refusal is never rescued); `AuthProvider` gains
+  a defaulted `credential()` returning `Credential` (`Unknown` default, `Absent`, `Present
+  { redact }`, `Malformed`); MCP gains `CredentialPresence::ask_provider()`. `RequestContext`
+  documents the canonical request (no mount prefix), and sync passes its declared route as `path`.
+  Owners: `cratestack-policy-auth`, `cratestack-mcp`.
 
 ## 0.17.0 (2026-10-28)
 
