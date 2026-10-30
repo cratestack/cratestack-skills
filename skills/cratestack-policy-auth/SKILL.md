@@ -339,6 +339,29 @@ defaulted method (default `Credential::Unknown`: always called), read from the r
 MCP's `CredentialPresence::ask_provider()` can answer 401 before reading the body. Tests:
 `crates/cratestack-core/src/chain_tests.rs`.
 
+**Prove a provider: the conformance kit** *(unreleased, cratestack#1243)*. Any `AuthProvider` you
+write (or wrap from an external library) gets one test, with `cratestack-auth-conformance` as a
+dev-dependency:
+
+```rust
+use cratestack_auth_conformance::{Expected, auth_conformance};
+
+auth_conformance(MyProvider::new(keys))
+    .accepts("user-42", |canonical| sign(canonical))   // headers, or Credentials with extensions
+    .refuses("expired", |c| expired(c), Expected::refusal(&refusal))
+    .run()
+    .await;
+```
+
+It runs REST, RPC unary, RPC batch (root and under a mount prefix) and MCP (with `ask_provider()`)
+and fails, listing every difference, unless the subject (`ctx.subject()`) and the refusal rendering (status, code,
+message, members, `details`, challenges) are the same everywhere, the provider gets the canonical
+request exactly, and it is called once per request. On MCP a plain (non-`AuthRefusal`) error keeps
+MCP's fixed message, so only status and code are compared there. SSE model subscriptions and sync
+are not driven yet. `CoseAuthProvider` and `SignedRequestAuthProvider` pass it. Copy from
+`crates/cratestack-auth-conformance/tests/kit.rs`, `in_house_cose.rs` (extensions) and
+`in_house_signed.rs` (a header signed over `Canonical`).
+
 ## `@default(auth().x)` is not enforcement
 
 It fills a column on create and nothing more. A model with
