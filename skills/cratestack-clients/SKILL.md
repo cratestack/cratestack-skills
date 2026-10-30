@@ -144,7 +144,7 @@ a transport:
 | --- | --- | --- |
 | Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
-| HTTP error answer | `CratestackRestException` (`status`, `body`) | `CratestackRpcException` (`status`, `code`, `message`, `details`) |
+| HTTP error answer | `CratestackRestException` (`status`, `body`; *(unreleased)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(unreleased)* `extra`, `challenges`, `headers`) |
 | Call options | `CratestackCallOptions(headers, idempotencyKey, abort)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort)` |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
@@ -195,10 +195,24 @@ ProviderScope(overrides: [
 - **Known gaps (open):** call options cannot carry transport attributes
   (cratestack#1207), and, on 0.17.0 and earlier, an `AuthProvider` refusal cannot shape
   its body (cratestack#1208, fixed *(unreleased)* by `AuthRefusal`: extra top-level
-  members such as `error`. A fespalier `RequestAuthenticator` reads them from the raw
-  response; the generated Dart client keeps them in `CratestackRestException.body` (REST)
-  but its RPC `RpcErrorBody` drops them until cratestack#1243 types them). Both
-  have workarounds in [references/dart-transport.md](references/dart-transport.md).
+  members such as `error`). Both have workarounds in
+  [references/dart-transport.md](references/dart-transport.md).
+- **Reading a refusal** *(unreleased, cratestack#1243)*. Every generated client types what an
+  `AuthRefusal` adds, on REST and RPC alike: the fixed `code`, `message`, `details`, every other
+  member as `extra` (never dropped) and the raw `WWW-Authenticate` value(s) as `challenges`.
+  Branch on `code` plus an `extra` member, never on the message:
+
+  | Client | REST | RPC |
+  | --- | --- | --- |
+  | Dart | `CratestackRestException.code` / `.message` / `.details` / `.extra` / `.challenges` | `CratestackRpcException.code` / `.details` / `.extra` / `.challenges`; `RpcErrorBody.extra` |
+  | TypeScript | `CratestackHttpError.body` (`CratestackErrorResponse`) / `.code` / `.details` / `.extra` / `.challenges` | `CratestackRpcError.code` / `.details` / `.extra` / `.headers` / `.challenges` |
+  | Rust | `ClientError::remote_error()` (`.extra`), `ClientError::challenges()` | `RpcRemoteError.body.extra`, `.challenges`; `RpcClientError::challenges()` |
+
+  Dart's seam and the browser's `Headers` join two `WWW-Authenticate` lines into one entry;
+  Rust keeps one entry per line. A batch frame's or a stream item's error has no headers, so no
+  challenges. On 0.17.0 and earlier the Dart RPC `RpcErrorBody` drops the members (only the raw
+  REST `body` keeps them) and no client exposes the challenges. Rust patterns that list every
+  field of `ClientError::Remote` or `RpcRemoteError` without `..` need one.
 
 **Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
 `dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query
