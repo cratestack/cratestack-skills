@@ -352,7 +352,9 @@ inventing one. It also demonstrates the two limits below.
 - **cratestack#1207, call options cannot carry transport attributes** (above).
   Workaround: a header that a decorator above the session turns into attributes and
   strips.
-- **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body.**
+- **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body** *(fixed,
+  unreleased: `AuthRefusal`, see `cratestack-policy-auth`; the workaround below is for 0.17.0
+  and earlier)*.
   `AuthProvider::authenticate` returns an error that becomes the standard
   `{code, message}` envelope, so a provider cannot add a member such as
   `{"error": "attestation_expired"}` that a client-side session classifier reads.

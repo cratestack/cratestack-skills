@@ -247,15 +247,41 @@ Every generated handler authenticates, then calls
 `&ctx` to the delegates. That is where client IP resolution happens — see
 `cratestack-data-integrity`.
 
-**An `AuthProvider` cannot shape its refusal** *(open limit in every release, cratestack#1208)*.
-`Self::Error: Into<CratestackError>` goes through the standard `{code, message}` envelope, with
-the status that error maps to, on REST and RPC alike. There is no way to add a member such as
-`{"error": "attestation_expired"}` or to pick an arbitrary status. A client that classifies a
-refusal by such a member (fespalier's device-signed sessions: "renew and retry" versus "wipe
-the keys") cannot be served by the provider alone. The workaround in fespalier's
-`examples/cratestack` is a verification layer in front of the router that writes its own 401/403
-and records the verified caller as a request extension; the `AuthProvider` only turns that
-extension into a `CratestackContext`. Check the issue before assuming it is still open.
+**Shaping a refusal: `AuthRefusal`** *(unreleased, cratestack#1208; every published release up
+to 0.17.0 lacks it)*. Return `AuthRefusal::unauthenticated(message)` (401) or
+`AuthRefusal::forbidden(message)` (403), converted with `.into_error()` (there is no `From`
+impl, so `?` and `.into()` do not compile), when the client must act on *why* it was refused:
+
+```rust
+Err(AuthRefusal::unauthenticated("attestation expired")
+    .with_member("error", Value::String("attestation_expired".into()))
+    .with_challenge(r#"Signature error="attestation_expired""#)
+    .into_error())
+```
+
+- The code stays `UNAUTHORIZED` / `FORBIDDEN` (RPC `unauthenticated` / `permission_denied`).
+- `with_member` adds a top-level envelope member. The names `code`, `message` and `details` are
+  silently ignored (`RESERVED_ENVELOPE_MEMBERS`).
+- `with_details` sets `details`.
+- `with_challenge` adds a `WWW-Authenticate` header; a value that is not printable ASCII is
+  ignored.
+- REST, RPC unary and RPC batch send the same status, members and header. A batch refusal answers
+  the whole batch.
+- `cratestack-mcp` renders it the same way (status, members, `details`, challenges after its own
+  `resource_metadata` one), and can let a non-bearer provider decide presence: see
+  `cratestack-mcp`. The prototype sync endpoints carry the members in their error body, with a new
+  `forbidden` code for a 403, and send the public message, never the error's detail.
+
+The envelope types gained a public `extra` map (`CratestackErrorResponse`, `RpcErrorBody`), and
+`cratestack-client-rust`'s `ClientError::Remote { error }` is now `Option<Box<_>>`. Struct literals
+of either envelope need `extra: Default::default()`. The tests to copy from are
+`crates/cratestack-api/tests/auth_refusal_rest.rs` and `auth_refusal_rpc.rs`.
+
+**On 0.17.0 and earlier**, `Self::Error: Into<CratestackError>` gives only the standard
+`{code, message}` envelope with no extra member, no header and no choice of status. The workaround
+(fespalier's `examples/cratestack`) is a verification layer in front of the router that writes its
+own 401/403 and records the verified caller as a request extension; the `AuthProvider` only turns
+that extension into a `CratestackContext`.
 
 `CachedAuthProvider::new(ctx)` returns a fixed context for every call. It is what
 `POST /rpc/batch` uses so a signing provider authenticates the real batch

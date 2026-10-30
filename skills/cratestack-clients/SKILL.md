@@ -193,9 +193,12 @@ ProviderScope(overrides: [
 - **A `null` in a query map is omitted**, not sent as a bare `key`. The generated
   query builders never emit one, so this only affects hand-built `queryParameters`.
 - **Known gaps (open):** call options cannot carry transport attributes
-  (cratestack#1207), and an `AuthProvider` refusal cannot shape its status or body
-  (cratestack#1208). Both have workarounds in
-  [references/dart-transport.md](references/dart-transport.md).
+  (cratestack#1207), and, on 0.17.0 and earlier, an `AuthProvider` refusal cannot shape
+  its body (cratestack#1208, fixed *(unreleased)* by `AuthRefusal`: extra top-level
+  members such as `error`. A fespalier `RequestAuthenticator` reads them from the raw
+  response; the generated Dart client keeps them in `CratestackRestException.body` (REST)
+  but its RPC `RpcErrorBody` drops them until cratestack#1243 types them). Both
+  have workarounds in [references/dart-transport.md](references/dart-transport.md).
 
 **Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
 `dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query
