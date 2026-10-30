@@ -126,7 +126,7 @@ Terms combined with `&&`, `||` and parentheses.
 | --- | --- |
 | `auth() != null` / `auth() == null` | authenticated / anonymous |
 | `auth().isSystem()` | true only for a `SystemContext`-minted context; never survives deserialisation |
-| `hasRole("admin")` | `auth().role` (or `auth().actor.role`) is exactly that string — one role, not a list |
+| `hasRole("admin")` | the `roles` list contains that string, or `auth().role` is exactly it, or `auth().actor.role` is exactly it *(unreleased, cratestack#1243: `roles` is new and the two legacy reads are independent; through 0.17.0 one `role`, then `actor.role` only when `role` was absent)* |
 | `inTenant("acme")` | `auth().tenant.id` is exactly that string |
 | `field == auth().x` | compare a column to an auth claim (dotted paths work: `auth().organization.id`) |
 | `field == "literal"` / `!=` | compare a column to a bool, int or string literal |
@@ -242,6 +242,33 @@ Build the context with `CratestackContext::anonymous()`,
 it through `ctx.auth_field(name)`, which resolves dotted paths through the auth
 identity map and then the principal.
 
+**The principal contract** *(unreleased, cratestack#1243, ADR 0021 §2; no published release
+has any of this)*. Reserved top-level claims with fixed types: `sub` (string), `roles` (list of
+strings), `role` (legacy string), `tenant.id` (string), `auth_time` and `exp` (integer
+seconds), `amr` (list of strings), `acr` (string), `cnf` (map; `cnf.jkt` a base64url JWK
+thumbprint), `key_role` (`ambient` | `user_present`). `id` is **not** reserved. Prefer the builder
+to hand-built claim maps (`crates/cratestack-core/src/context/builder.rs`):
+
+```rust
+let ctx = CratestackContext::builder("user-42")         // sub
+    .roles(["admin", "teller"])
+    .tenant("acme")                                     // tenant.id
+    .cnf_jkt(thumbprint)
+    .key_role(KeyRole::UserPresent)
+    .claim("kycStatus", Value::String("verified".into()))
+    .build();
+```
+
+- `build()` equals `from_principal` of the same claims; it never sets `isSystem()` or a verified
+  signer. Other setters: `.auth_time`, `.amr`, `.acr`, `.cnf(member, value)`, `.expires_at`.
+- Typed readers return `None` for absent **or mistyped** claims: `subject()`, `roles()`,
+  `auth_time()`, `amr()`, `acr()`, `cnf(member)`, `cnf_jkt()`, `key_role()`, `expires_at()`.
+- `subject()` (`sub`, then `actor.id`, then `id`; an integer as its digits) is the framework's
+  one "who": audit actor, MCP namespace, sync default (`SyncPrincipal::from_subject`).
+  `principal_actor_id()` now returns `Option<Cow<str>>` and answers the same.
+- An `auth` block that declares a reserved name with another type fails `cratestack check`
+  (`roles String`, `auth_time String`). Declare `roles String[]`, `auth_time Int`.
+
 Every generated handler authenticates, then calls
 `enrich_context_from_headers(ctx, &headers, trusted_proxy, peer)` before handing
 `&ctx` to the delegates. That is where client IP resolution happens — see
@@ -288,6 +315,29 @@ that extension into a `CratestackContext`.
 `CachedAuthProvider::new(ctx)` returns a fixed context for every call. It is what
 `POST /rpc/batch` uses so a signing provider authenticates the real batch
 envelope once rather than per frame.
+
+**The canonical request** *(unreleased, cratestack#1243)*. `RequestContext` is what a signing
+client signs: the declared method (`POST` for every RPC call), the declared route relative to the
+router's root (**never a mount prefix**: a router nested under `/api` hands `/rpc/<op_id>`), the raw
+query only where the operation reads one (REST model reads, MCP, sync; `None` on RPC and REST
+procedures), and the exact body bytes before decoding (a batch: the whole body, once). A REST
+model `/<id>` is the decoded id. Tests: `crates/cratestack-api/tests/canonical_request_{rest,rpc}.rs`.
+
+**Several credentials: `first_success`** *(unreleased, cratestack#1243)*. Compose providers
+instead of writing a wrapper:
+
+```rust
+let auth = cratestack::first_success(oauth).or(device_signature);
+```
+
+In order, a member is skipped uncalled when its `credential()` is `Credential::Absent`; its
+authenticated context wins; **its error wins, never rescued by a later member** (fail closed); an
+anonymous answer moves on. No member authenticating is anonymous. `AuthProvider::credential` is a
+defaulted method (default `Credential::Unknown`: always called), read from the request head only
+(the body may be empty). Return `Credential::bearer(request.headers)` or
+`Credential::header(request.headers, "x-signature")` from it so a chain can skip the provider and
+MCP's `CredentialPresence::ask_provider()` can answer 401 before reading the body. Tests:
+`crates/cratestack-core/src/chain_tests.rs`.
 
 ## `@default(auth().x)` is not enforcement
 
@@ -345,6 +395,13 @@ The COSE enrolment challenge functions `build_cose_enroll_response` /
 Bridge it in with
 `SignedRequestAuthProvider::new(verifier).allow_transport_callers(mode)`, where
 mode is `Never`, `SafeReadOnly` or `AllMethods`.
+
+*(unreleased, cratestack#1243)* `.principal_mapper(PrincipalMapper::..)` picks the context
+shape: `product()` (the default: today's `actor` / `session` / `id` / `role` / `kycStatus` shape
+plus `sub`, `roles` and `cnf` — `kid`, and `jkt` when the id token carried `cnf.jwk`),
+`contract([names])` (contract names plus only the named product claims), or `custom(f)`. A
+service caller's `sub` is `svc:<key id>`. `UserPrincipal` gains `bound_key_jkt`, so a struct
+literal needs it.
 
 Env knobs: `CRATESTACK_AUTH_SIGNATURE_TRUSTED_KEYS`,
 `…_TRUSTED_ISSUERS`, `…_MAX_SKEW_SECONDS`, `…_REPLAY_WINDOW_SECONDS`.

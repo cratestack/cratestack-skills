@@ -81,6 +81,22 @@ sync-engine entry below is in the tag's source but in no published crate.
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
   prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
   internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
+- **`first_success` provider chain, `AuthProvider::credential`, `ask_provider`; the canonical
+  request** (cratestack#1243) *(unreleased, cratestack#1243)*. `first_success(a).or(b)` composes
+  providers (an absent credential skips a member, a refusal is never rescued); `AuthProvider` gains
+  a defaulted `credential()` returning `Credential` (`Unknown` default, `Absent`, `Present
+  { redact }`, `Malformed`); MCP gains `CredentialPresence::ask_provider()`. `RequestContext`
+  documents the canonical request (no mount prefix), and sync passes its declared route as `path`.
+  Owners: `cratestack-policy-auth`, `cratestack-mcp`.
+- **The principal contract** (cratestack#1243, ADR 0021 §2) *(unreleased, cratestack#1243)*.
+  Reserved claims with fixed types (`sub`, `roles`, `role`, `tenant.id`, `auth_time`, `amr`,
+  `acr`, `cnf`, `key_role`, `exp`; not `id`), `CratestackContext::builder(sub)`, typed readers
+  (`subject()`, `roles()`, …), `hasRole` over `roles` with `role` and `actor.role` read
+  independently, `subject()` as the audit / MCP / sync "who", a checker error for a reserved name
+  of another type in an `auth` block, and `cratestack-auth`'s `PrincipalMapper` (product shape
+  plus `sub` / `roles` / `cnf` by default). Breaking: `principal_actor_id()` returns
+  `Option<Cow<str>>`; `UserPrincipal` gains `bound_key_jkt`. Owners: `cratestack-policy-auth`,
+  `cratestack-mcp`.
 - **Every generated client types a refusal's members, `details` and challenges** (cratestack#1243)
   *(unreleased, cratestack#1243)*. On REST and RPC: Dart `RpcErrorBody.extra` (0.17.0 and earlier
   drop the members) and, on both exceptions, `headers`, `extra`, `challenges` (plus typed `code`,
