@@ -81,6 +81,15 @@ sync-engine entry below is in the tag's source but in no published crate.
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
   prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
   internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
+- **The principal contract** (cratestack#1243, ADR 0021 §2) *(unreleased, cratestack#1243)*.
+  Reserved claims with fixed types (`sub`, `roles`, `role`, `tenant.id`, `auth_time`, `amr`,
+  `acr`, `cnf`, `key_role`, `exp`; not `id`), `CratestackContext::builder(sub)`, typed readers
+  (`subject()`, `roles()`, …), `hasRole` over `roles` with `role` and `actor.role` read
+  independently, `subject()` as the audit / MCP / sync "who", a checker error for a reserved name
+  of another type in an `auth` block, and `cratestack-auth`'s `PrincipalMapper` (product shape
+  plus `sub` / `roles` / `cnf` by default). Breaking: `principal_actor_id()` returns
+  `Option<Cow<str>>`; `UserPrincipal` gains `bound_key_jkt`. Owners: `cratestack-policy-auth`,
+  `cratestack-mcp`.
 
 ## 0.17.0 (2026-10-28)
 

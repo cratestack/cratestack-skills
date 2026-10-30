@@ -176,7 +176,9 @@ bucket is keyed by the caller's `id` claim (the stdio context you passed, or the
 your provider built per HTTP request), so a caller's MCP calls draw on their own
 budget, separate from its REST budget (`crates/cratestack-mcp/src/idempotency.rs`,
 `namespace`). A context without an `id` claim gets `PRECONDITION_FAILED` on a
-rate-limited or keyed call. The key holds a SHA-256 of the id, never the id itself
+rate-limited or keyed call. *(unreleased, cratestack#1243)* The key is the context's
+`subject()` instead: `sub`, then `actor.id`, then `id`, so a context with only `sub` is admitted,
+and a provider that adds `sub` next to a different `id` moves callers to a new namespace once. The key holds a SHA-256 of the id, never the id itself
 *(since 0.14.0)*; on 0.13.0 it held the id verbatim, so after upgrading with a shared
 store, MCP idempotency records written by 0.13.0 stop replaying and MCP rate-limit
 buckets start fresh.
