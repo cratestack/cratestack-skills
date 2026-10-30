@@ -97,11 +97,20 @@ sync-engine entry below is in the tag's source but in no published crate.
   plus `sub` / `roles` / `cnf` by default). Breaking: `principal_actor_id()` returns
   `Option<Cow<str>>`; `UserPrincipal` gains `bound_key_jkt`. Owners: `cratestack-policy-auth`,
   `cratestack-mcp`.
+- **Every generated client types a refusal's members, `details` and challenges** (cratestack#1243)
+  *(unreleased, cratestack#1243)*. On REST and RPC: Dart `RpcErrorBody.extra` (0.17.0 and earlier
+  drop the members) and, on both exceptions, `headers`, `extra`, `challenges` (plus typed `code`,
+  `message`, `details` on `CratestackRestException`); TypeScript `CratestackHttpError.body` /
+  `code` / `details` / `extra` / `challenges` and `CratestackRpcError.extra` / `headers` /
+  `challenges`; Rust `challenges: Challenges` on `ClientError::Remote` and `RpcRemoteError`, with
+  `remote_error()`, `remote()` and `challenges()` accessors (a pattern listing every field without
+  `..` needs one). Owner: `cratestack-clients`.
 - **`AuthProvider` conformance kit; `CoseSignerProvider`; the auth-library independence guard**
   (cratestack#1243) *(unreleased, cratestack#1243)*. New dev-dependency crate
   `cratestack-auth-conformance` (`auth_conformance(p).accepts(..).refuses(..).run()`) drives a
   provider through REST, RPC unary/batch and MCP. `CoseAuthProvider` is a first-success chain over
-  the now-public `CoseSignerProvider`; it and `SignedRequestAuthProvider` pass the kit. A CI job keeps `authkestra*` out of the workspace graph.
+  the now-public `CoseSignerProvider`; it and `SignedRequestAuthProvider` pass the kit. A CI job
+  keeps `authkestra*` out of the workspace graph.
   Owners: `cratestack-policy-auth`, `cratestack-server`.
 
 ## 0.17.0 (2026-10-28)

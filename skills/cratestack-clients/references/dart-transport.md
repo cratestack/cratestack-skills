@@ -152,8 +152,8 @@ stateDiagram-v2
 
 | Exception | When | Carries |
 | --- | --- | --- |
-| `CratestackRestException` | REST, non-2xx answer | `status`, `body` (the decoded CBOR/JSON error body, the text of any other `Content-Type`, or `null` if absent or undecodable) |
-| `CratestackRpcException` | RPC, non-2xx answer | `status`, `body` (`RpcErrorBody`), and getters `code`, `message`, `details`. A body that did not decode becomes `code: internal`, `message: 'HTTP <status>'`. Codes are `CratestackRpcErrorCodes.*` |
+| `CratestackRestException` | REST, non-2xx answer | `status`, `body` (the decoded CBOR/JSON error body, the text of any other `Content-Type`, or `null` if absent or undecodable). *(Unreleased, cratestack#1243)*: `headers`, and getters `code`, `message` (both `null` when `body` is not an envelope), `details`, `extra` (every member but those three) and `challenges` (the raw `WWW-Authenticate` value) |
+| `CratestackRpcException` | RPC, non-2xx answer | `status`, `body` (`RpcErrorBody`), and getters `code`, `message`, `details`; *(unreleased, cratestack#1243)* `headers`, `extra` (`RpcErrorBody.extra`, every member but `code`, `message` and `details`; 0.17.0 and earlier drop them) and `challenges`. A body that did not decode becomes `code: internal`, `message: 'HTTP <status>'`. Codes are `CratestackRpcErrorCodes.*` |
 | `CratestackTransportUnsent` | the request provably never left the device | `cause`, `message`. **Always safe to resend, even a non-idempotent call.** |
 | `CratestackTransportAborted` | `options.abort` completed | `cause`, `message` |
 | `CratestackTransportTimedOut` | a deadline expired after the request may have left | `cause`. The server may have acted: retry only with an idempotency key |
@@ -163,6 +163,11 @@ stateDiagram-v2
   exhaustive and needs no default.
 - `on CratestackRestException` / `on CratestackRpcException` means "the server
   said no" and nothing else. Network failure is never one of these.
+- `challenges` is a list of the raw header value, unparsed. The seam's
+  `CratestackHttpResponse` joins a repeated header with `, `, so two
+  `WWW-Authenticate` lines arrive as **one** entry holding both. An error inside a
+  batch frame or a stream's final item has no headers: `challenges` is empty
+  *(unreleased, cratestack#1243; tests: `crates/cratestack-client-dart/tests/fixtures/auth_refusal_{rest,rpc}_test.dart`)*.
 - `CratestackRestException` is **new**: REST used to leak a raw `DioException`
   from `execute`. Any "REST has no typed remote error" statement is out of date.
 - A transport must resolve for **every** status and throw only for no answer. A
