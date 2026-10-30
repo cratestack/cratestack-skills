@@ -545,6 +545,10 @@ on `cratestack-cose` with `features = ["auth"]` and on `cratestack-auth`; the `c
 facade feature re-exports `cratestack-cose` but not `cratestack-auth`, which owns
 `DeviceKeyResolver`.
 
+*(Unreleased, cratestack#1243.)* `CoseAuthProvider` is now `first_success(inner).or(CoseSignerProvider)`
+with the same rules; `CoseSignerProvider` (the verified signer alone, same `authenticate_devices` /
+`with_service_keys` options) is public, to put the signer in a chain of your own.
+
 ```rust
 use cratestack_cose::auth::CoseAuthProvider;
 

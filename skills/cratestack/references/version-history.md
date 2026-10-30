@@ -88,6 +88,12 @@ sync-engine entry below is in the tag's source but in no published crate.
   { redact }`, `Malformed`); MCP gains `CredentialPresence::ask_provider()`. `RequestContext`
   documents the canonical request (no mount prefix), and sync passes its declared route as `path`.
   Owners: `cratestack-policy-auth`, `cratestack-mcp`.
+- **`AuthProvider` conformance kit; `CoseSignerProvider`; the auth-library independence guard**
+  (cratestack#1243) *(unreleased, cratestack#1243)*. New dev-dependency crate
+  `cratestack-auth-conformance` (`auth_conformance(p).accepts(..).refuses(..).run()`) drives a
+  provider through REST, RPC unary/batch and MCP. `CoseAuthProvider` is a first-success chain over
+  the now-public `CoseSignerProvider`. A CI job keeps `authkestra*` out of the workspace graph.
+  Owners: `cratestack-policy-auth`, `cratestack-server`.
 
 ## 0.17.0 (2026-10-28)
 
