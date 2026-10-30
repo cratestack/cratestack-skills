@@ -174,14 +174,22 @@ let app = Router::new()
 Both servers take `with_executor(OpExecutor)` for L3 admission (rate limiting, then
 idempotency) and `with_store_error_policy(StoreErrorPolicy)`. The policy is the same
 type `RateLimitLayer` uses. Pass `Deny` to MCP too if you chose it on HTTP. The MCP
-bucket is keyed by the caller's `id` claim (the stdio context you passed, or the one
-your provider built per HTTP request), so a caller's MCP calls draw on their own
-budget, separate from its REST budget (`crates/cratestack-mcp/src/idempotency.rs`,
-`namespace`). A context without an `id` claim gets `PRECONDITION_FAILED` on a
-rate-limited or keyed call. The key holds a SHA-256 of the id, never the id itself
-*(since 0.14.0)*; on 0.13.0 it held the id verbatim, so after upgrading with a shared
-store, MCP idempotency records written by 0.13.0 stop replaying and MCP rate-limit
-buckets start fresh.
+bucket and idempotency namespace are keyed by the caller's identity (the stdio context
+you passed, or the one your provider built per HTTP request), so a caller's MCP calls
+draw on their own budget, separate from its REST budget
+(`crates/cratestack-mcp/src/idempotency.rs`, `namespace`). That identity is:
+
+- *(unreleased, cratestack#1243)* the context's `subject()`: `sub`, then `actor.id`, then
+  `id` (an integer as its decimal digits). A context with only `sub` is admitted. A provider
+  that adds `sub` next to a different `id` moves its callers to a new namespace once.
+- on 0.17.0 and earlier, the `id` claim: the `actor` facet's `id` first, then the top-level
+  `id`, string or integer. `sub` is not read.
+
+A context with no identity (no `subject()` on unreleased `main`, no `id` claim on 0.17.0
+and earlier), or an empty one, gets `PRECONDITION_FAILED` on a rate-limited or keyed call.
+The key holds a SHA-256 of that identity, never the identity itself *(since 0.14.0)*; on
+0.13.0 it held the id verbatim, so after upgrading with a shared store, MCP idempotency
+records written by 0.13.0 stop replaying and MCP rate-limit buckets start fresh.
 
 ## Behaviour to rely on
 

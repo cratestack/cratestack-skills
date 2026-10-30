@@ -88,6 +88,15 @@ sync-engine entry below is in the tag's source but in no published crate.
   { redact }`, `Malformed`); MCP gains `CredentialPresence::ask_provider()`. `RequestContext`
   documents the canonical request (no mount prefix), and sync passes its declared route as `path`.
   Owners: `cratestack-policy-auth`, `cratestack-mcp`.
+- **The principal contract** (cratestack#1243, ADR 0021 §2) *(unreleased, cratestack#1243)*.
+  Reserved claims with fixed types (`sub`, `roles`, `role`, `tenant.id`, `auth_time`, `amr`,
+  `acr`, `cnf`, `key_role`, `exp`; not `id`), `CratestackContext::builder(sub)`, typed readers
+  (`subject()`, `roles()`, …), `hasRole` over `roles` with `role` and `actor.role` read
+  independently, `subject()` as the audit / MCP / sync "who", a checker error for a reserved name
+  of another type in an `auth` block, and `cratestack-auth`'s `PrincipalMapper` (product shape
+  plus `sub` / `roles` / `cnf` by default). Breaking: `principal_actor_id()` returns
+  `Option<Cow<str>>`; `UserPrincipal` gains `bound_key_jkt`. Owners: `cratestack-policy-auth`,
+  `cratestack-mcp`.
 - **`AuthProvider` conformance kit; `CoseSignerProvider`; the auth-library independence guard**
   (cratestack#1243) *(unreleased, cratestack#1243)*. New dev-dependency crate
   `cratestack-auth-conformance` (`auth_conformance(p).accepts(..).refuses(..).run()`) drives a
