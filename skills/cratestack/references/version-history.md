@@ -81,6 +81,14 @@ sync-engine entry below is in the tag's source but in no published crate.
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
   prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
   internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
+- **Every generated client types a refusal's members, `details` and challenges** (cratestack#1243)
+  *(unreleased, cratestack#1243)*. On REST and RPC: Dart `RpcErrorBody.extra` (0.17.0 and earlier
+  drop the members) and, on both exceptions, `headers`, `extra`, `challenges` (plus typed `code`,
+  `message`, `details` on `CratestackRestException`); TypeScript `CratestackHttpError.body` /
+  `code` / `details` / `extra` / `challenges` and `CratestackRpcError.extra` / `headers` /
+  `challenges`; Rust `challenges: Challenges` on `ClientError::Remote` and `RpcRemoteError`, with
+  `remote_error()`, `remote()` and `challenges()` accessors (a pattern listing every field without
+  `..` needs one). Owner: `cratestack-clients`.
 
 ## 0.17.0 (2026-10-28)
 

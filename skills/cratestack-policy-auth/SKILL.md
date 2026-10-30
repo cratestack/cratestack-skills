@@ -275,7 +275,9 @@ Err(AuthRefusal::unauthenticated("attestation expired")
 The envelope types gained a public `extra` map (`CratestackErrorResponse`, `RpcErrorBody`), and
 `cratestack-client-rust`'s `ClientError::Remote { error }` is now `Option<Box<_>>`. Struct literals
 of either envelope need `extra: Default::default()`. The tests to copy from are
-`crates/cratestack-api/tests/auth_refusal_rest.rs` and `auth_refusal_rpc.rs`.
+`crates/cratestack-api/tests/auth_refusal_rest.rs` and `auth_refusal_rpc.rs`. How each generated
+client (Rust, Dart, TypeScript) reads the members and challenges *(unreleased, cratestack#1243)*
+is in `cratestack-clients`.
 
 **On 0.17.0 and earlier**, `Self::Error: Into<CratestackError>` gives only the standard
 `{code, message}` envelope with no extra member, no header and no choice of status. The workaround
