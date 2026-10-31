@@ -1,6 +1,6 @@
 ---
 name: cratestack-policy-auth
-description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider, CratestackContext, and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read or a relation filter returns 404 or fewer rows than expected, when a policy traverses a self-relation, when an @allow / @deny / @@deny / @authorize is refused or seems not to apply, or when wiring authentication into a CrateStack server.
+description: CrateStack access control and identity — the @@allow / @@deny policy expression language, how auth() resolves, implementing AuthProvider (AuthRefusal, Credential, first_success chains, the conformance kit), CratestackContext and the principal contract, @authn step-up (insufficient_user_authentication), and the cratestack-auth crate (Ed25519 request signing, SD-JWT identity tokens, multi-issuer JWKS). Load when writing or debugging a model or procedure policy, when a read or a relation filter returns 404 or fewer rows than expected, when a policy traverses a self-relation, when an @allow / @deny / @@deny / @authorize / @authn is refused or seems not to apply, when a provider must refuse with a reason or combine several credentials, or when wiring authentication into a CrateStack server.
 ---
 
 # Policy and auth
@@ -126,7 +126,7 @@ Terms combined with `&&`, `||` and parentheses.
 | --- | --- |
 | `auth() != null` / `auth() == null` | authenticated / anonymous |
 | `auth().isSystem()` | true only for a `SystemContext`-minted context; never survives deserialisation |
-| `hasRole("admin")` | the `roles` list contains that string, or `auth().role` is exactly it, or `auth().actor.role` is exactly it *(unreleased, cratestack#1243: `roles` is new and the two legacy reads are independent; through 0.17.0 one `role`, then `actor.role` only when `role` was absent)* |
+| `hasRole("admin")` | the `roles` list contains that string, or `auth().role` is exactly it, or `auth().actor.role` is exactly it *(since 0.17.1, cratestack#1243: `roles` is new and the two legacy reads are independent; through 0.17.0 one `role`, then `actor.role` only when `role` was absent)* |
 | `inTenant("acme")` | `auth().tenant.id` is exactly that string |
 | `field == auth().x` | compare a column to an auth claim (dotted paths work: `auth().organization.id`) |
 | `field == "literal"` / `!=` | compare a column to a bool, int or string literal |
@@ -212,7 +212,7 @@ rows it should not have.
   self-relations uncorrelated.
 - **Streamed `@@subscribe` events, in 0.17.0 and earlier.** A subscriber only
   authenticated; no row-level policy was applied, so every admitted caller —
-  anonymous included — received every event. Fixed *(unreleased,
+  anonymous included — received every event. Fixed *(since 0.17.1,
   cratestack#1253)*: each event now passes the model's `detail`/`read` policy.
   See `cratestack-rpc`.
 - **Studio's `rw` database targets.** `mode = "rw"` on a `[target.db]` is
@@ -230,6 +230,10 @@ pub trait AuthProvider: Clone + Send + Sync + 'static {
     type Error: Into<CratestackError> + Send;
     fn authenticate(&self, request: &RequestContext<'_>)
         -> impl Future<Output = Result<CratestackContext, Self::Error>> + Send;
+    // since 0.17.1 (cratestack#1243): defaulted, see `first_success` below
+    fn credential<'r>(&self, request: &RequestContext<'r>) -> Credential<'r> {
+        Credential::Unknown
+    }
 }
 ```
 
@@ -245,8 +249,8 @@ Build the context with `CratestackContext::anonymous()`,
 it through `ctx.auth_field(name)`, which resolves dotted paths through the auth
 identity map and then the principal.
 
-**The principal contract** *(unreleased, cratestack#1243, ADR 0021 §2; no published release
-has any of this)*. Reserved top-level claims with fixed types: `sub` (string), `roles` (list of
+**The principal contract** *(since 0.17.1, cratestack#1243, ADR 0021 §2; 0.17.0 and earlier
+have none of it)*. Reserved top-level claims with fixed types: `sub` (string), `roles` (list of
 strings), `role` (legacy string), `tenant.id` (string), `auth_time` and `exp` (integer
 seconds), `amr` (list of strings), `acr` (string), `cnf` (map; `cnf.jkt` a base64url JWK
 thumbprint), `key_role` (`ambient` | `user_present`). `id` is **not** reserved. Prefer the builder
@@ -277,7 +281,7 @@ Every generated handler authenticates, then calls
 `&ctx` to the delegates. That is where client IP resolution happens — see
 `cratestack-data-integrity`.
 
-**Shaping a refusal: `AuthRefusal`** *(unreleased, cratestack#1208; every published release up
+**Shaping a refusal: `AuthRefusal`** *(since 0.17.1, cratestack#1208; every published release up
 to 0.17.0 lacks it)*. Return `AuthRefusal::unauthenticated(message)` (401) or
 `AuthRefusal::forbidden(message)` (403), converted with `.into_error()` (there is no `From`
 impl, so `?` and `.into()` do not compile), when the client must act on *why* it was refused:
@@ -306,7 +310,7 @@ The envelope types gained a public `extra` map (`CratestackErrorResponse`, `RpcE
 `cratestack-client-rust`'s `ClientError::Remote { error }` is now `Option<Box<_>>`. Struct literals
 of either envelope need `extra: Default::default()`. The tests to copy from are
 `crates/cratestack-api/tests/auth_refusal_rest.rs` and `auth_refusal_rpc.rs`. How each generated
-client (Rust, Dart, TypeScript) reads the members and challenges *(unreleased, cratestack#1243)*
+client (Rust, Dart, TypeScript) reads the members and challenges *(since 0.17.1, cratestack#1243)*
 is in `cratestack-clients`.
 
 **On 0.17.0 and earlier**, `Self::Error: Into<CratestackError>` gives only the standard
@@ -319,14 +323,14 @@ that extension into a `CratestackContext`.
 `POST /rpc/batch` uses so a signing provider authenticates the real batch
 envelope once rather than per frame.
 
-**The canonical request** *(unreleased, cratestack#1243)*. `RequestContext` is what a signing
+**The canonical request** *(since 0.17.1, cratestack#1243)*. `RequestContext` is what a signing
 client signs: the declared method (`POST` for every RPC call), the declared route relative to the
 router's root (**never a mount prefix**: a router nested under `/api` hands `/rpc/<op_id>`), the raw
 query only where the operation reads one (REST model reads, MCP, sync; `None` on RPC and REST
 procedures), and the exact body bytes before decoding (a batch: the whole body, once). A REST
 model `/<id>` is the decoded id. Tests: `crates/cratestack-api/tests/canonical_request_{rest,rpc}.rs`.
 
-**Several credentials: `first_success`** *(unreleased, cratestack#1243)*. Compose providers
+**Several credentials: `first_success`** *(since 0.17.1, cratestack#1243)*. Compose providers
 instead of writing a wrapper:
 
 ```rust
@@ -342,7 +346,7 @@ defaulted method (default `Credential::Unknown`: always called), read from the r
 MCP's `CredentialPresence::ask_provider()` can answer 401 before reading the body. Tests:
 `crates/cratestack-core/src/chain_tests.rs`.
 
-**Prove a provider: the conformance kit** *(unreleased, cratestack#1243)*. Any `AuthProvider` you
+**Prove a provider: the conformance kit** *(since 0.17.1, cratestack#1243)*. Any `AuthProvider` you
 write (or wrap from an external library) gets one test, with `cratestack-auth-conformance` as a
 dev-dependency:
 
@@ -365,7 +369,7 @@ are not driven yet. `CoseAuthProvider` and `SignedRequestAuthProvider` pass it. 
 `crates/cratestack-auth-conformance/tests/kit.rs`, `in_house_cose.rs` (extensions) and
 `in_house_signed.rs` (a header signed over `Canonical`).
 
-**Wrapping an external library** *(unreleased, cratestack#1245)*: `examples/auth-pluggable` (a
+**Wrapping an external library** *(since 0.17.1, cratestack#1245)*: `examples/auth-pluggable` (a
 standalone workspace) runs one schema and one suite against three providers, one file each in
 `src/providers/`: `inhouse.rs` (`SignedRequestAuthProvider` chained with COSE), `devsig.rs`
 (Authkestra's `authkestra_devsig::verify`: build `SignedRequest` from the `RequestContext`, refuse
@@ -399,7 +403,7 @@ On 0.14.0 and earlier a malformed or misspelled one was skipped, so
 
 ## `@authn`: step-up on procedures
 
-*(unreleased, cratestack#1244, ADR 0022)* A procedure can require a fresh or
+*(since 0.17.1, cratestack#1244, ADR 0022)* A procedure can require a fresh or
 strong authentication, not just an identity:
 
 ```text
@@ -436,6 +440,14 @@ default). COSE signers report `amr: ["pop"]`.
 There is no model-level `@@authn` yet. Tests: `crates/cratestack-api/tests/authn_rest.rs`,
 `authn_rpc.rs`, `mcp_authn.rs`.
 
+**Known issue on 0.17.1: the step-up `401` is recorded under an `Idempotency-Key`**
+(cratestack#1261, open). The idempotency layer (and MCP's admission) records an `AuthRefusal`
+like any other answer, so a client that steps up and resends the call under the **same** key
+gets the stored `401` replayed, and the procedure never runs. `retry_after_step_up` /
+`retryAfterStepUp` hit it whenever the call they retry carries a fixed key; so does a retry after
+renewing an expired credential. A call without a key is unaffected. Do not tell a user the
+same-key retry works on 0.17.1.
+
 ## `cratestack-auth`
 
 Optional, and broad. The pieces you are most likely to want:
@@ -471,7 +483,7 @@ Bridge it in with
 `SignedRequestAuthProvider::new(verifier).allow_transport_callers(mode)`, where
 mode is `Never`, `SafeReadOnly` or `AllMethods`.
 
-*(unreleased, cratestack#1243)* `.principal_mapper(PrincipalMapper::..)` picks the context
+*(since 0.17.1, cratestack#1243)* `.principal_mapper(PrincipalMapper::..)` picks the context
 shape: `product()` (the default: today's `actor` / `session` / `id` / `role` / `kycStatus` shape
 plus `sub`, `roles` and `cnf` — `kid`, and `jkt` when the id token carried `cnf.jwk`),
 `contract([names])` (contract names plus only the named product claims), or `custom(f)`. A
@@ -509,7 +521,7 @@ testable.
 
 ## Worked example: step-up end to end
 
-*(unreleased, cratestack#1245)* For `@authn` (cratestack#1244) wired through a real provider and the
+*(since 0.17.1, cratestack#1245)* For `@authn` (cratestack#1244) wired through a real provider and the
 generated clients, copy from these examples rather than inventing the shape:
 
 - **`examples/step-up-procedures`** (no database). `payInvoice` under
