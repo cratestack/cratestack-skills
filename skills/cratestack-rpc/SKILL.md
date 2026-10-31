@@ -158,7 +158,7 @@ SSE endpoint above opens through it, on the same wire as before. A binding gets
 the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
 `op_id = "model.<Model>.subscribe"`, and the read policy comes with it. A model
 feed takes **no input yet**: anything but `null` or `{}` is refused with
-`invalid_argument`. Test: `crates/cratestack-pg/tests/subscription_dispatcher.rs`.
+`invalid_argument`. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
 ### Serving subscriptions over WebTransport *(unreleased, cratestack#1255)*
 
