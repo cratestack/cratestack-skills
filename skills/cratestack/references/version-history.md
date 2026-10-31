@@ -132,7 +132,9 @@ CHANGELOG says how), so read them before upgrading.
   model to any caller the `AuthProvider` admitted, anonymous included. Each event is now checked
   against the model's `detail`/`read` policies and dropped if the subscriber may not read it; a
   read policy over a `@server_only` column refuses the subscription at open (500); a policy that
-  cannot be decided for one event ends the stream with `unavailable`. No schema change. Owners:
+  cannot be decided for one event ends the stream with a terminal error, the probe's own
+  (cratestack#1255, same release; #1253 on its own ended it with `unavailable`, which no release
+  shipped). No schema change. Owners:
   `cratestack-rpc`, `cratestack-server`, `cratestack-policy-auth`.
 - **Subscriptions open through one generated dispatcher; `extension webtransport`**
   (cratestack#1255) *(since 0.17.1, cratestack#1255)*. A `@@subscribe` schema gets
