@@ -327,10 +327,10 @@ subscriber's read policy (the model's `detail`/`read` rules, as `get`) and is
 dropped if the subscriber may not read it; details in `cratestack-rpc`. In 0.17.0
 and earlier **no** row-level policy was applied: any caller the `AuthProvider`
 admitted, anonymous included, received every event — do not subscribe a
-per-caller-sensitive model on those versions *(fixed: unreleased, cratestack#1253)*.
+per-caller-sensitive model on those versions *(fixed since 0.17.1, cratestack#1253)*.
 The same feeds can be served over WebTransport with `extension webtransport { }`
 and the `webtransport` feature: `db.subscriptions().webtransport(config, auth)`
-*(unreleased, cratestack#1255)*. See `cratestack-rpc`.
+*(since 0.17.1, cratestack#1255)*. See `cratestack-rpc`.
 
 **`cratestack-outbox` is a different thing.** It is a separate, hand-written
 transactional outbox for *application* domain events; it deliberately does not go
@@ -550,7 +550,7 @@ on `cratestack-cose` with `features = ["auth"]` and on `cratestack-auth`; the `c
 facade feature re-exports `cratestack-cose` but not `cratestack-auth`, which owns
 `DeviceKeyResolver`.
 
-*(Unreleased, cratestack#1243.)* `CoseAuthProvider` is now `first_success(inner).or(CoseSignerProvider)`
+*(Since 0.17.1, cratestack#1243.)* `CoseAuthProvider` is now `first_success(inner).or(CoseSignerProvider)`
 with the same rules; `CoseSignerProvider` (the verified signer alone, same `authenticate_devices` /
 `with_service_keys` options) is public, to put the signer in a chain of your own.
 

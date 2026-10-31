@@ -109,8 +109,8 @@ they appear at the `include_*_schema!` call site.
 | ``the macro's `db` argument and the schema's own `datasource` declaration must agree`` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |
 | `can never support it, no matter which Cargo features are enabled` | a Postgres-only extension under `include_embedded_schema!` | use the server macro or drop the extension |
-| `has no subscription op to serve over it` *(unreleased, cratestack#1255)* | `extension webtransport { }` in a schema with no `@@subscribe` model | add `@@subscribe` to a model (under `transport rpc`) or drop the extension |
-| `serves no subscriptions, so there is nothing for it to bind` *(unreleased, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
+| `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` in a schema with no `@@subscribe` model | add `@@subscribe` to a model (under `transport rpc`) or drop the extension |
+| `serves no subscriptions, so there is nothing for it to bind` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
 | `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
 | `@computed fields … include_embedded_schema! has no response boundary` | computed fields on the embedded path | remove them or use the server/client macro — without the guard the field would silently vanish |
@@ -293,6 +293,14 @@ procedure hit `40001` / `40P01` on every attempt (default: 4). Nothing was
 committed; resend, under the same `Idempotency-Key` if you like — the key was
 released. If it is frequent, reduce contention or raise
 `with_isolation_max_retries(n)`. It is not `CONFLICT`.
+
+**A retry after stepping up (or renewing) gets the same `401`, with
+`Idempotency-Replayed: true`** (on MCP, `_meta["dev.cratestack/idempotencyReplayed"]`) *(0.17.1; this one is a real bug, cratestack#1261,
+open)*. The idempotency layer, and MCP's admission, record a `401` `AuthRefusal`
+like any other answer, the `@authn` step-up included, so the same key replays it and
+the procedure never runs. It bites `retry_after_step_up` / `retryAfterStepUp` when the
+retried call carries a fixed key. The refusal came before the procedure body, so
+nothing ran under that key. See `cratestack-data-integrity`.
 
 **A `500 INTERNAL_ERROR` whose server log shows a transaction abort or `40001`**
 *(since 0.14.1)*. Some caller propagated another procedure's exhausted abort: a

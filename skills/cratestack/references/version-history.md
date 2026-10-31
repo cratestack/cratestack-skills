@@ -19,9 +19,9 @@ otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.17.0** (tag `v0.17.0`, 2026-10-28). Its changes, 0.16.0's and
-0.15.4's, are recorded below and marked *(since 0.17.0)* / *(since 0.16.0)* /
-*(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
+The latest release is **0.17.1** (tag `v0.17.1`, 2026-10-31). Its changes, 0.17.0's, 0.16.0's
+and 0.15.4's, are recorded below and marked *(since 0.17.1)* / *(since 0.17.0)* /
+*(since 0.16.0)* / *(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
 latest release, as AGENTS.md requires.
 
 ## Reading order for an upgrade
@@ -48,54 +48,55 @@ each step's breaking changes assume the one before:
    neither `now()`/`uuid()`/`cuid()` nor registered on the datasource, and a literal that does
    not fit its field (quote string defaults). On the embedded runtime the `Create*Input` gains
    `auth()` fields (required) and `dbgenerated()`/registered-function fields (`Option`).
-6. [Unreleased on `main`](#unreleased-on-main-after-0170) only if you build `main`.
+6. [0.17.1](#0171-2026-10-31): struct literals of `CratestackErrorResponse`, `RpcErrorBody`,
+   `RpcRemoteError`, `IdTokenClaims` and `UserPrincipal` gain fields;
+   `ClientError::Remote`'s `error` is boxed; `principal_actor_id()` returns a `Cow`; an exhaustive
+   `match` on `ExtensionKind` needs the `Webtransport` arm; an `auth` block that declares a
+   reserved claim (`roles`, `auth_time`, `amr`, …) with another type fails `check`.
+7. [Unreleased on `main`](#unreleased-on-main-after-0171) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
-## Unreleased on `main`, after 0.17.0
+## 0.17.1 (2026-10-31)
 
-Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. When 0.17.0 was recorded
-here, framework `main` was the `v0.17.0` commit and its `## Unreleased` was empty; the
-sync-engine entry below is in the tag's source but in no published crate.
+A patch release that carries the pluggable auth seam (ADR 0021: `AuthRefusal`, the principal
+contract, `first_success`, `AuthProvider::credential`, MCP credential presence, the conformance
+kit), `@authn` step-up with a typed `StepUpRequired` in every generated client (ADR 0022), the
+`@@subscribe` read-policy security fix, one generated subscription dispatcher and the WebTransport
+binding (`v0.17.0..v0.17.1`). Skills mark these *(since 0.17.1)*. It is a patch by number but not
+by effect: several entries change a public struct or enum (each entry's *Migrating* note in the framework
+CHANGELOG says how), so read them before upgrading.
 
-- **Step-up examples** (cratestack#1245, stories 5 to 7) *(unreleased, cratestack#1245)*. New
+- **Step-up examples** (cratestack#1245, stories 5 to 7) *(since 0.17.1, cratestack#1245)*. New
   workspace example `examples/step-up-procedures`: `@authn` on `payInvoice` behind the in-house
   `SignedRequestAuthProvider`, and the generated Rust clients meeting `StepUpRequired` and retrying
   once through `retry_after_step_up`, on REST, RPC unary and RPC batch. `examples/react-vite-swr`'s
   schema gains `clearDoneTasks` under `@authn`, and `flutter-riverpod` and `react-vite-swr/web` a
   step-up screen and a refusal-code banner. Examples only, no framework API change; they depend on
   the cratestack#1244 entries. Owner: `cratestack-policy-auth`.
-- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
-  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
-  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
-  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
-  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
-  must not depend on it.
 - **`AuthRefusal`: an `AuthProvider` refusal shapes its response** (cratestack#1208)
-  *(unreleased, cratestack#1208)*. A 401 or 403 with extra top-level envelope members (never
+  *(since 0.17.1, cratestack#1208)*. A 401 or 403 with extra top-level envelope members (never
   `code`, `message` or `details`), `details`, and `WWW-Authenticate` challenges, sent the same way
   on REST, RPC unary and RPC batch. `CratestackErrorResponse` and `RpcErrorBody` gain a public
   `extra` map, and their struct literals need `extra: Default::default()`.
   `cratestack-client-rust`'s `ClientError::Remote { error }` becomes `Option<Box<_>>`. MCP and
-  sync still render refusals their own way. Closes the #1208 known gap listed under 0.16.0.
+  sync render it too (next entry, same release). Closes the #1208 known gap listed under 0.16.0.
   Owners: `cratestack-policy-auth`, `cratestack-clients`.
 - **MCP credential presence is pluggable; MCP and sync render an `AuthRefusal`** (cratestack#1243)
-  *(unreleased, cratestack#1243)*. `CredentialPresence` (`bearer` default, `provider_decides`,
+  *(since 0.17.1, cratestack#1243)*. `CredentialPresence` (`bearer` default, `provider_decides`,
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
   prototype sync endpoints gain a `forbidden` code and refusal members, and stop sending an error's
   internal detail. Owners: `cratestack-mcp`, `cratestack-policy-auth`.
 - **`first_success` provider chain, `AuthProvider::credential`, `ask_provider`; the canonical
-  request** (cratestack#1243) *(unreleased, cratestack#1243)*. `first_success(a).or(b)` composes
+  request** (cratestack#1243) *(since 0.17.1, cratestack#1243)*. `first_success(a).or(b)` composes
   providers (an absent credential skips a member, a refusal is never rescued); `AuthProvider` gains
   a defaulted `credential()` returning `Credential` (`Unknown` default, `Absent`, `Present
   { redact }`, `Malformed`); MCP gains `CredentialPresence::ask_provider()`. `RequestContext`
   documents the canonical request (no mount prefix), and sync passes its declared route as `path`.
   Owners: `cratestack-policy-auth`, `cratestack-mcp`.
-- **The principal contract** (cratestack#1243, ADR 0021 §2) *(unreleased, cratestack#1243)*.
+- **The principal contract** (cratestack#1243, ADR 0021 §2) *(since 0.17.1, cratestack#1243)*.
   Reserved claims with fixed types (`sub`, `roles`, `role`, `tenant.id`, `auth_time`, `amr`,
   `acr`, `cnf`, `key_role`, `exp`; not `id`), `CratestackContext::builder(sub)`, typed readers
   (`subject()`, `roles()`, …), `hasRole` over `roles` with `role` and `actor.role` read
@@ -105,7 +106,7 @@ sync-engine entry below is in the tag's source but in no published crate.
   `Option<Cow<str>>`; `UserPrincipal` gains `bound_key_jkt`. Owners: `cratestack-policy-auth`,
   `cratestack-mcp`.
 - **Every generated client types a refusal's members, `details` and challenges** (cratestack#1243)
-  *(unreleased, cratestack#1243)*. On REST and RPC: Dart `RpcErrorBody.extra` (0.17.0 and earlier
+  *(since 0.17.1, cratestack#1243)*. On REST and RPC: Dart `RpcErrorBody.extra` (0.17.0 and earlier
   drop the members) and, on both exceptions, `headers`, `extra`, `challenges` (plus typed `code`,
   `message`, `details` on `CratestackRestException`); TypeScript `CratestackHttpError.body` /
   `code` / `details` / `extra` / `challenges` and `CratestackRpcError.extra` / `headers` /
@@ -113,46 +114,74 @@ sync-engine entry below is in the tag's source but in no published crate.
   `remote_error()`, `remote()` and `challenges()` accessors (a pattern listing every field without
   `..` needs one). Owner: `cratestack-clients`.
 - **Every generated client types a step-up refusal as `StepUpRequired`** (cratestack#1244)
-  *(unreleased, cratestack#1244)*. A 401 / RPC `unauthenticated` whose `error` member is
+  *(since 0.17.1, cratestack#1244)*. A 401 / RPC `unauthenticated` whose `error` member is
   `insufficient_user_authentication` reads as `StepUpRequired` (`max_age`, `acr_values`, `amr`,
   `unmet` from `details`): Rust `ClientError::step_up()` / `RpcClientError::step_up()` /
   `RpcRemoteError::step_up()` and `retry_after_step_up`; Dart `stepUp` on both exceptions and
-  `retryAfterStepUp`; TypeScript `stepUp`, `stepUpOf` and `retryAfterStepUp`. Client side only:
-  the server side that emits the refusal is a separate #1244 change. Owner: `cratestack-clients`.
+  `retryAfterStepUp`; TypeScript `stepUp`, `stepUpOf` and `retryAfterStepUp`. The server side that
+  emits the refusal is the `@authn` entry below, in the same release. Owner: `cratestack-clients`.
 - **`AuthProvider` conformance kit; `CoseSignerProvider`; the auth-library independence guard**
-  (cratestack#1243) *(unreleased, cratestack#1243)*. New dev-dependency crate
+  (cratestack#1243) *(since 0.17.1, cratestack#1243)*. New dev-dependency crate
   `cratestack-auth-conformance` (`auth_conformance(p).accepts(..).refuses(..).run()`) drives a
   provider through REST, RPC unary/batch and MCP. `CoseAuthProvider` is a first-success chain over
   the now-public `CoseSignerProvider`; it and `SignedRequestAuthProvider` pass the kit. A CI job
   keeps `authkestra*` out of the workspace graph.
   Owners: `cratestack-policy-auth`, `cratestack-server`.
 - **Security: `@@subscribe` events pass the subscriber's read policy** (cratestack#1253)
-  *(unreleased, cratestack#1253)*. `GET /rpc/subscribe/{op_id}` used to send every event of the
+  *(since 0.17.1, cratestack#1253)*. `GET /rpc/subscribe/{op_id}` used to send every event of the
   model to any caller the `AuthProvider` admitted, anonymous included. Each event is now checked
   against the model's `detail`/`read` policies and dropped if the subscriber may not read it; a
   read policy over a `@server_only` column refuses the subscription at open (500); a policy that
-  cannot be decided for one event ends the stream with `unavailable`. No schema change. Owners:
+  cannot be decided for one event ends the stream with a terminal error, the probe's own
+  (cratestack#1255, same release; #1253 on its own ended it with `unavailable`, which no release
+  shipped). No schema change. Owners:
   `cratestack-rpc`, `cratestack-server`, `cratestack-policy-auth`.
 - **Subscriptions open through one generated dispatcher; `extension webtransport`**
-  (cratestack#1255) *(unreleased, cratestack#1255)*. A `@@subscribe` schema gets
+  (cratestack#1255) *(since 0.17.1, cratestack#1255)*. A `@@subscribe` schema gets
   `db.subscriptions()`, a `SubscriptionDispatcher`. The SSE endpoint opens through it on the
   same wire, and `extension webtransport { }` plus the `webtransport` feature on `cratestack-pg`
   adds `db.subscriptions().webtransport(config, auth)`. `ExtensionKind` gains `Webtransport`.
   Owners: `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
-
-- **`@authn` on procedures; RFC 9470 step-up** (cratestack#1244, ADR 0022) *(unreleased,
-  cratestack#1244)*. `@authn(maxAge, amr, acr)` checked after `@allow` on every path; unmet is a
+- **`@authn` on procedures; RFC 9470 step-up** (cratestack#1244, ADR 0022) *(since 0.17.1, cratestack#1244)*. `@authn(maxAge, amr, acr)` checked after `@allow` on every path; unmet is a
   401 with `error: "insufficient_user_authentication"`, `details` and a `Bearer` challenge.
   `cratestack-auth`'s id token and mappers carry `auth_time` and `amr` (plus `pop`); breaking:
   `IdTokenClaims` and `UserPrincipal` gain those fields. Owners: `cratestack-policy-auth`,
   `cratestack-schema`.
-
 - **Examples: three auth providers through one suite; MCP with a non-bearer credential**
-  (cratestack#1245) *(unreleased)*. `examples/auth-pluggable` (standalone workspace): in-house,
+  (cratestack#1245) *(since 0.17.1, cratestack#1245)*. `examples/auth-pluggable` (standalone workspace): in-house,
   Authkestra device signatures and Authkestra OIDC with DPoP, each one provider file, run through
   the conformance kit and the example's own policies; CI job `auth-pluggable` checks no framework
   crate reaches Authkestra. `examples/mcp-operator` uses `CredentialPresence::ask_provider()` and
   accepts `X-Agent-Token`. Owners: `cratestack-policy-auth`, `cratestack-mcp`.
+- **WebTransport subscription binding: `cratestack-webtransport`** (cratestack#1238)
+  *(since 0.17.1, cratestack#1238)*. A second listener (HTTP/3, QUIC) beside the axum router,
+  `WebTransportServer::bind(WebTransportConfig, auth_provider, dispatcher)`, one QUIC stream per
+  subscription, using the same `AuthProvider`. A refused session first gets an `{id: 0, err}`
+  frame carrying an `AuthRefusal`'s `details` and members (no challenges), then closes with
+  `4401` (401), `4403` (403 or a changed principal), `4400` (malformed `Init`) or `4500` (the
+  provider could not decide). `CborSeqChunkDecoder` moved to `cratestack-codec-cbor`, still
+  re-exported by `cratestack-client-rust`. Owner: `cratestack-rpc` (points at the crate README).
+- **Known issue: a `401` is recorded under an `Idempotency-Key`** (cratestack#1261, open). Not a
+  change, a gap in this release: the idempotency layer and MCP's admission record an
+  `AuthRefusal` like any other answer, so a retry under the same key after renewing a credential
+  or stepping up (`retry_after_step_up` / `retryAfterStepUp` with a fixed key) gets the stored
+  `401` replayed and never runs. Owners: `cratestack-data-integrity`, `cratestack-policy-auth`,
+  `cratestack-clients`, `cratestack-mcp`.
+
+## Unreleased on `main`, after 0.17.1
+
+Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
+security fix merged from a private fork with no PR number. When 0.17.1 was recorded
+here, framework `main` was the `v0.17.1` commit and its `## Unreleased` was empty; the
+sync-engine entry below is in the tag's source but in no published crate.
+
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
+  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
+  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
+  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
+  must not depend on it.
 
 ## 0.17.0 (2026-10-28)
 

@@ -33,7 +33,7 @@ mixin <Name> { fields }             // pulled into a model with @use(Name)
 model <Name> { fields + @@attrs }   // a table
 type <Name> { fields }              // a plain struct: procedure args, results, query rows
 enum <Name> { VARIANTS }            // one bare identifier per line
-extension rate_limit | pgvector | postgis | webtransport { }  // webtransport: unreleased, see cratestack-rpc
+extension rate_limit | pgvector | postgis | webtransport { }  // webtransport: since 0.17.1, see cratestack-rpc
 mcp { expose = [tools, resources] } // at most once; see cratestack-mcp (since 0.13.0)
 transport rest | rpc                // at most once; default rest
 procedure <name>(a: T): R           // attribute lines follow, no braces

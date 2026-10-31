@@ -132,7 +132,7 @@ buffer is 64 items and the first overflow closes the channel permanently. The
 only other ways a stream ends are a read policy it could not decide for one
 event (below) and a client disconnect.
 
-**Each event passes the subscriber's read policy** *(unreleased,
+**Each event passes the subscriber's read policy** *(since 0.17.1,
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
 ones `get` applies, decided against the event's record with the context
 captured when the subscription opened. An event the subscriber may not read is
@@ -141,15 +141,16 @@ empty stream. A read policy that reads a `@server_only` column cannot be decided
 on an event (the payload skips it), so that subscription is refused at open with
 a 500 and the columns named in the server log — keep `@@subscribe` models'
 read policies off `@server_only` fields. A policy that cannot be decided for
-one event (a relation probe fails) ends the stream with a terminal error. Since
-cratestack#1255 *(unreleased)* that error is the probe's own; with cratestack#1253
-alone it was the same `unavailable` / `"subscription lagged"` as overflow.
+one event (a relation probe fails) ends the stream with a terminal error, the
+probe's own (cratestack#1255, in the same 0.17.1 release; #1253 on its own ended
+it with the overflow's `unavailable` / `"subscription lagged"`, which no release
+shipped).
 **0.17.0 and earlier applied no row-level policy at all**: every admitted caller,
 anonymous included, received every event. Source:
 `crates/cratestack-macros/src/transport/subscription_module/model_feed.rs`, test
 `crates/cratestack-pg/tests/rpc_subscribe_read_policy.rs`.
 
-### One dispatcher, every binding *(unreleased, cratestack#1255)*
+### One dispatcher, every binding *(since 0.17.1, cratestack#1255)*
 
 The schema macro generates a `subscriptions` module for a `db = Postgres`
 server schema with a `@@subscribe` model: `SubscriptionDispatch` implements
@@ -160,7 +161,7 @@ the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
 feed takes **no input yet**: anything but `null` or `{}` is refused with
 `invalid_argument`. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
-### Serving subscriptions over WebTransport *(unreleased, cratestack#1255)*
+### Serving subscriptions over WebTransport *(since 0.17.1, cratestack#1255)*
 
 Three layers, like `extension pgvector`:
 

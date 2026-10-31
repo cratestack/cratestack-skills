@@ -54,6 +54,7 @@ Wire behaviour, with `IdempotencyLayer` installed:
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
 | No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
 | An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(since 0.14.1)* | **not recorded**: the key is released, so the same key runs the call again |
+| A `401` refusal: an `AuthProvider`'s `AuthRefusal`, or an `@authn` step-up *(since 0.17.1)* | **recorded** like any other answer: a retry under the same key after renewing the credential or stepping up gets the `401` replayed and does not run (cratestack#1261, open). A provider's or `@authn`'s refusal comes before the procedure body, so nothing ran under that key |
 
 The fingerprint is SHA-256 over `method \0 path_and_query \0 content_type \0 body`.
 **The query string is included on purpose** — `POST /transfer?dry_run=true` must
