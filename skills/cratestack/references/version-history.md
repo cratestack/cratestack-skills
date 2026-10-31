@@ -61,6 +61,13 @@ security fix merged from a private fork with no PR number. When 0.17.0 was recor
 here, framework `main` was the `v0.17.0` commit and its `## Unreleased` was empty; the
 sync-engine entry below is in the tag's source but in no published crate.
 
+- **Step-up examples** (cratestack#1245, stories 5 to 7) *(unreleased, cratestack#1245)*. New
+  workspace example `examples/step-up-procedures`: `@authn` on `payInvoice` behind the in-house
+  `SignedRequestAuthProvider`, and the generated Rust clients meeting `StepUpRequired` and retrying
+  once through `retry_after_step_up`, on REST, RPC unary and RPC batch. `examples/react-vite-swr`'s
+  schema gains `clearDoneTasks` under `@authn`, and `flutter-riverpod` and `react-vite-swr/web` a
+  step-up screen and a refusal-code banner. Examples only, no framework API change; they depend on
+  the cratestack#1244 entries. Owner: `cratestack-policy-auth`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
