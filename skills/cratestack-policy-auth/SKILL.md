@@ -365,6 +365,16 @@ are not driven yet. `CoseAuthProvider` and `SignedRequestAuthProvider` pass it. 
 `crates/cratestack-auth-conformance/tests/kit.rs`, `in_house_cose.rs` (extensions) and
 `in_house_signed.rs` (a header signed over `Canonical`).
 
+**Wrapping an external library** *(unreleased, cratestack#1245)*: `examples/auth-pluggable` (a
+standalone workspace) runs one schema and one suite against three providers, one file each in
+`src/providers/`: `inhouse.rs` (`SignedRequestAuthProvider` chained with COSE), `devsig.rs`
+(Authkestra's `authkestra_devsig::verify`: build `SignedRequest` from the `RequestContext`, refuse
+with `AuthRefusal::unauthenticated(..).with_member("error", code)`) and `oidc.rs` (Authkestra's
+`JwtStrategy` with DPoP: rebuild `http::request::Parts` from the canonical method, path and query
+plus the headers, map the token onto the principal contract with `CratestackContext::builder`).
+Each implements `credential()` too. Copy the shape, not the library: CrateStack itself never
+depends on Authkestra, and CI fails if a framework crate does.
+
 ## `@default(auth().x)` is not enforcement
 
 It fills a column on create and nothing more. A model with

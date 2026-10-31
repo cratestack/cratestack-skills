@@ -133,6 +133,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   `IdTokenClaims` and `UserPrincipal` gain those fields. Owners: `cratestack-policy-auth`,
   `cratestack-schema`.
 
+- **Examples: three auth providers through one suite; MCP with a non-bearer credential**
+  (cratestack#1245) *(unreleased)*. `examples/auth-pluggable` (standalone workspace): in-house,
+  Authkestra device signatures and Authkestra OIDC with DPoP, each one provider file, run through
+  the conformance kit and the example's own policies; CI job `auth-pluggable` checks no framework
+  crate reaches Authkestra. `examples/mcp-operator` uses `CredentialPresence::ask_provider()` and
+  accepts `X-Agent-Token`. Owners: `cratestack-policy-auth`, `cratestack-mcp`.
+
 ## 0.17.0 (2026-10-28)
 
 0.17.0 carries two breaking changes, both to `@default(...)`: function defaults must be

@@ -167,7 +167,9 @@ let app = Router::new()
   redacted from the provider's logged detail. The default stays `CredentialPresence::bearer()`.
   An `AuthRefusal` keeps its status, members, `details` and challenges (after the guard's
   `resource_metadata` one). Copy from `crates/cratestack-mcp/tests/http_credential.rs`,
-  `http_ask_provider.rs` and `http_refusal.rs`.
+  `http_ask_provider.rs` and `http_refusal.rs`. A whole example: `examples/mcp-operator` runs
+  `ask_provider()`, and its `src/provider.rs` accepts the token in `X-Agent-Token` as well as
+  `Bearer` *(unreleased, cratestack#1245)*.
 - **`with_allowed_hosts`.** The default allowed `Host` is the resource identifier's
   `host[:port]`.
 
