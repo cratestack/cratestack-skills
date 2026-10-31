@@ -105,6 +105,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   `challenges`; Rust `challenges: Challenges` on `ClientError::Remote` and `RpcRemoteError`, with
   `remote_error()`, `remote()` and `challenges()` accessors (a pattern listing every field without
   `..` needs one). Owner: `cratestack-clients`.
+- **Every generated client types a step-up refusal as `StepUpRequired`** (cratestack#1244)
+  *(unreleased, cratestack#1244)*. A 401 / RPC `unauthenticated` whose `error` member is
+  `insufficient_user_authentication` reads as `StepUpRequired` (`max_age`, `acr_values`, `amr`,
+  `unmet` from `details`): Rust `ClientError::step_up()` / `RpcClientError::step_up()` /
+  `RpcRemoteError::step_up()` and `retry_after_step_up`; Dart `stepUp` on both exceptions and
+  `retryAfterStepUp`; TypeScript `stepUp`, `stepUpOf` and `retryAfterStepUp`. Client side only:
+  the server side that emits the refusal is a separate #1244 change. Owner: `cratestack-clients`.
 - **`AuthProvider` conformance kit; `CoseSignerProvider`; the auth-library independence guard**
   (cratestack#1243) *(unreleased, cratestack#1243)*. New dev-dependency crate
   `cratestack-auth-conformance` (`auth_conformance(p).accepts(..).refuses(..).run()`) drives a
