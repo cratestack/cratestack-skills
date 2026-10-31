@@ -210,8 +210,11 @@ rows it should not have.
   Clients are untrusted; authorization is the server's job. Its relation filters
   and sorts also ignore the related model's `@@soft_delete`, and still evaluate
   self-relations uncorrelated.
-- **Streamed `@@subscribe` events.** A subscriber authenticates; per-row
-  `@@allow` filtering is not replayed against the stream. Documented scope limit.
+- **Streamed `@@subscribe` events, in 0.17.0 and earlier.** A subscriber only
+  authenticated; no row-level policy was applied, so every admitted caller —
+  anonymous included — received every event. Fixed *(unreleased,
+  cratestack#1253)*: each event now passes the model's `detail`/`read` policy.
+  See `cratestack-rpc`.
 - **Studio's `rw` database targets.** `mode = "rw"` on a `[target.db]` is
   database-level access: Studio evaluates no policy and consults no `@@internal`
   suppression. The audit log is the compensating control, and it is detective,

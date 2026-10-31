@@ -127,14 +127,25 @@ server-assigned counter starting at 1, and exactly one terminal `event: error`
 carrying `{"id": <n>, "err": {…}}`. Payloads are **always JSON** regardless of
 the negotiated codec.
 
-The terminal error is always `unavailable` / `"subscription lagged"`, because
-that is the only way a stream ends other than a client disconnect. The buffer is
+The terminal error is always `unavailable` / `"subscription lagged"`: the
+stream ends on overflow, or on a read policy it could not decide for one event
+(below), and otherwise only by a client disconnect. The buffer is
 64 items and the first overflow closes the channel permanently.
 
-**Row-level `@@allow` policy is not replayed against streamed events.** A
-subscriber authenticates; it does not get the per-row filtering `list` and `get`
-do. Deliberate and documented — do not subscribe a model whose rows are
-per-caller sensitive.
+**Each event passes the subscriber's read policy** *(unreleased,
+cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
+ones `get` applies, decided against the event's record with the context
+captured when the subscription opened. An event the subscriber may not read is
+dropped, so an anonymous subscriber to an `auth()`-gated model holds an open,
+empty stream. A read policy that reads a `@server_only` column cannot be decided
+on an event (the payload skips it), so that subscription is refused at open with
+a 500 and the columns named in the server log — keep `@@subscribe` models'
+read policies off `@server_only` fields. A policy that cannot be decided for
+one event (a relation probe fails) ends the stream with the same terminal
+`unavailable` error as overflow. **0.17.0 and earlier applied no row-level
+policy at all**: every admitted caller, anonymous included, received every
+event. Source: `crates/cratestack-macros/src/transport/subscribe_dispatch.rs`,
+test `crates/cratestack-pg/tests/rpc_subscribe_read_policy.rs`.
 
 ## Streaming (`@stream`)
 

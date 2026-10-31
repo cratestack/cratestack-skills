@@ -112,6 +112,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   the now-public `CoseSignerProvider`; it and `SignedRequestAuthProvider` pass the kit. A CI job
   keeps `authkestra*` out of the workspace graph.
   Owners: `cratestack-policy-auth`, `cratestack-server`.
+- **Security: `@@subscribe` events pass the subscriber's read policy** (cratestack#1253)
+  *(unreleased, cratestack#1253)*. `GET /rpc/subscribe/{op_id}` used to send every event of the
+  model to any caller the `AuthProvider` admitted, anonymous included. Each event is now checked
+  against the model's `detail`/`read` policies and dropped if the subscriber may not read it; a
+  read policy over a `@server_only` column refuses the subscription at open (500); a policy that
+  cannot be decided for one event ends the stream with `unavailable`. No schema change. Owners:
+  `cratestack-rpc`, `cratestack-server`, `cratestack-policy-auth`.
 
 ## 0.17.0 (2026-10-28)
 
