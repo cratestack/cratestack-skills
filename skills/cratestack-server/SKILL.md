@@ -322,10 +322,12 @@ Writes enqueue an outbox row **inside the mutation's transaction**; `drain()`
 flushes undelivered rows — which is also the required opt-in after a
 caller-managed `run_in_tx` commit.
 
-`@@subscribe` (RPC only) adds an SSE endpoint. **Row-level `@@allow` policy is
-not replayed against streamed events** — header auth applies, per-row filtering
-does not. Deliberate and documented; do not stream a model whose rows are
-per-caller sensitive.
+`@@subscribe` (RPC only) adds an SSE endpoint. Each event passes the
+subscriber's read policy (the model's `detail`/`read` rules, as `get`) and is
+dropped if the subscriber may not read it; details in `cratestack-rpc`. In 0.17.0
+and earlier **no** row-level policy was applied: any caller the `AuthProvider`
+admitted, anonymous included, received every event — do not subscribe a
+per-caller-sensitive model on those versions *(fixed: unreleased, cratestack#1253)*.
 
 **`cratestack-outbox` is a different thing.** It is a separate, hand-written
 transactional outbox for *application* domain events; it deliberately does not go
