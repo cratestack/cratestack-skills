@@ -120,6 +120,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   cannot be decided for one event ends the stream with `unavailable`. No schema change. Owners:
   `cratestack-rpc`, `cratestack-server`, `cratestack-policy-auth`.
 
+- **`@authn` on procedures; RFC 9470 step-up** (cratestack#1244, ADR 0022) *(unreleased,
+  cratestack#1244)*. `@authn(maxAge, amr, acr)` checked after `@allow` on every path; unmet is a
+  401 with `error: "insufficient_user_authentication"`, `details` and a `Bearer` challenge.
+  `cratestack-auth`'s id token and mappers carry `auth_time` and `amr` (plus `pop`); breaking:
+  `IdTokenClaims` and `UserPrincipal` gain those fields. Owners: `cratestack-policy-auth`,
+  `cratestack-schema`.
+
 ## 0.17.0 (2026-10-28)
 
 0.17.0 carries two breaking changes, both to `@default(...)`: function defaults must be

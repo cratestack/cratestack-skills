@@ -387,6 +387,45 @@ On 0.14.0 and earlier a malformed or misspelled one was skipped, so
 `authorize_with_db` returned `Ok` without consulting the database. *(since
 0.14.1, GHSA-69g4-xvcm-vm2j)* `cratestack check` refuses it.
 
+## `@authn`: step-up on procedures
+
+*(unreleased, cratestack#1244, ADR 0022)* A procedure can require a fresh or
+strong authentication, not just an identity:
+
+```text
+mutation procedure payOrder(args: PayArgs): Receipt
+  @allow(auth() != null)
+  @authn(maxAge: 300, amr: ["hwk", "user"], acr: ["aal2", "aal3"])
+```
+
+The keys:
+
+- `maxAge`: `now - auth_time` must be at most that many seconds.
+- `amr`: every listed method must be in the caller's `amr`.
+- `acr`: the caller's `acr` must be one of the listed classes.
+
+The rules:
+
+- It runs **after** `@allow`/`@deny`, so a caller the policy refuses gets 403, never a step-up.
+- The facts are the principal contract's `auth_time` / `amr` / `acr`. A missing one fails closed, so
+  your provider must fill them (`CratestackContext::builder(..).auth_time(..).amr(..).acr(..)`).
+- Every path enforces it: REST, RPC unary, each batch frame on its own, MCP tools, and direct
+  `authorize`/`invoke` calls.
+
+An unmet requirement is RFC 9470's step-up, a 401 (RPC `unauthenticated`) carrying:
+
+- the member `error: "insufficient_user_authentication"`;
+- `details` with `max_age` / `acr_values` / `amr` (only those required) and `unmet` (which failed);
+- on REST, `WWW-Authenticate: Bearer error="insufficient_user_authentication", …, max_age="300",
+  acr_values="aal2 aal3"`.
+
+Do not hand-write that check in a procedure body any more. `cratestack-auth` fills `amr` (the token's
+methods plus `pop`) and a user's `auth_time` (its id token's claim, which is the mint time by
+default). COSE signers report `amr: ["pop"]`.
+
+There is no model-level `@@authn` yet. Tests: `crates/cratestack-api/tests/authn_rest.rs`,
+`authn_rpc.rs`, `mcp_authn.rs`.
+
 ## `cratestack-auth`
 
 Optional, and broad. The pieces you are most likely to want:
