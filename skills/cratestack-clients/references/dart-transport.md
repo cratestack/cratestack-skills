@@ -152,8 +152,8 @@ stateDiagram-v2
 
 | Exception | When | Carries |
 | --- | --- | --- |
-| `CratestackRestException` | REST, non-2xx answer | `status`, `body` (the decoded CBOR/JSON error body, the text of any other `Content-Type`, or `null` if absent or undecodable). *(Unreleased, cratestack#1243)*: `headers`, and getters `code`, `message` (both `null` when `body` is not an envelope), `details`, `extra` (every member but those three) and `challenges` (the raw `WWW-Authenticate` value) |
-| `CratestackRpcException` | RPC, non-2xx answer | `status`, `body` (`RpcErrorBody`), and getters `code`, `message`, `details`; *(unreleased, cratestack#1243)* `headers`, `extra` (`RpcErrorBody.extra`, every member but `code`, `message` and `details`; 0.17.0 and earlier drop them) and `challenges`. A body that did not decode becomes `code: internal`, `message: 'HTTP <status>'`. Codes are `CratestackRpcErrorCodes.*` |
+| `CratestackRestException` | REST, non-2xx answer | `status`, `body` (the decoded CBOR/JSON error body, the text of any other `Content-Type`, or `null` if absent or undecodable). *(Since 0.17.1, cratestack#1243)*: `headers`, and getters `code`, `message` (both `null` when `body` is not an envelope), `details`, `extra` (every member but those three) and `challenges` (the raw `WWW-Authenticate` value) |
+| `CratestackRpcException` | RPC, non-2xx answer | `status`, `body` (`RpcErrorBody`), and getters `code`, `message`, `details`; *(since 0.17.1, cratestack#1243)* `headers`, `extra` (`RpcErrorBody.extra`, every member but `code`, `message` and `details`; 0.17.0 and earlier drop them) and `challenges`. A body that did not decode becomes `code: internal`, `message: 'HTTP <status>'`. Codes are `CratestackRpcErrorCodes.*` |
 | `CratestackTransportUnsent` | the request provably never left the device | `cause`, `message`. **Always safe to resend, even a non-idempotent call.** |
 | `CratestackTransportAborted` | `options.abort` completed | `cause`, `message` |
 | `CratestackTransportTimedOut` | a deadline expired after the request may have left | `cause`. The server may have acted: retry only with an idempotency key |
@@ -167,7 +167,7 @@ stateDiagram-v2
   `CratestackHttpResponse` joins a repeated header with `, `, so two
   `WWW-Authenticate` lines arrive as **one** entry holding both. An error inside a
   batch frame or a stream's final item has no headers: `challenges` is empty
-  *(unreleased, cratestack#1243; tests: `crates/cratestack-client-dart/tests/fixtures/auth_refusal_{rest,rpc}_test.dart`)*.
+  *(since 0.17.1, cratestack#1243; tests: `crates/cratestack-client-dart/tests/fixtures/auth_refusal_{rest,rpc}_test.dart`)*.
 - `CratestackRestException` is **new**: REST used to leak a raw `DioException`
   from `execute`. Any "REST has no typed remote error" statement is out of date.
 - A transport must resolve for **every** status and throw only for no answer. A
@@ -357,8 +357,8 @@ inventing one. It also demonstrates the two limits below.
 - **cratestack#1207, call options cannot carry transport attributes** (above).
   Workaround: a header that a decorator above the session turns into attributes and
   strips.
-- **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body** *(fixed,
-  unreleased: `AuthRefusal`, see `cratestack-policy-auth`; the workaround below is for 0.17.0
+- **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body** *(fixed
+  since 0.17.1: `AuthRefusal`, see `cratestack-policy-auth`; the workaround below is for 0.17.0
   and earlier)*.
   `AuthProvider::authenticate` returns an error that becomes the standard
   `{code, message}` envelope, so a provider cannot add a member such as
@@ -369,7 +369,7 @@ inventing one. It also demonstrates the two limits below.
   `AuthProvider` and expect the client to tell "renew" from "wipe". See
   `cratestack-policy-auth`.
 
-Both are open: confirm on the issues before telling a user they are still gaps.
+#1207 is open. #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
 
 ## A transport of your own
 

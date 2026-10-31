@@ -144,7 +144,7 @@ a transport:
 | --- | --- | --- |
 | Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
-| HTTP error answer | `CratestackRestException` (`status`, `body`; *(unreleased)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(unreleased)* `extra`, `challenges`, `headers`) |
+| HTTP error answer | `CratestackRestException` (`status`, `body`; *(since 0.17.1)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(since 0.17.1)* `extra`, `challenges`, `headers`) |
 | Call options | `CratestackCallOptions(headers, idempotencyKey, abort)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort)` |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
@@ -192,12 +192,12 @@ ProviderScope(overrides: [
 - **`stream()` streams** *(RPC)*: items are yielded as the `cbor-seq` body arrives.
 - **A `null` in a query map is omitted**, not sent as a bare `key`. The generated
   query builders never emit one, so this only affects hand-built `queryParameters`.
-- **Known gaps (open):** call options cannot carry transport attributes
-  (cratestack#1207), and, on 0.17.0 and earlier, an `AuthProvider` refusal cannot shape
-  its body (cratestack#1208, fixed *(unreleased)* by `AuthRefusal`: extra top-level
-  members such as `error`). Both have workarounds in
+- **Known gaps:** call options cannot carry transport attributes (cratestack#1207,
+  open), and, on 0.17.0 and earlier, an `AuthProvider` refusal cannot shape its body
+  (cratestack#1208, shipped in 0.17.1 as `AuthRefusal`: extra top-level members such as
+  `error`). Both have workarounds in
   [references/dart-transport.md](references/dart-transport.md).
-- **Reading a refusal** *(unreleased, cratestack#1243)*. Every generated client types what an
+- **Reading a refusal** *(since 0.17.1, cratestack#1243)*. Every generated client types what an
   `AuthRefusal` adds, on REST and RPC alike: the fixed `code`, `message`, `details`, every other
   member as `extra` (never dropped) and the raw `WWW-Authenticate` value(s) as `challenges`.
   Branch on `code` plus an `extra` member, never on the message:
@@ -213,9 +213,9 @@ ProviderScope(overrides: [
   challenges. On 0.17.0 and earlier the Dart RPC `RpcErrorBody` drops the members (only the raw
   REST `body` keeps them) and no client exposes the challenges. Rust patterns that list every
   field of `ClientError::Remote` or `RpcRemoteError` without `..` need one.
-- **A step-up refusal** *(unreleased, cratestack#1244, ADR 0022; client side only, the server
-  side that emits it is a separate #1244 change)*. An operation that needs a fresher or stronger
-  authentication is refused with 401 / RPC `unauthenticated` plus the `extra` member
+- **A step-up refusal** *(since 0.17.1, cratestack#1244, ADR 0022)*. An operation that needs a
+  fresher or stronger authentication (a procedure's `@authn`, see `cratestack-policy-auth`) is
+  refused with 401 / RPC `unauthenticated` plus the `extra` member
   `error: "insufficient_user_authentication"` and `details` `{max_age?, acr_values?, amr?,
   unmet}`. Do not compare those by hand; every client types it as `StepUpRequired` (absent
   unless status/code **and** the `error` member match; a mistyped field reads as absent, never a
@@ -235,6 +235,13 @@ ProviderScope(overrides: [
   `crates/cratestack-client-typescript/tests/step_up.rs`. None of this exists on 0.17.0.
   A call retried under the **same idempotency key** gets the recorded 401 back on 0.17.1; *(unreleased, cratestack#1261)*
   the server releases the key for a refusal produced before the body, so that retry runs once.
+
+  **Known issue on 0.17.1** (cratestack#1261, fixed on `main`, unreleased): the idempotency layer records the step-up
+  `401` like any other answer, so a call retried under the **same** `Idempotency-Key`
+  (`idempotencyKey` call option, `_meta` key on MCP) gets the stored refusal replayed and never
+  runs. The same goes for a retry after renewing an expired credential. Do not write code that
+  relies on the retry going through under a reused key; a call sent without a key is not
+  affected.
 
 **Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
 `dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query

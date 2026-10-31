@@ -157,7 +157,7 @@ let app = Router::new()
   - 413 above 4 MiB.
 - **What reaches your procedure.** The token is stripped once the provider has run, and
   the call runs under the context the provider built.
-- **A provider that does not use bearer tokens** *(unreleased, cratestack#1243)*:
+- **A provider that does not use bearer tokens** *(since 0.17.1, cratestack#1243)*:
   `.with_credential_presence(CredentialPresence::provider_decides())`,
   `CredentialPresence::ask_provider()` (the provider's own `AuthProvider::credential`: `Absent` is
   the 401 challenge before the body is read, `Malformed` a 400, `Present`/`Unknown` reach the
@@ -169,7 +169,7 @@ let app = Router::new()
   `resource_metadata` one). Copy from `crates/cratestack-mcp/tests/http_credential.rs`,
   `http_ask_provider.rs` and `http_refusal.rs`. A whole example: `examples/mcp-operator` runs
   `ask_provider()`, and its `src/provider.rs` accepts the token in `X-Agent-Token` as well as
-  `Bearer` *(unreleased, cratestack#1245)*.
+  `Bearer` *(since 0.17.1, cratestack#1245)*.
 - **`with_allowed_hosts`.** The default allowed `Host` is the resource identifier's
   `host[:port]`.
 
@@ -181,13 +181,13 @@ you passed, or the one your provider built per HTTP request), so a caller's MCP 
 draw on their own budget, separate from its REST budget
 (`crates/cratestack-mcp/src/idempotency.rs`, `namespace`). That identity is:
 
-- *(unreleased, cratestack#1243)* the context's `subject()`: `sub`, then `actor.id`, then
+- *(since 0.17.1, cratestack#1243)* the context's `subject()`: `sub`, then `actor.id`, then
   `id` (an integer as its decimal digits). A context with only `sub` is admitted. A provider
   that adds `sub` next to a different `id` moves its callers to a new namespace once.
 - on 0.17.0 and earlier, the `id` claim: the `actor` facet's `id` first, then the top-level
   `id`, string or integer. `sub` is not read.
 
-A context with no identity (no `subject()` on unreleased `main`, no `id` claim on 0.17.0
+A context with no identity (no `subject()` since 0.17.1, no `id` claim on 0.17.0
 and earlier), or an empty one, gets `PRECONDITION_FAILED` on a rate-limited or keyed call.
 The key holds a SHA-256 of that identity, never the identity itself *(since 0.14.0)*; on
 0.13.0 it held the id verbatim, so after upgrading with a shared store, MCP idempotency
@@ -200,6 +200,10 @@ records written by 0.13.0 stop replaying and MCP rate-limit buckets start fresh.
   - Bad arguments → an `isError` result naming the field.
   - A policy denial or business error → `isError` with REST's error envelope
     (`{"code":"FORBIDDEN",...}`).
+  - An unmet `@authn` *(since 0.17.1, cratestack#1244)* → `isError` with REST's step-up
+    envelope (`"code":"UNAUTHORIZED"`, `"error":"insufficient_user_authentication"`, its
+    `details`), checked after `@allow`/`@deny`; the tool never runs. See
+    `cratestack-policy-auth`. Test: `crates/cratestack-api/tests/mcp_authn.rs`.
 - **Idempotency.** A key goes in `_meta["dev.cratestack/idempotencyKey"]`; without one,
   a retried mutation runs again. `idempotentHint` is never `true` on a mutation.
   *(unreleased, cratestack#1261)* A refusal of the tool's generated authorize step (`@allow`/`@deny`,
