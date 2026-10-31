@@ -457,3 +457,30 @@ closure rather than calling `std::env::var` directly, because
 `std::env::set_var` is `unsafe` in edition 2024 and this workspace forbids
 `unsafe_code`. Follow that pattern in your own config if you want it unit
 testable.
+
+## Worked example: step-up end to end
+
+*(unreleased, cratestack#1245)* For `@authn` (cratestack#1244) wired through a real provider and the
+generated clients, copy from these examples rather than inventing the shape:
+
+- **`examples/step-up-procedures`** (no database). `payInvoice` under
+  `@authn(maxAge: 300, amr: ["hwk"])`, served on REST and RPC behind `SignedRequestAuthProvider`
+  built as `SignedRequestVerifier::new(Vec::new()).with_id_token_verifier(IdTokenVerifier::new(issuer,
+  jwks_url, None))`: no key registry, the device key is vouched for by the id token's `cnf.jwk`, and
+  the default product mapping copies the token's `auth_time` and `amr` (plus `pop`). The client is a
+  `RequestAuthorizer` that signs each request and carries the current id token in
+  `Authorization: Signature …, id_jwt="…"`; re-proving swaps the token, so the retry carries it.
+  Files: `src/server.rs`, `src/device.rs`, `src/flows.rs`; tests in `tests/rest.rs` and
+  `tests/rpc.rs`.
+- **Calling `retry_after_step_up` on REST**: a closure that returns
+  `client.procedures().pay_invoice(args, &[])` directly does not compile (E0515: the future borrows
+  the temporary `procedures()` value). Wrap it: `move || async move {
+  client.procedures().pay_invoice(args, &[]).await }`, with `client` and `args` as references. An
+  RPC call (`BatchableCall`) can be returned as it is. For a batch, the closure builds and sends the
+  whole batch; the retry sends it again, and only the frames that needed the step-up were refused
+  the first time.
+- **`examples/flutter-riverpod` and `examples/react-vite-swr`**: `clearDoneTasks` under the same
+  `@authn`, a step-up screen from `StepUpRequired`, `retryAfterStepUp`, and a banner keyed on the
+  refusal code (the `error` member, else `code`). Their server fills `auth_time` and `amr` from
+  stand-in headers (`x-auth-time`, `x-auth-amr`). **Never copy that into a real provider**: read the
+  facts from a credential you verified.
