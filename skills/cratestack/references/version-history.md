@@ -161,7 +161,7 @@ CHANGELOG says how), so read them before upgrading.
   `4401` (401), `4403` (403 or a changed principal), `4400` (malformed `Init`) or `4500` (the
   provider could not decide). `CborSeqChunkDecoder` moved to `cratestack-codec-cbor`, still
   re-exported by `cratestack-client-rust`. Owner: `cratestack-rpc` (points at the crate README).
-- **Known issue: a `401` is recorded under an `Idempotency-Key`** (cratestack#1261, open). Not a
+- **Known issue: a `401` is recorded under an `Idempotency-Key`** (cratestack#1261, fixed on `main`, unreleased: see below). Not a
   change, a gap in this release: the idempotency layer and MCP's admission record an
   `AuthRefusal` like any other answer, so a retry under the same key after renewing a credential
   or stepping up (`retry_after_step_up` / `retryAfterStepUp` with a fixed key) gets the stored
@@ -175,6 +175,14 @@ security fix merged from a private fork with no PR number. When 0.17.1 was recor
 here, framework `main` was the `v0.17.1` commit and its `## Unreleased` was empty; the
 sync-engine entry below is in the tag's source but in no published crate.
 
+- **A refusal before the body releases the `Idempotency-Key`** (cratestack#1261)
+  *(unreleased, cratestack#1261)*. A 401/403 the generated dispatch produces before any procedure body runs
+  (`authenticate`, `@allow`/`@deny`, `@authn`, `@authorize`) is no longer recorded by
+  `IdempotencyLayer` or MCP admission, so a retry after renewal or step-up runs once under the same
+  key; a refusal a body returns is still recorded. New `AuthRefusal::is_dispatch_owned()`; the mark is
+  set only by generated code (`#[doc(hidden)]` `__generated_claim_auth_refusal`,
+  `__generated_dispatch_with_db`). On 0.17.1 every refusal is recorded. Owner:
+  `cratestack-data-integrity` (+ `cratestack-policy-auth`, `cratestack-mcp`, `cratestack-clients`).
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog

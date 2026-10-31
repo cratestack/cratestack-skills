@@ -233,8 +233,10 @@ ProviderScope(overrides: [
   `crates/cratestack-client-rust/src/step_up/tests.rs`,
   `crates/cratestack-client-dart/tests/fixtures/step_up_{rest,rpc}_test.dart`,
   `crates/cratestack-client-typescript/tests/step_up.rs`. None of this exists on 0.17.0.
+  A call retried under the **same idempotency key** gets the recorded 401 back on 0.17.1; *(unreleased, cratestack#1261)*
+  the server releases the key for a refusal produced before the body, so that retry runs once.
 
-  **Known issue on 0.17.1** (cratestack#1261, open): the idempotency layer records the step-up
+  **Known issue on 0.17.1** (cratestack#1261, fixed on `main`, unreleased): the idempotency layer records the step-up
   `401` like any other answer, so a call retried under the **same** `Idempotency-Key`
   (`idempotencyKey` call option, `_meta` key on MCP) gets the stored refusal replayed and never
   runs. The same goes for a retry after renewing an expired credential. Do not write code that

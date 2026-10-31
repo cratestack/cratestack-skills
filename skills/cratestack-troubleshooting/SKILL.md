@@ -296,7 +296,7 @@ released. If it is frequent, reduce contention or raise
 
 **A retry after stepping up (or renewing) gets the same `401`, with
 `Idempotency-Replayed: true`** (on MCP, `_meta["dev.cratestack/idempotencyReplayed"]`) *(0.17.1; this one is a real bug, cratestack#1261,
-open)*. The idempotency layer, and MCP's admission, record a `401` `AuthRefusal`
+fixed on `main`, unreleased)*. The idempotency layer, and MCP's admission, record a `401` `AuthRefusal`
 like any other answer, the `@authn` step-up included, so the same key replays it and
 the procedure never runs. It bites `retry_after_step_up` / `retryAfterStepUp` when the
 retried call carries a fixed key. The refusal came before the procedure body, so
