@@ -213,6 +213,26 @@ ProviderScope(overrides: [
   challenges. On 0.17.0 and earlier the Dart RPC `RpcErrorBody` drops the members (only the raw
   REST `body` keeps them) and no client exposes the challenges. Rust patterns that list every
   field of `ClientError::Remote` or `RpcRemoteError` without `..` need one.
+- **A step-up refusal** *(unreleased, cratestack#1244, ADR 0022; client side only, the server
+  side that emits it is a separate #1244 change)*. An operation that needs a fresher or stronger
+  authentication is refused with 401 / RPC `unauthenticated` plus the `extra` member
+  `error: "insufficient_user_authentication"` and `details` `{max_age?, acr_values?, amr?,
+  unmet}`. Do not compare those by hand; every client types it as `StepUpRequired` (absent
+  unless status/code **and** the `error` member match; a mistyped field reads as absent, never a
+  throw) and ships a retry-at-most-once helper:
+
+  | Client | Read it | Retry once after a re-proof |
+  | --- | --- | --- |
+  | Dart (every preset) | `CratestackRestException.stepUp` / `CratestackRpcException.stepUp` (`maxAge`, `acrValues`, `amr`, `unmet`; `null` otherwise) | `retryAfterStepUp(() => call(), (stepUp) async => reproved)` |
+  | TypeScript | `CratestackHttpError.stepUp` / `CratestackRpcError.stepUp`; `stepUpOf(error)` (RPC: also a batch frame's `error` body); `RtkRestQueryError.stepUp` | `retryAfterStepUp(() => call(), async (stepUp) => reproved)` |
+  | Rust | `ClientError::step_up()`, `RpcClientError::step_up()`, `RpcRemoteError::step_up()` (batch frame), trait `StepUpError` | `retry_after_step_up(\|\| call, \|step_up\| async move { reproved })` |
+
+  `reprove` returns a boolean: `true` sends the call once more and returns whatever that gives,
+  a second refusal included (it never loops); `false` returns (Rust) or rethrows (Dart, TS) the
+  first refusal. Any other error never asks for a re-proof. Tests:
+  `crates/cratestack-client-rust/src/step_up/tests.rs`,
+  `crates/cratestack-client-dart/tests/fixtures/step_up_{rest,rpc}_test.dart`,
+  `crates/cratestack-client-typescript/tests/step_up.rs`. None of this exists on 0.17.0.
 
 **Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
 `dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query
