@@ -109,6 +109,8 @@ they appear at the `include_*_schema!` call site.
 | ``the macro's `db` argument and the schema's own `datasource` declaration must agree`` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |
 | `can never support it, no matter which Cargo features are enabled` | a Postgres-only extension under `include_embedded_schema!` | use the server macro or drop the extension |
+| `has no subscription op to serve over it` *(unreleased, cratestack#1255)* | `extension webtransport { }` in a schema with no `@@subscribe` model | add `@@subscribe` to a model (under `transport rpc`) or drop the extension |
+| `serves no subscriptions, so there is nothing for it to bind` *(unreleased, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
 | `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
 | `@computed fields … include_embedded_schema! has no response boundary` | computed fields on the embedded path | remove them or use the server/client macro — without the guard the field would silently vanish |

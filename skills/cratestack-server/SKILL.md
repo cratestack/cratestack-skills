@@ -328,6 +328,9 @@ dropped if the subscriber may not read it; details in `cratestack-rpc`. In 0.17.
 and earlier **no** row-level policy was applied: any caller the `AuthProvider`
 admitted, anonymous included, received every event — do not subscribe a
 per-caller-sensitive model on those versions *(fixed: unreleased, cratestack#1253)*.
+The same feeds can be served over WebTransport with `extension webtransport { }`
+and the `webtransport` feature: `db.subscriptions().webtransport(config, auth)`
+*(unreleased, cratestack#1255)*. See `cratestack-rpc`.
 
 **`cratestack-outbox` is a different thing.** It is a separate, hand-written
 transactional outbox for *application* domain events; it deliberately does not go

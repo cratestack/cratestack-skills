@@ -127,10 +127,10 @@ server-assigned counter starting at 1, and exactly one terminal `event: error`
 carrying `{"id": <n>, "err": {…}}`. Payloads are **always JSON** regardless of
 the negotiated codec.
 
-The terminal error is always `unavailable` / `"subscription lagged"`: the
-stream ends on overflow, or on a read policy it could not decide for one event
-(below), and otherwise only by a client disconnect. The buffer is
-64 items and the first overflow closes the channel permanently.
+On overflow the terminal error is `unavailable` / `"subscription lagged"`. The
+buffer is 64 items and the first overflow closes the channel permanently. The
+only other ways a stream ends are a read policy it could not decide for one
+event (below) and a client disconnect.
 
 **Each event passes the subscriber's read policy** *(unreleased,
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
@@ -141,11 +141,64 @@ empty stream. A read policy that reads a `@server_only` column cannot be decided
 on an event (the payload skips it), so that subscription is refused at open with
 a 500 and the columns named in the server log — keep `@@subscribe` models'
 read policies off `@server_only` fields. A policy that cannot be decided for
-one event (a relation probe fails) ends the stream with the same terminal
-`unavailable` error as overflow. **0.17.0 and earlier applied no row-level
-policy at all**: every admitted caller, anonymous included, received every
-event. Source: `crates/cratestack-macros/src/transport/subscribe_dispatch.rs`,
-test `crates/cratestack-pg/tests/rpc_subscribe_read_policy.rs`.
+one event (a relation probe fails) ends the stream with a terminal error. Since
+cratestack#1255 *(unreleased)* that error is the probe's own; with cratestack#1253
+alone it was the same `unavailable` / `"subscription lagged"` as overflow.
+**0.17.0 and earlier applied no row-level policy at all**: every admitted caller,
+anonymous included, received every event. Source:
+`crates/cratestack-macros/src/transport/subscription_module/model_feed.rs`, test
+`crates/cratestack-pg/tests/rpc_subscribe_read_policy.rs`.
+
+### One dispatcher, every binding *(unreleased, cratestack#1255)*
+
+The schema macro generates a `subscriptions` module for a `db = Postgres`
+server schema with a `@@subscribe` model: `SubscriptionDispatch` implements
+`cratestack::SubscriptionDispatcher`, and `db.subscriptions()` returns one. The
+SSE endpoint above opens through it, on the same wire as before. A binding gets
+the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
+`op_id = "model.<Model>.subscribe"`, and the read policy comes with it. A model
+feed takes **no input yet**: anything but `null` or `{}` is refused with
+`invalid_argument`. Test: `crates/cratestack-pg/tests/subscription_dispatcher.rs`.
+
+### Serving subscriptions over WebTransport *(unreleased, cratestack#1255)*
+
+Three layers, like `extension pgvector`:
+
+```text
+transport rpc
+
+extension webtransport {
+}
+```
+
+```toml
+cratestack = { package = "cratestack-pg", version = "…", features = ["webtransport"] }
+```
+
+```rust
+use cratestack::webtransport::{OriginPolicy, WebTransportConfig};
+
+let config = WebTransportConfig::new(addr, certificate_chain, private_key)
+    .origins(OriginPolicy::Allow(vec!["https://app.example.com".into()]));
+let server = db.subscriptions().webtransport(config, auth_provider.clone())?;
+tokio::spawn(server.serve_with_shutdown(shutdown));
+```
+
+It is a second listener, on **UDP**, at `CONNECT /rpc/wt`. Each `@@subscribe`
+model is served as `model.<Model>.subscribe` with the same per-event read
+policy as SSE. Pass the router's own `AuthProvider`: the session authenticates
+from an `Init` frame's headers. These are compile errors:
+
+- the extension without the `webtransport` feature;
+- the extension in a schema with no `@@subscribe` model ("no subscription op to
+  serve");
+- the extension under `include_embedded_schema!`.
+
+`cratestack-client`'s `webtransport` feature only lets a client compile from
+such a schema. **No generated client speaks WebTransport yet.** Test:
+`crates/cratestack-pg/tests/webtransport_model_feed.rs`. Wire protocol, close
+codes, limits and deployment notes: `crates/cratestack-webtransport/README.md`
+and `docs/design/subscriptions-websocket.md` §6a.
 
 ## Streaming (`@stream`)
 

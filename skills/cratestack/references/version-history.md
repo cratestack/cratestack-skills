@@ -119,6 +119,12 @@ sync-engine entry below is in the tag's source but in no published crate.
   read policy over a `@server_only` column refuses the subscription at open (500); a policy that
   cannot be decided for one event ends the stream with `unavailable`. No schema change. Owners:
   `cratestack-rpc`, `cratestack-server`, `cratestack-policy-auth`.
+- **Subscriptions open through one generated dispatcher; `extension webtransport`**
+  (cratestack#1255) *(unreleased, cratestack#1255)*. A `@@subscribe` schema gets
+  `db.subscriptions()`, a `SubscriptionDispatcher`. The SSE endpoint opens through it on the
+  same wire, and `extension webtransport { }` plus the `webtransport` feature on `cratestack-pg`
+  adds `db.subscriptions().webtransport(config, auth)`. `ExtensionKind` gains `Webtransport`.
+  Owners: `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
 
 ## 0.17.0 (2026-10-28)
 
