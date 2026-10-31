@@ -233,6 +233,8 @@ ProviderScope(overrides: [
   `crates/cratestack-client-rust/src/step_up/tests.rs`,
   `crates/cratestack-client-dart/tests/fixtures/step_up_{rest,rpc}_test.dart`,
   `crates/cratestack-client-typescript/tests/step_up.rs`. None of this exists on 0.17.0.
+  A call retried under the **same idempotency key** gets the recorded 401 back on 0.17.1; *(unreleased, cratestack#1261)*
+  the server releases the key for a refusal produced before the body, so that retry runs once.
 
 **Upgrading an app** from the `*DioAdapter` classes (grep for the four names, move
 `dio.options.baseUrl` into `baseUri`, replace `on DioException`, check `null` query

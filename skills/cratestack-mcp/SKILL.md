@@ -202,6 +202,10 @@ records written by 0.13.0 stop replaying and MCP rate-limit buckets start fresh.
     (`{"code":"FORBIDDEN",...}`).
 - **Idempotency.** A key goes in `_meta["dev.cratestack/idempotencyKey"]`; without one,
   a retried mutation runs again. `idempotentHint` is never `true` on a mutation.
+  *(unreleased, cratestack#1261)* A refusal of the tool's generated authorize step (`@allow`/`@deny`,
+  `@authn`, `@authorize`) is not recorded: admission releases the key, so the caller who stepped
+  up runs the tool once under the same key. A refusal the implementation returns is recorded. On
+  0.17.1 both are recorded.
 - **`@isolation` tools.** On every release through 0.14.0, `@isolation`
   was ignored here as on REST and RPC. Since 0.14.1 *(GHSA-r67q-4qqq-g9gm)*
   `tools/call` runs such a tool through the same

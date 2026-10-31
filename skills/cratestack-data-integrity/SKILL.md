@@ -54,6 +54,7 @@ Wire behaviour, with `IdempotencyLayer` installed:
 | Body over 2 MiB with a key | **400** (not 413 — two source comments say 413 and are wrong) |
 | No `VerifiedPrincipal`, no `Authorization` and no `ConnectInfo` | **412** |
 | An `@isolation` procedure's own `409 TRANSACTION_ABORTED` *(since 0.14.1)* | **not recorded**: the key is released, so the same key runs the call again |
+| A 401/403 the generated dispatch produced **before any procedure body ran**: the `AuthProvider`'s `authenticate` refusal (procedures and model routes), `@allow`/`@deny`, `@authn`, `@authorize` *(unreleased, cratestack#1261)* | **not recorded**: the key is released, so a client that renews or steps up resends under the same key and the call runs once. A refusal a procedure **body** returns is still recorded (it may have written first). On 0.17.1 and earlier every refusal is recorded and replayed |
 
 The fingerprint is SHA-256 over `method \0 path_and_query \0 content_type \0 body`.
 **The query string is included on purpose** — `POST /transfer?dry_run=true` must

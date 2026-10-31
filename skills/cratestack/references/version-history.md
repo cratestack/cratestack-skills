@@ -68,6 +68,14 @@ sync-engine entry below is in the tag's source but in no published crate.
   schema gains `clearDoneTasks` under `@authn`, and `flutter-riverpod` and `react-vite-swr/web` a
   step-up screen and a refusal-code banner. Examples only, no framework API change; they depend on
   the cratestack#1244 entries. Owner: `cratestack-policy-auth`.
+- **A refusal before the body releases the `Idempotency-Key`** (cratestack#1261)
+  *(unreleased, cratestack#1261)*. A 401/403 the generated dispatch produces before any procedure body runs
+  (`authenticate`, `@allow`/`@deny`, `@authn`, `@authorize`) is no longer recorded by
+  `IdempotencyLayer` or MCP admission, so a retry after renewal or step-up runs once under the same
+  key; a refusal a body returns is still recorded. New `AuthRefusal::is_dispatch_owned()`; the mark is
+  set only by generated code (`#[doc(hidden)]` `__generated_claim_auth_refusal`,
+  `__generated_dispatch_with_db`). On 0.17.1 every refusal is recorded. Owner:
+  `cratestack-data-integrity` (+ `cratestack-policy-auth`, `cratestack-mcp`, `cratestack-clients`).
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog

@@ -421,6 +421,13 @@ The rules:
   your provider must fill them (`CratestackContext::builder(..).auth_time(..).amr(..).acr(..)`).
 - Every path enforces it: REST, RPC unary, each batch frame on its own, MCP tools, and direct
   `authorize`/`invoke` calls.
+- *(unreleased, cratestack#1261)* The step-up refusal is **not recorded** under an `Idempotency-Key`
+  (nor MCP's `_meta` key), and neither is the provider's or `@allow`/`@deny`'s: they come before
+  the body, so the layer releases the key and the retry after the re-proof runs once under the same
+  key. On 0.17.1 the refusal is recorded and that retry gets the stored 401 back. Do not return an
+  `AuthRefusal` from a procedure body after a write expecting the same: a body's refusal is
+  recorded. Tests: `crates/cratestack-api/tests/authn_idempotency_{rest,rpc}.rs`,
+  `mcp_authn_idempotency.rs`.
 
 An unmet requirement is RFC 9470's step-up, a 401 (RPC `unauthenticated`) carrying:
 
