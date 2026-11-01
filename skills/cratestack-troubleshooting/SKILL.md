@@ -109,7 +109,7 @@ they appear at the `include_*_schema!` call site.
 | ``the macro's `db` argument and the schema's own `datasource` declaration must agree`` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |
 | `can never support it, no matter which Cargo features are enabled` | a Postgres-only extension under `include_embedded_schema!` | use the server macro or drop the extension |
-| `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` in a schema with no `@@subscribe` model | add `@@subscribe` to a model (under `transport rpc`) or drop the extension |
+| `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` in a schema with no `@@subscribe` model | add `@@subscribe` to a model (under `transport rpc` in 0.17.x; under either transport *(unreleased, cratestack#1267)*) or drop the extension |
 | `serves no subscriptions, so there is nothing for it to bind` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
 | `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
@@ -409,6 +409,17 @@ means one was sent twice or is outside the grammar (a lowercase `type/subtype`, 
 different type than the header says. `EnvelopeError::UnexpectedPayloadType { got }` on the client
 is the other direction: the response was sealed under a type the call did not list in
 `HttpClientCodec::payload_accept`, and was never opened.
+
+**A subscription answers 400, 401 or 403 instead of streaming** *(unreleased,
+cratestack#1267)*. These are refusals at open, sent as a JSON body with their own status.
+401 or 403: no row could pass the model's read policy for this caller, as with an
+anonymous caller on an `ownerId == auth().id` model. On 0.17.x that was an empty feed
+that never delivered. 400 "`limit` does not apply to a subscription": a `list`
+paging or shaping key (`limit`, `offset`, `sort`, `orderBy`, `include`,
+`includeFields[...]`, `computedParams`). 400 "... cannot filter a subscription": a
+relation or full-text filter, or one over a column the event does not carry
+(`@server_only`). A feed takes only `list`'s filters, `operations` and `fields`.
+On 0.17.x an `EventSource` client saw every such refusal as `406`.
 
 **406 on a signed subscription.** Streams cannot be sealed until ADR 0006 P1, so
 a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler

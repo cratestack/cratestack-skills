@@ -119,7 +119,10 @@ an `internal` frame.
 
 ## Subscriptions
 
-`@@subscribe` on a model requires `transport rpc` **and** requires `@@emit(...)`.
+`@@subscribe` on a model requires `@@emit(...)`. Until cratestack#1267 it also
+required `transport rpc`; now a REST schema serves the same feed at
+`GET /<plural>/$subscribe` *(unreleased, cratestack#1267)*, through the same
+dispatcher, on the same SSE wire.
 
 `GET /rpc/subscribe/{op_id}` with `Accept: text/event-stream`. First
 `event: ready` carrying `{"id": 1, "ready": {}}` *(unreleased, cratestack#1266)*:
@@ -127,7 +130,36 @@ the subscription is live, and nothing committed after it is missed. Then one
 `event: message` per item carrying `{"id": <n>, "next": <item>}`, ids counting up
 from 2, and exactly one terminal `event: error` carrying `{"id": <n>, "err": {…}}`.
 In 0.17.x there is no `ready` event, and items start at id 1. Payloads are **always
-JSON** regardless of the negotiated codec.
+JSON** regardless of the negotiated codec. A quiet stream gets a `: keepalive`
+comment every 15 s *(unreleased, cratestack#1267)*.
+
+**Errors before the stream** (a refusal, a bad input) are a JSON body with the
+error's own status — 400, 401 with `WWW-Authenticate`, 403, 500 — whatever the
+RPC codec *(unreleased, cratestack#1267)*. In 0.17.x they went through the unary
+codec negotiation, so an `EventSource` client (`Accept: text/event-stream` only)
+got `406` for every refusal.
+
+**Feed input** *(unreleased, cratestack#1267)*: `list`'s own filter syntax, parsed
+by the generated `list` parser, plus `operations` and `fields`:
+
+```text
+GET /rpc/subscribe/model.Note.subscribe?body__contains=keep&operations=created&fields=id,body
+GET /notes/$subscribe?ownerId=7                      (REST)
+```
+
+Through the dispatcher (WebTransport) the input is a JSON object,
+`{"where", "or", "filters": [{"key", "value"}], "fields", "operations"}`
+(`cratestack::rpc::RpcSubscribeInput`, unknown keys refused). The filter is evaluated
+in memory against the event's row, three-valued like SQL, **before** the read
+policy: it narrows what the policy allows and never widens it. `fields` projects
+the event's `data`. Refused at open with `invalid_argument`: `limit`, `offset`,
+`sort`, `orderBy`, `include`, `includeFields[...]`, `computedParams` ("`limit` does
+not apply to a subscription"); a relation or full-text filter, or one over a
+`@server_only` column ("... cannot filter a subscription"); an unknown operation
+or field. A row updated **out of** a filter produces no event for that
+subscriber, so its copy goes stale: refetch on reconnect. In 0.17.x a feed took
+no input. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/filters.rs`,
+`.../rest.rs`.
 
 On overflow the terminal error is `unavailable` / `"subscription lagged"`. The
 buffer is 64 items and the first overflow closes the channel permanently. A
@@ -151,8 +183,13 @@ Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/replicas.rs`.
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
 ones `get` applies, decided against the event's record with the context
 captured when the subscription opened. An event the subscriber may not read is
-dropped, so an anonymous subscriber to an `auth()`-gated model holds an open,
-empty stream. A read policy that reads a `@server_only` column cannot be decided
+dropped. A caller **no row could pass** is refused at open *(unreleased,
+cratestack#1267)*: `unauthenticated` (401) for an anonymous caller, else
+`permission_denied` (403) — so an anonymous subscriber to an
+`ownerId == auth().id` model is refused, where in 0.17.x it held an open, empty
+stream. A row-dependent `@deny` such as `archived` never refuses at open. A
+feed also ends with `unauthenticated` / `"credential expired"` when the opening
+context's `exp` claim passes; resubscribe with a fresh credential. A read policy that reads a `@server_only` column cannot be decided
 on an event (the payload skips it), so that subscription is refused at open with
 a 500 and the columns named in the server log — keep `@@subscribe` models'
 read policies off `@server_only` fields. A policy that cannot be decided for
@@ -172,9 +209,11 @@ server schema with a `@@subscribe` model: `SubscriptionDispatch` implements
 `cratestack::SubscriptionDispatcher`, and `db.subscriptions()` returns one. The
 SSE endpoint above opens through it, on the same wire as before. A binding gets
 the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
-`op_id = "model.<Model>.subscribe"`, and the read policy comes with it. A model
-feed takes **no input yet**: anything but `null` or `{}` is refused with
-`invalid_argument`. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
+`op_id = "model.<Model>.subscribe"`, and the read policy comes with it. The input is
+the feed input above *(unreleased, cratestack#1267)*; in 0.17.x a model feed took
+no input, and anything but `null` or `{}` was refused with `invalid_argument`.
+The generated `db.subscriptions().open_query(op_id, Some(query_string), ctx)`
+takes the query-string form directly. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
 ### Serving subscriptions over WebTransport *(since 0.17.1, cratestack#1255)*
 
@@ -346,7 +385,8 @@ bytes REST puts on the query string means the same validator runs unmodified.
 ## REST-only and RPC-only
 
 - `@status(...)` is **REST-only** and hard-rejected under `transport rpc`.
-- `@@subscribe` is **RPC-only**.
+- `@@subscribe` was **RPC-only** until cratestack#1267 (unreleased); it now
+  works on both.
 - The `RpcLink` middleware chain is RPC-only.
 - WireMock stubs for RPC model CRUD have **no per-record statefulness** by
   design — they always answer the same synthesised example.
