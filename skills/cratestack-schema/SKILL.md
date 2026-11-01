@@ -33,11 +33,13 @@ mixin <Name> { fields }             // pulled into a model with @use(Name)
 model <Name> { fields + @@attrs }   // a table
 type <Name> { fields }              // a plain struct: procedure args, results, query rows
 enum <Name> { VARIANTS }            // one bare identifier per line
-extension rate_limit | pgvector | postgis | webtransport { }  // webtransport: since 0.17.1, see cratestack-rpc
+extension rate_limit | pgvector | postgis | webtransport | websocket { }  // webtransport: since 0.17.1; websocket: unreleased, cratestack#1268; see cratestack-rpc
 mcp { expose = [tools, resources] } // at most once; see cratestack-mcp (since 0.13.0)
 transport rest | rpc                // at most once; default rest
 procedure <name>(a: T): R           // attribute lines follow, no braces
 mutation procedure <name>(a: T): R
+subscription procedure <name>(a: T): Item  // unreleased, cratestack#1268; see cratestack-rpc
+topic <Name>(key: String | Int | Uuid): Payload  // unreleased, cratestack#1268; one line, no attributes
 query <name>(a: T): ResultType      // declarative SQL, Postgres-only
 view <Name> from <M>, <M> { … }
 ```
@@ -397,7 +399,10 @@ GHSA-69g4-xvcm-vm2j)*. The same rules hold for `query` blocks:
 documented limitation. Do not use it.
 
 That table plus `@mcp` is the whole list *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. Any
-other procedure attribute is refused. On 0.14.0 it parsed and did nothing, and a
+other procedure attribute is refused. A `subscription procedure` *(unreleased,
+cratestack#1268)* keeps only `@allow`, `@deny`, `@authn`, `@authorize` and
+`@api_version`, returns one item type (not `T[]`), and shares the name space of
+procedures; see `cratestack-rpc`'s `references/subscriptions.md`. On 0.14.0 it parsed and did nothing, and a
 misspelled `@deny` left the procedure more permissive than written.
 
 ## `@computed` — the restrictions are the whole story
