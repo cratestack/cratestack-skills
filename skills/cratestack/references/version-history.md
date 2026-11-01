@@ -190,6 +190,15 @@ sync-engine entry below is in the tag's source but in no published crate.
   id 2. A listener reconnect ends subscriptions with `"subscription interrupted"`. The outbox drain
   claims rows with `FOR UPDATE SKIP LOCKED`. On 0.17.x only the committing replica's subscribers get
   an event. Owners: `cratestack-rpc`, `cratestack-server`.
+- **Subscriptions: refused at open, credential expiry, keepalive, feed input, REST `$subscribe`**
+  (cratestack#1267) *(unreleased, cratestack#1267)*. A caller no row could pass is refused at open
+  (`unauthenticated` / `permission_denied`) instead of getting an empty feed. SSE errors before the
+  stream are JSON with their own status, not `406`. A feed ends with `"credential expired"` at the
+  context's `exp`. SSE sends `: keepalive` after 15 s idle. A feed takes `list`'s filter syntax plus
+  `operations` and `fields` (query string on SSE, `cratestack::rpc::RpcSubscribeInput` through the
+  dispatcher). Paging keys, relation/full-text filters and unknown fields are `invalid_argument`.
+  `@@subscribe` no longer requires `transport rpc`: REST serves `GET /<plural>/$subscribe`. Owners:
+  `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog

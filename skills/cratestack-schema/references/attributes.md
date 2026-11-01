@@ -145,7 +145,7 @@ accepted: after upgrading it gets `422`.
 | `@@soft_delete` | **bare only** | |
 | `@@retain(days: N)` | `days:` + non-negative integer | |
 | `@@emit(created, updated, deleted)` | ≥1 of exactly those three | At most one per model; duplicates deduped. |
-| `@@subscribe` | **bare only** | Requires `transport rpc` **and** requires `@@emit(...)`. |
+| `@@subscribe` | **bare only** | Requires `@@emit(...)`. Required `transport rpc` too until cratestack#1267 (unreleased). |
 | `@@rename(from = "<old_table>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate`. The value is the **old SQL table name** (`"old_models"`), not the old model name. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: any other argument form, and a second `@@rename`, are refused; on 0.14.0 they checked as `schema OK` and the next migration dropped and re-created the table. A well-formed marker naming a table that does not exist is still accepted by `check` and silently ignored by the migrator. |
 | `@@internal("action")` | **exactly one quoted action per declaration** | Vocabulary: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Suppresses the REST route, the RPC dispatch arm and the client stub. Does **not** suppress policy evaluation, and does not exempt handler-name collisions. |
 | `@use(MixinA, MixinB)` | comma list | Written inside the model body. Expanded at parse time; the model's own field wins on a name clash. |

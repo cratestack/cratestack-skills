@@ -438,8 +438,10 @@ actually catch people:
 
 ## `transport rpc` — what changes at schema level
 
-Exactly two things the parser cares about: `@@subscribe` on a model **requires**
-`transport rpc`, and `@status(...)` on a procedure is **rejected** under it.
+Exactly one thing the parser cares about: `@status(...)` on a procedure is
+**rejected** under it. Until cratestack#1267 (unreleased) `@@subscribe` on a model
+also **required** `transport rpc`; it now works under REST too
+(`GET /<plural>/$subscribe`).
 Everything else about RPC is a codegen concern — see `cratestack-rpc`.
 
 ## Deeper references

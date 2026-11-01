@@ -322,7 +322,10 @@ Writes enqueue an outbox row **inside the mutation's transaction**; `drain()`
 flushes undelivered rows — which is also the required opt-in after a
 caller-managed `run_in_tx` commit.
 
-`@@subscribe` (RPC only) adds an SSE endpoint. Each event passes the
+`@@subscribe` adds an SSE endpoint: `/rpc/subscribe/model.<M>.subscribe` under
+`transport rpc`, `GET /<plural>/$subscribe` under REST *(REST since unreleased,
+cratestack#1267; RPC-only before)*. A feed takes `list`'s filter syntax plus
+`operations` and `fields`, and a caller no row could pass is refused at open. Each event passes the
 subscriber's read policy (the model's `detail`/`read` rules, as `get`) and is
 dropped if the subscriber may not read it; details in `cratestack-rpc`. In 0.17.0
 and earlier **no** row-level policy was applied: any caller the `AuthProvider`
