@@ -271,7 +271,8 @@ Clients that speak WebTransport *(unreleased)*: the generated TypeScript client
 (`subscriptions.webTransport.url`, cratestack PR #1269) and the generated Rust
 client (`ClientConfig::with_webtransport`; the `webtransport` feature on
 `cratestack-client`, `client-webtransport` on the server facades, cratestack PR
-#1270). Both put it first in `"auto"` / `Auto`. The Dart client does not. See
+#1270), and the Dart client on Flutter web (cratestack PR #1271; its `auto`
+needs `credentials` set before it uses any socket). All put it first in `auto`. See
 [the subscriptions reference](references/subscriptions.md). Server test:
 `crates/cratestack-pg/tests/webtransport_model_feed.rs`. Wire protocol, close
 codes, limits and deployment notes: `crates/cratestack-webtransport/README.md`
