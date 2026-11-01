@@ -1,4 +1,4 @@
-# Subscription procedures, topics, the WebSocket binding, the Rust client
+# Subscription procedures, topics, the WebSocket binding, the clients
 
 > **Verified against CrateStack `main` after 0.17.2** — everything here is
 > *(unreleased, cratestack#1268)*. None of it exists in a published crate yet.
@@ -196,5 +196,68 @@ while let Some(item) = lines.recv().await { let line = item?; }
 - **SSE** is always a `GET` with the input as the query string, signed by the
   request authorizer like any call. The socket's upgrade carries the
   authorizer's headers for `GET /rpc/ws`.
-- **Not built**: no Rust WebTransport client yet; TypeScript and Dart clients
-  are the next slices.
+- **Not built**: no Rust WebTransport client yet.
+
+## The TypeScript client
+
+*(unreleased, cratestack PR #1269)*. A package generated from a schema with an
+`@@subscribe` model or a `subscription procedure` gains `src/subscriptions.ts`
+and `src/subscription-sockets.ts`; any other schema generates exactly as before.
+
+```ts
+const client = new Client(origin, {
+  subscriptions: {
+    transport: "auto", // "webtransport" | "websocket" | "sse"
+    webTransport: { url: "https://api.example.com:4433/rpc/wt" }, // its own UDP address
+  },
+});
+for await (const event of client.notes.subscribe({ operations: ["created"] }, { signal })) {
+  event.data; // a revived Note; event.operation is "Created" | "Updated" | "Deleted"
+}
+for await (const line of client.procedures.lines({ args: { roomId: "r1" } })) { /* ... */ }
+```
+
+- The first `next()` resolves after `Ready` (and calls `onReady`). A refusal or a
+  terminal error is a thrown `CratestackSubscriptionError { code, message, details, status }`.
+  Breaking out of the loop, or aborting `signal`, cancels.
+- **`"auto"`** tries WebTransport (only with `webTransport.url` and a platform
+  `WebTransport`), then one shared WebSocket, then SSE over `fetch`. A binding that
+  never opens falls back; a refusal is thrown, never a fallback. A WebTransport
+  attempt not `Ready` within 3 s is remembered in `localStorage` for 10 minutes per
+  origin. Node has no `WebTransport`, so there it starts at the WebSocket.
+- A self-signed dev certificate is pinned with
+  `webTransport.serverCertificateHashes: [{ algorithm: "sha-256", value }]`.
+- **Hooks**: `--swr` adds `useSubscription(key, open)` (`<package>/swr`);
+  `--tanstack` adds `useSubscriptionQuery(key, open, { onItem, queryOptions })` and
+  `subscriptionQueryOptions(queryClient, key, open)`: the query's `data` is the
+  latest item, and its last observer leaving aborts the subscription. Invalidate a
+  list's key in `onItem` to keep it fresh.
+
+## The Dart client
+
+*(unreleased, cratestack PR #1269)*. SSE only, through the same
+`CratestackHttpTransport` every call uses (Dio, fespalier, the Rust transport). It
+needs the generated `CratestackHttpAdapter` / `CratestackRpcHttpAdapter`; any other
+adapter gets an `UnsupportedError` stream.
+
+```dart
+client.notes
+    .subscribe(input: const CratestackSubscribeInput(operations: ['created']))
+    .listen((event) => event.data); // CratestackModelEvent<Note>
+client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print);
+```
+
+- Nothing before `Ready` (`onReady:`); a refusal or terminal error is a
+  `CratestackSubscriptionException`; cancelling the listen aborts the request.
+- **`--preset riverpod`** (and `fespalier`) adds a `@riverpod` stream provider per
+  op: `noteEventsProvider(input: ...)` and `linesProvider(args)`.
+  `CratestackSubscribeInput` compares by its query string, so an equal input
+  reuses the subscription.
+- No Dart WebSocket or WebTransport binding yet.
+
+## A worked example
+
+`examples/realtime-chat` (cratestack PR #1269) puts it together: a model feed, a
+topic behind a subscription procedure, all three bindings with a `DevCertificate`
+for local WebTransport, and `just test-realtime-chat` proving in Chromium that
+`"auto"` uses WebTransport with UDP open and the WebSocket with UDP blocked.

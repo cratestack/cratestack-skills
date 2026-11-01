@@ -209,6 +209,10 @@ sync-engine entry below is in the tag's source but in no published crate.
   `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
   `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
   (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+- **The TypeScript and Dart clients subscribe; `examples/realtime-chat`** (cratestack PR #1269)
+  *(unreleased)*. TypeScript: `subscribe()` on model APIs and `ProceduresApi`, `"auto"`
+  WebTransport → WebSocket → SSE, `useSubscription` (`--swr`), `useSubscriptionQuery`
+  (`--tanstack`). Dart: SSE `Stream`s through the HTTP seam, riverpod stream providers.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
