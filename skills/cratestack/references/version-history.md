@@ -199,6 +199,16 @@ sync-engine entry below is in the tag's source but in no published crate.
   dispatcher). Paging keys, relation/full-text filters and unknown fields are `invalid_argument`.
   `@@subscribe` no longer requires `transport rpc`: REST serves `GET /<plural>/$subscribe`. Owners:
   `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
+- **Subscription procedures and topics; the WebSocket binding; the Rust client subscribes**
+  (cratestack#1268) *(unreleased, cratestack#1268)*. `subscription procedure name(args): Item` (handler
+  resolves to `SubscriptionStream<Output>`; served as `procedure.<name>` on `/rpc/subscribe` — `GET`
+  with JSON-valued query arguments or `POST` with a JSON body — and `GET /$procs/<name>` on REST) and
+  `topic Name(key): Payload` (`db.topics().<topic>(key)`: `publish`, `publish_in_tx`, `subscribe`).
+  With one, the dispatcher is `db.subscriptions(registry)`. `extension websocket { }` + the
+  `websocket` feature: `cratestack-websocket`, `db.subscriptions(..).websocket(config, auth)` at
+  `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
+  `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
+  (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog

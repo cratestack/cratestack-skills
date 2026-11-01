@@ -215,6 +215,24 @@ no input, and anything but `null` or `{}` was refused with `invalid_argument`.
 The generated `db.subscriptions().open_query(op_id, Some(query_string), ctx)`
 takes the query-string form directly. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
+### Subscription procedures, topics, WebSocket, the Rust client *(unreleased, cratestack#1268)*
+
+`subscription procedure name(args: T): Item` and `topic Name(key: String): Payload`
+add application events next to model feeds:
+
+- the procedure's `@allow`/`@deny` is evaluated at open;
+- its handler resolves to a `SubscriptionStream<Output>`;
+- `db.topics().<topic>(key)` is a typed `publish` / `publish_in_tx` /
+  `subscribe` on the backplane.
+
+With a subscription procedure the dispatcher is `db.subscriptions(registry)`.
+`extension websocket { }` plus the `websocket` feature serves everything over one
+WebSocket at `/rpc/ws` (`db.subscriptions(..).websocket(config, auth)`, merged into
+the router). The generated Rust client gains `subscribe()` and one method per
+subscription procedure, over a WebSocket (`client-ws`/`ws` feature) or SSE. Rules,
+the frames, close codes, limits and the client API are in
+[references/subscriptions.md](references/subscriptions.md).
+
 ### Serving subscriptions over WebTransport *(since 0.17.1, cratestack#1255)*
 
 Three layers, like `extension pgvector`:
@@ -395,8 +413,9 @@ bytes REST puts on the query string means the same validator runs unmodified.
 
 Resumable subscriptions (no cursors, no replay), in-batch transactional mode,
 in-batch dependencies, per-frame signing in WebSocket sessions, HTTP/2 push, and
-cross-schema dispatch are all explicit v1 non-features. The **WebSocket binding
-is pending**, gated on a real bidirectional case. Batch parallelisation is
-deferred. The `StreamItem` / `StreamEnd` / `Cancel` frame variants that appear in
-the design doc are wired nowhere (`cratestack_core::codec::StreamEnd` is an
+cross-schema dispatch are all explicit v1 non-features. The **WebSocket binding**
+exists for subscriptions only *(unreleased, cratestack#1268)*; unary calls over it
+stay gated. Batch parallelisation is deferred. The batch protocol's
+`StreamItem` / `StreamEnd` / `Cancel` variants in the design doc are wired nowhere
+(the subscription sessions' `end` and `cancel` frames are a different protocol) (`cratestack_core::codec::StreamEnd` is an
 unrelated envelope-sealing type, and streams cannot be sealed in 0.14.0).

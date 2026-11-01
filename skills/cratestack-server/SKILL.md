@@ -340,6 +340,14 @@ by default *(unreleased, cratestack#1266)*. Behind PgBouncer in transaction mode
 and a single replica. In 0.17.x only the committing replica's subscribers got the
 event. `drain()` claims rows with `FOR UPDATE SKIP LOCKED`, so two replicas never
 both run one `on_<model>_<op>` handler *(unreleased, cratestack#1266)*.
+`subscription procedure`s and `topic`s *(unreleased, cratestack#1268)*: a handler
+resolves to a `SubscriptionStream<Output>` (usually
+`db.topics().<topic>(key).subscribe().await`), and `topics().<topic>(key)` also has
+`publish` and `publish_in_tx(tx, &msg)` (delivered only if `tx` commits; refused with
+`InProcessBackplane`). With one, the dispatcher is `db.subscriptions(registry)`.
+`extension websocket { }` and the `websocket` feature add
+`db.subscriptions(..).websocket(config, auth)`, a router to merge. See
+`cratestack-rpc`.
 
 **`cratestack-outbox` is a different thing.** It is a separate, hand-written
 transactional outbox for *application* domain events; it deliberately does not go
