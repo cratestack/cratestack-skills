@@ -189,14 +189,34 @@ while let Some(item) = lines.recv().await { let line = item?; }
   never an item. Dropping the receiver cancels the subscription.
 - **Model feed items** are `ModelEvent<Model>`. With `fields` the records are
   partial: use `runtime().subscribe::<ModelEvent<serde_json::Value>>(target)`.
-- **`SubscriptionTransport::Auto`** (the default) opens a WebSocket when the
-  client has the `ws` feature: `client-ws` on `cratestack-pg`/`cratestack-api`,
-  `ws` on `cratestack-client`, native targets only. It falls back to SSE only
-  when no socket opens, never on a refusal. Without the feature, `Auto` is SSE.
+- **`SubscriptionTransport::Auto`** (the default) tries, in order, each binding
+  the build has, moving on only when one cannot be opened, never on a refusal:
+  1. **WebTransport**, when the client has the `webtransport` feature and
+     `ClientConfig::with_webtransport(url, trust)` names the listener *(unreleased,
+     cratestack PR #1270)*. A session not open within 3 s counts as unreachable,
+     and that is remembered for 10 minutes.
+  2. **A WebSocket**, with the `ws` feature.
+  3. **SSE**, always.
+
+  Features, native targets only: `client-ws` / `client-webtransport` on
+  `cratestack-pg`/`cratestack-api`; `ws` / `webtransport` on `cratestack-client`.
+  `SubscriptionTransport::WebTransport` / `WebSocket` / `Sse` pin one binding.
 - **SSE** is always a `GET` with the input as the query string, signed by the
   request authorizer like any call. The socket's upgrade carries the
   authorizer's headers for `GET /rpc/ws`.
-- **Not built**: no Rust WebTransport client yet.
+- **WebTransport trust**: `ServerTrust::NativeRoots` in production, or
+  `ServerTrust::CertificateHashes(vec![dev_certificate.sha256])` for a
+  `DevCertificate`. The URL is the listener's own UDP address, e.g.
+  `https://api.example.com:4433/rpc/wt` (`/$wt` on a REST schema).
+
+```rust
+let config = ClientConfig::new(base)
+    .with_webtransport(wt_url, ServerTrust::CertificateHashes(vec![cert.sha256]));
+```
+
+- **Without a generated client**, `cratestack-webtransport`'s `client` feature
+  offers `WebTransportClient::connect(url, trust, headers)` and
+  `subscribe(op, input)`; dropping a `Subscription` cancels it.
 
 ## The TypeScript client
 

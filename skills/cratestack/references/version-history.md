@@ -209,6 +209,11 @@ sync-engine entry below is in the tag's source but in no published crate.
   `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
   `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
   (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+- **The Rust client subscribes over WebTransport** (cratestack PR #1270) *(unreleased)*.
+  `cratestack-webtransport`'s `client` feature (`WebTransportClient`, `ServerTrust`); the Rust
+  client's `webtransport` feature (`client-webtransport` on the server facades),
+  `ClientConfig::with_webtransport`, `SubscriptionTransport::WebTransport`, and `Auto` trying it
+  first.
 - **The TypeScript and Dart clients subscribe; `examples/realtime-chat`** (cratestack PR #1269)
   *(unreleased)*. TypeScript: `subscribe()` on model APIs and `ProceduresApi`, `"auto"`
   WebTransport → WebSocket → SSE, `useSubscription` (`--swr`), `useSubscriptionQuery`
