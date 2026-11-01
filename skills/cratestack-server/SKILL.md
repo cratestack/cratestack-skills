@@ -330,7 +330,13 @@ admitted, anonymous included, received every event — do not subscribe a
 per-caller-sensitive model on those versions *(fixed since 0.17.1, cratestack#1253)*.
 The same feeds can be served over WebTransport with `extension webtransport { }`
 and the `webtransport` feature: `db.subscriptions().webtransport(config, auth)`
-*(since 0.17.1, cratestack#1255)*. See `cratestack-rpc`.
+*(since 0.17.1, cratestack#1255)*. See `cratestack-rpc`. Events reach subscribers
+on **every** replica through the subscription backplane, Postgres `LISTEN`/`NOTIFY`
+by default *(unreleased, cratestack#1266)*. Behind PgBouncer in transaction mode, use
+`.with_backplane(Arc::new(cratestack::InProcessBackplane::new()))` on the builder,
+and a single replica. In 0.17.x only the committing replica's subscribers got the
+event. `drain()` claims rows with `FOR UPDATE SKIP LOCKED`, so two replicas never
+both run one `on_<model>_<op>` handler *(unreleased, cratestack#1266)*.
 
 **`cratestack-outbox` is a different thing.** It is a separate, hand-written
 transactional outbox for *application* domain events; it deliberately does not go

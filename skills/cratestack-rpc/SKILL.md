@@ -121,16 +121,31 @@ an `internal` frame.
 
 `@@subscribe` on a model requires `transport rpc` **and** requires `@@emit(...)`.
 
-`GET /rpc/subscribe/{op_id}` with `Accept: text/event-stream`. One
-`event: message` per item carrying `{"id": <n>, "next": <item>}` where `id` is a
-server-assigned counter starting at 1, and exactly one terminal `event: error`
-carrying `{"id": <n>, "err": {…}}`. Payloads are **always JSON** regardless of
-the negotiated codec.
+`GET /rpc/subscribe/{op_id}` with `Accept: text/event-stream`. First
+`event: ready` carrying `{"id": 1, "ready": {}}` *(unreleased, cratestack#1266)*:
+the subscription is live, and nothing committed after it is missed. Then one
+`event: message` per item carrying `{"id": <n>, "next": <item>}`, ids counting up
+from 2, and exactly one terminal `event: error` carrying `{"id": <n>, "err": {…}}`.
+In 0.17.x there is no `ready` event, and items start at id 1. Payloads are **always
+JSON** regardless of the negotiated codec.
 
 On overflow the terminal error is `unavailable` / `"subscription lagged"`. The
-buffer is 64 items and the first overflow closes the channel permanently. The
-only other ways a stream ends are a read policy it could not decide for one
-event (below) and a client disconnect.
+buffer is 64 items and the first overflow closes the channel permanently. A
+stream also ends with `unavailable` / `"subscription interrupted"` when the
+backplane may have lost events (below), with an undecidable read policy (below),
+or on a client disconnect. A client treats either `unavailable` as "resubscribe
+and refetch".
+
+**Every replica sees every event** *(unreleased, cratestack#1266)*. Events reach
+subscribers through the subscription backplane. The default `PgNotifyBackplane`
+uses Postgres `LISTEN`/`NOTIFY`, and the writing transaction itself notifies, so a
+subscriber on replica B sees a write committed on replica A. When the listener
+reconnects, every subscription on that replica ends with `"subscription
+interrupted"`. Behind PgBouncer in transaction mode, `LISTEN` does not work: run a
+single replica with `Cratestack::builder(pool).with_backplane(Arc::new(cratestack::InProcessBackplane::new()))`.
+In 0.17.x, events reached only the subscribers of the replica that committed the
+write, so do not run more than one replica with subscriptions on those versions.
+Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/replicas.rs`.
 
 **Each event passes the subscriber's read policy** *(since 0.17.1,
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the

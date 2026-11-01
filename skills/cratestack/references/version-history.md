@@ -183,6 +183,13 @@ sync-engine entry below is in the tag's source but in no published crate.
   set only by generated code (`#[doc(hidden)]` `__generated_claim_auth_refusal`,
   `__generated_dispatch_with_db`). On 0.17.1 every refusal is recorded. Owner:
   `cratestack-data-integrity` (+ `cratestack-policy-auth`, `cratestack-mcp`, `cratestack-clients`).
+- **Subscriptions reach every replica: the subscription backplane** (cratestack#1266)
+  *(unreleased, cratestack#1266)*. `SubscriptionBackplane`, with `PgNotifyBackplane` (the default;
+  the writing transaction notifies for `@@subscribe` models) and `InProcessBackplane`, swapped with
+  `Cratestack::builder(pool).with_backplane(..)`. SSE sends `event: ready` first, and items start at
+  id 2. A listener reconnect ends subscriptions with `"subscription interrupted"`. The outbox drain
+  claims rows with `FOR UPDATE SKIP LOCKED`. On 0.17.x only the committing replica's subscribers get
+  an event. Owners: `cratestack-rpc`, `cratestack-server`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
