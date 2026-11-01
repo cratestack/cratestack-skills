@@ -387,6 +387,12 @@ adds `src/swr/` reachable as `<package>/swr`, `--tanstack` adds
 `src/react-query.ts`, `--rtk` adds `src/rtk-api.ts`, `--refine` adds
 `src/refine.ts`.
 
+Subscriptions *(unreleased, cratestack PR #1269)*: a schema with a subscription op
+also gets `src/subscriptions.ts` (WebTransport → WebSocket → SSE with `"auto"`),
+`useSubscription` under `--swr` and `useSubscriptionQuery` under `--tanstack`; Dart
+gets SSE `Stream`s and, under `riverpod`/`fespalier`, a stream provider per op. See
+[cratestack-rpc's subscriptions reference](../cratestack-rpc/references/subscriptions.md).
+
 `--rtk` *(since 0.12.0)*: its interesting part is that a **procedure's
 invalidation tags are derived from the schema** — the generator walks the procedure's own args and return type
 (recursing through `Page<T>` and `FindMany<T>`) and turns the models it finds
