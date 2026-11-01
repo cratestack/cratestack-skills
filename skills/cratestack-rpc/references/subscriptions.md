@@ -255,10 +255,24 @@ for await (const line of client.procedures.lines({ args: { roomId: "r1" } })) { 
 
 ## The Dart client
 
-*(unreleased, cratestack PR #1269)*. SSE only, through the same
-`CratestackHttpTransport` every call uses (Dio, fespalier, the Rust transport). It
-needs the generated `CratestackHttpAdapter` / `CratestackRpcHttpAdapter`; any other
-adapter gets an `UnsupportedError` stream.
+*(unreleased, cratestack PR #1269; sockets cratestack PR #1271)*. SSE goes through
+the same `CratestackHttpTransport` every call uses (Dio, fespalier, the Rust
+transport). A WebSocket (native and web) and WebTransport (Flutter web only, the
+browser's own) are opened by the client itself. It needs the generated
+`CratestackHttpAdapter` / `CratestackRpcHttpAdapter`; any other adapter gets an
+`UnsupportedError` stream.
+
+```dart
+final client = MyCratestackClient(
+  CratestackRpcHttpAdapter(CratestackDioTransport(dio), baseUri: base),
+  subscriptions: CratestackSubscriptionOptions(
+    // A socket does not go through the HTTP transport: give it what your
+    // transport adds. Until this is set, `auto` stays on SSE.
+    credentials: () => {'authorization': 'Bearer $token'},
+    webTransportUrl: Uri.parse('https://api.example.com:4433/rpc/wt'), // web only
+  ),
+);
+```
 
 ```dart
 client.notes
@@ -273,7 +287,17 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   op: `noteEventsProvider(input: ...)` and `linesProvider(args)`.
   `CratestackSubscribeInput` compares by its query string, so an equal input
   reuses the subscription.
-- No Dart WebSocket or WebTransport binding yet.
+- **`auto`** (the default) tries WebTransport (on the web, with
+  `webTransportUrl`), then the WebSocket, then SSE, moving on only when a binding
+  cannot be opened, never on a refusal. 3 s WebTransport bound, a failure
+  remembered 10 minutes. **Without `credentials`, `auto` is SSE**: do not expect
+  a socket until you set it (return `{}` for a server allowing anonymous
+  subscriptions).
+- `transport: CratestackSubscriptionTransport.webSocket` / `.webTransport` /
+  `.sse` pins one. `serverCertificateHashes` pins a self-signed dev
+  certificate; `webSocketUrl` overrides the derived `ws(s)://<base>/rpc/ws`.
+- In the riverpod preset, override `<prefix>SubscriptionOptionsProvider`.
+- Native Dart has no WebTransport: there `auto` starts at the WebSocket.
 
 ## A worked example
 
