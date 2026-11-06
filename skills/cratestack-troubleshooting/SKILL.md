@@ -405,8 +405,10 @@ traffic **unprotected**, not refused.
 nothing was verified: the request's `Cratestack-Payload-Type` is a type the op does not allow
 (415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
 layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
-intersected with its route's `capabilities.request_types` / `response_types`; `/rpc/batch` is CBOR
-only. A `JsonCodec` (or form-in/JSON-out) client against a layer that did not opt in lands here, as
+intersected with its route's `capabilities.request_types` / `response_types` (a compact type
+counts as declared when its plain type is, on `main`, unreleased); `/rpc/batch` is CBOR
+only. A sealed compact-keys client whose layer lists the compact types for responses but not for
+requests gets a 415 on every other call: list them in both sets. A `JsonCodec` (or form-in/JSON-out) client against a layer that did not opt in lands here, as
 `EnvelopeError::Unsigned { status: 415 }` or `406` on the client. A `400` from the same headers
 means one was sent twice or is outside the grammar (a lowercase `type/subtype`, no parameters, no
 `q`, no wildcard). A coarse `401` after setting the header means the payload was sealed under a
