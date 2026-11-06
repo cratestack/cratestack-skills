@@ -206,7 +206,7 @@ records written by 0.13.0 stop replaying and MCP rate-limit buckets start fresh.
     `cratestack-policy-auth`. Test: `crates/cratestack-api/tests/mcp_authn.rs`.
 - **Idempotency.** A key goes in `_meta["dev.cratestack/idempotencyKey"]`; without one,
   a retried mutation runs again. `idempotentHint` is never `true` on a mutation.
-  *(unreleased, cratestack#1261)* A refusal of the tool's generated authorize step (`@allow`/`@deny`,
+  *(since 0.17.2, cratestack#1261)* A refusal of the tool's generated authorize step (`@allow`/`@deny`,
   `@authn`, `@authorize`) is not recorded: admission releases the key, so the caller who stepped
   up runs the tool once under the same key. A refusal the implementation returns is recorded. On
   0.17.1 both are recorded.

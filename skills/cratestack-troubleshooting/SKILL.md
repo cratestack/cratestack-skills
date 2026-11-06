@@ -109,11 +109,11 @@ they appear at the `include_*_schema!` call site.
 | ``the macro's `db` argument and the schema's own `datasource` declaration must agree`` | `db = Postgres` against `provider = "sqlite"`, or similar | change one to match |
 | `Declaring an extension only unlocks schema syntax (layer 1)` | `extension pgvector { }` declared but the Cargo feature is off | `features = ["pgvector"]` on the facade |
 | `can never support it, no matter which Cargo features are enabled` | a Postgres-only extension under `include_embedded_schema!` | use the server macro or drop the extension |
-| `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` (or `websocket`, *unreleased, cratestack#1268*) in a schema with no `@@subscribe` model or `subscription procedure` | add `@@subscribe` to a model (under `transport rpc` in 0.17.x; under either transport *(unreleased, cratestack#1267)*) or drop the extension |
-| ``subscription procedure `x` cannot declare `@stream` ``, or `@isolation`, `@no_idempotency`, `@status`, `@no_rate_limit`, `@mcp` *(unreleased, cratestack#1268)* | a unary-call attribute on a subscription | drop it; the message names why it does not apply |
-| `must return a single item type` *(unreleased, cratestack#1268)* | `subscription procedure x(..): T[]` | return `T`: each item of the stream is one value |
-| ``topic `X` needs a subscription backplane, and `db = None` has none yet`` *(cratestack#1268 only; gone since cratestack PR #1280, unreleased)* | a `topic` under `include_server_schema!(.., db = None)` on a `main` from between those PRs | update: `db = None` topics compile now, on an in-process backplane |
-| `the trait bound … Copy` / `use of moved value` on a `db = None` `Cratestack` *(unreleased, cratestack PR #1280)* | the schema gained a `topic`, so `Cratestack` holds the backplane and is `Clone`, not `Copy` | `.clone()` it where it was copied |
+| `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` (or `websocket`, *since 0.18.0, cratestack#1268*) in a schema with no `@@subscribe` model or `subscription procedure` | add `@@subscribe` to a model (under `transport rpc` in 0.17.x; under either transport *(since 0.18.0, cratestack#1267)*) or drop the extension |
+| ``subscription procedure `x` cannot declare `@stream` ``, or `@isolation`, `@no_idempotency`, `@status`, `@no_rate_limit`, `@mcp` *(since 0.18.0, cratestack#1268)* | a unary-call attribute on a subscription | drop it; the message names why it does not apply |
+| `must return a single item type` *(since 0.18.0, cratestack#1268)* | `subscription procedure x(..): T[]` | return `T`: each item of the stream is one value |
+| ``topic `X` needs a subscription backplane, and `db = None` has none yet`` *(cratestack#1268 only; gone since 0.18.0, cratestack PR #1280)* | a `topic` under `include_server_schema!(.., db = None)` on a `main` from between those PRs | update: `db = None` topics compile now, on an in-process backplane |
+| `the trait bound … Copy` / `use of moved value` on a `db = None` `Cratestack` *(since 0.18.0, cratestack PR #1280)* | the schema gained a `topic`, so `Cratestack` holds the backplane and is `Clone`, not `Copy` | `.clone()` it where it was copied |
 | `serves no subscriptions, so there is nothing for it to bind` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
 | `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
@@ -251,7 +251,7 @@ resolver is not `Clone`, so one instance cannot be passed to both.
 
 **A generated TypeScript RPC client gets 406 or 415.** It defaults to native
 CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with
-`codec: jsonRpcCodec`. Do not reach for `--no-native-cbor`: it is *(removed on `main`, unreleased, cratestack#1281)*.
+`codec: jsonRpcCodec`. Do not reach for `--no-native-cbor`: it is *(removed in 0.18.0, cratestack#1281)*.
 
 **A CBOR request is answered `400` `CODEC_ERROR` (REST) or `invalid_argument` (`/rpc`), with the public message `invalid request payload`** *(since 0.16.0, cratestack#1153)*.
 The operator detail says `failed to decode CBOR body: N bytes left unconsumed after the value`:
@@ -300,7 +300,7 @@ released. If it is frequent, reduce contention or raise
 
 **A retry after stepping up (or renewing) gets the same `401`, with
 `Idempotency-Replayed: true`** (on MCP, `_meta["dev.cratestack/idempotencyReplayed"]`) *(0.17.1; this one is a real bug, cratestack#1261,
-fixed on `main`, unreleased)*. The idempotency layer, and MCP's admission, record a `401` `AuthRefusal`
+fixed in 0.17.2)*. The idempotency layer, and MCP's admission, record a `401` `AuthRefusal`
 like any other answer, the `@authn` step-up included, so the same key replays it and
 the procedure never runs. It bites `retry_after_step_up` / `retryAfterStepUp` when the
 retried call carries a fixed key. The refusal came before the procedure body, so
@@ -406,7 +406,7 @@ nothing was verified: the request's `Cratestack-Payload-Type` is a type the op d
 (415), or none of the types in `Cratestack-Payload-Accept` is one the op can answer in (406). The
 layer allows CBOR alone unless it called `.payload_media_types(..)`, and an op allows that set
 intersected with its route's `capabilities.request_types` / `response_types` (a compact type
-counts as declared when its plain type is, on `main`, unreleased); `/rpc/batch` is CBOR
+counts as declared when its plain type is, since 0.18.0); `/rpc/batch` is CBOR
 only. A sealed compact-keys client whose layer lists the compact types for responses but not for
 requests gets a 415 on every other call: list them in both sets. A `JsonCodec` (or form-in/JSON-out) client against a layer that did not opt in lands here, as
 `EnvelopeError::Unsigned { status: 415 }` or `406` on the client. A `400` from the same headers
@@ -416,7 +416,7 @@ different type than the header says. `EnvelopeError::UnexpectedPayloadType { got
 is the other direction: the response was sealed under a type the call did not list in
 `HttpClientCodec::payload_accept`, and was never opened.
 
-**A subscription answers 400, 401 or 403 instead of streaming** *(unreleased,
+**A subscription answers 400, 401 or 403 instead of streaming** *(since 0.18.0,
 cratestack#1267)*. These are refusals at open, sent as a JSON body with their own status.
 401 or 403: no row could pass the model's read policy for this caller, as with an
 anonymous caller on an `ownerId == auth().id` model. On 0.17.x that was an empty feed

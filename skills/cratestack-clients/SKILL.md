@@ -233,10 +233,10 @@ ProviderScope(overrides: [
   `crates/cratestack-client-rust/src/step_up/tests.rs`,
   `crates/cratestack-client-dart/tests/fixtures/step_up_{rest,rpc}_test.dart`,
   `crates/cratestack-client-typescript/tests/step_up.rs`. None of this exists on 0.17.0.
-  A call retried under the **same idempotency key** gets the recorded 401 back on 0.17.1; *(unreleased, cratestack#1261)*
+  A call retried under the **same idempotency key** gets the recorded 401 back on 0.17.1; *(since 0.17.2, cratestack#1261)*
   the server releases the key for a refusal produced before the body, so that retry runs once.
 
-  **Known issue on 0.17.1** (cratestack#1261, fixed on `main`, unreleased): the idempotency layer records the step-up
+  **Known issue on 0.17.1** (cratestack#1261, fixed in 0.17.2): the idempotency layer records the step-up
   `401` like any other answer, so a call retried under the **same** `Idempotency-Key`
   (`idempotencyKey` call option, `_meta` key on MCP) gets the stored refusal replayed and never
   runs. The same goes for a retry after renewing an expired credential. Do not write code that
@@ -387,7 +387,7 @@ adds `src/swr/` reachable as `<package>/swr`, `--tanstack` adds
 `src/react-query.ts`, `--rtk` adds `src/rtk-api.ts`, `--refine` adds
 `src/refine.ts`.
 
-Subscriptions *(unreleased, cratestack PR #1269)*: a schema with a subscription op
+Subscriptions *(since 0.18.0, cratestack PR #1269)*: a schema with a subscription op
 also gets `src/subscriptions.ts` (WebTransport → WebSocket → SSE with `"auto"`),
 `useSubscription` under `--swr` and `useSubscriptionQuery` under `--tanstack`; Dart
 gets SSE `Stream`s and, under `riverpod`/`fespalier`, a stream provider per op. See
@@ -416,7 +416,7 @@ wire response still goes through revival, and REST endpoints use
 RPC clients *in 0.8.14* (#746). Re-running `generate-typescript` on an RPC package
 generated before that silently upgrades its wire codec from JSON to CBOR. A JSON-only server `CodecSet` then answers 406/415. Either mount
 `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`.
-On 0.17.2 `--no-native-cbor` also works; it is *(removed on `main`, unreleased, cratestack#1281)*, so prefer `codec:`.
+On 0.17.2 `--no-native-cbor` also works; it is *(removed in 0.18.0, cratestack#1281)*, so prefer `codec:`.
 
 ### Always revive
 
@@ -476,10 +476,10 @@ strings and filters still use names.
 A client generated before the enum was numbered cannot read the numbers: regenerate and ship
 clients with the server.
 
-### Compact field keys *(on `main`, unreleased)*
+### Compact field keys *(since 0.18.0)*
 
 Opt-in, off by default: a client that enables it gets integer field keys negotiated per op
-contract (`docs/design/compact-wire-keys.md`, CHANGELOG `## Unreleased`). The server side is
+contract (`docs/design/compact-wire-keys.md`, CHANGELOG `## 0.18.0`). The server side is
 automatic in the generated router, and needs no schema change and no flag.
 
 - **Rust:** `Client::with_compact_keys(runtime)` on the generated client, or

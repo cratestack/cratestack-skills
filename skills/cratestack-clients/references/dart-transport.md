@@ -349,7 +349,7 @@ fespalier#277) is the worked version: a Rust CrateStack server (`server/`,
 fespalier` (`client/`, committed, regenerated and compared in CI), and device-signed
 sessions (`fespalier_sign_keypair`: no password, no token, no `Authorization`
 header). It is RPC, uses `--no-native-cbor` so the client needs no native library (that flag is
-*(removed on `main`, unreleased, cratestack#1281)*: regenerating on `main` makes it depend on `cratestack_cbor`),
+*(removed in 0.18.0, cratestack#1281)*: regenerating with 0.18.0 makes it depend on `cratestack_cbor`),
 and pins the CLI by commit. Read it for the wiring (`lib/src/wiring.dart`) before
 inventing one. It also demonstrates the two limits below.
 
@@ -401,5 +401,5 @@ canned answers replaces the old practice of mocking Dio.
 
 The wire: methods, URIs, headers, body bytes, and the `x-cratestack-schema-sha`
 header. The `cratestack_cbor` codec cache (one copy now, shared by both adapters).
-`--no-native-cbor` (itself *(removed on `main`, unreleased, cratestack#1281)*). The `Accept` preference per format. Model and procedure API
+`--no-native-cbor` (itself *(removed in 0.18.0, cratestack#1281)*). The `Accept` preference per format. Model and procedure API
 names.

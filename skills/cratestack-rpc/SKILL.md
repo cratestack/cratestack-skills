@@ -121,25 +121,25 @@ an `internal` frame.
 
 `@@subscribe` on a model requires `@@emit(...)`. Until cratestack#1267 it also
 required `transport rpc`; now a REST schema serves the same feed at
-`GET /<plural>/$subscribe` *(unreleased, cratestack#1267)*, through the same
+`GET /<plural>/$subscribe` *(since 0.18.0, cratestack#1267)*, through the same
 dispatcher, on the same SSE wire.
 
 `GET /rpc/subscribe/{op_id}` with `Accept: text/event-stream`. First
-`event: ready` carrying `{"id": 1, "ready": {}}` *(unreleased, cratestack#1266)*:
+`event: ready` carrying `{"id": 1, "ready": {}}` *(since 0.18.0, cratestack#1266)*:
 the subscription is live, and nothing committed after it is missed. Then one
 `event: message` per item carrying `{"id": <n>, "next": <item>}`, ids counting up
 from 2, and exactly one terminal `event: error` carrying `{"id": <n>, "err": {…}}`.
 In 0.17.x there is no `ready` event, and items start at id 1. Payloads are **always
 JSON** regardless of the negotiated codec. A quiet stream gets a `: keepalive`
-comment every 15 s *(unreleased, cratestack#1267)*.
+comment every 15 s *(since 0.18.0, cratestack#1267)*.
 
 **Errors before the stream** (a refusal, a bad input) are a JSON body with the
 error's own status — 400, 401 with `WWW-Authenticate`, 403, 500 — whatever the
-RPC codec *(unreleased, cratestack#1267)*. In 0.17.x they went through the unary
+RPC codec *(since 0.18.0, cratestack#1267)*. In 0.17.x they went through the unary
 codec negotiation, so an `EventSource` client (`Accept: text/event-stream` only)
 got `406` for every refusal.
 
-**Feed input** *(unreleased, cratestack#1267)*: `list`'s own filter syntax, parsed
+**Feed input** *(since 0.18.0, cratestack#1267)*: `list`'s own filter syntax, parsed
 by the generated `list` parser, plus `operations` and `fields`:
 
 ```text
@@ -159,7 +159,7 @@ not apply to a subscription"); a relation or full-text filter, or one over a
 or field. A row updated **out of** a subscriber's filter or read policy sends
 that subscriber an `Updated` event with `matches: false` whose `data` is the
 **pre-image** (the row as it last could see it): drop the row by primary key,
-never read new values from it *(unreleased, cratestack PR #1282)*. Ordinary
+never read new values from it *(since 0.18.0, cratestack PR #1282)*. Ordinary
 events omit `matches` (it means `true`). No exit event for `update_many`,
 Studio's routed update, or a feed whose `operations` exclude `updated`, so
 still refetch after a bulk update or a reconnect. In 0.17.x a feed took
@@ -173,7 +173,7 @@ backplane may have lost events (below), with an undecidable read policy (below),
 or on a client disconnect. A client treats either `unavailable` as "resubscribe
 and refetch".
 
-**Every replica sees every event** *(unreleased, cratestack#1266)*. Events reach
+**Every replica sees every event** *(since 0.18.0, cratestack#1266)*. Events reach
 subscribers through the subscription backplane. The default `PgNotifyBackplane`
 uses Postgres `LISTEN`/`NOTIFY`, and the writing transaction itself notifies, so a
 subscriber on replica B sees a write committed on replica A. When the listener
@@ -188,7 +188,7 @@ Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/replicas.rs`.
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
 ones `get` applies, decided against the event's record with the context
 captured when the subscription opened. An event the subscriber may not read is
-dropped. A caller **no row could pass** is refused at open *(unreleased,
+dropped. A caller **no row could pass** is refused at open *(since 0.18.0,
 cratestack#1267)*: `unauthenticated` (401) for an anonymous caller, else
 `permission_denied` (403) — so an anonymous subscriber to an
 `ownerId == auth().id` model is refused, where in 0.17.x it held an open, empty
@@ -215,12 +215,12 @@ server schema with a `@@subscribe` model: `SubscriptionDispatch` implements
 SSE endpoint above opens through it, on the same wire as before. A binding gets
 the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
 `op_id = "model.<Model>.subscribe"`, and the read policy comes with it. The input is
-the feed input above *(unreleased, cratestack#1267)*; in 0.17.x a model feed took
+the feed input above *(since 0.18.0, cratestack#1267)*; in 0.17.x a model feed took
 no input, and anything but `null` or `{}` was refused with `invalid_argument`.
 The generated `db.subscriptions().open_query(op_id, Some(query_string), ctx)`
 takes the query-string form directly. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
-### Subscription procedures, topics, WebSocket, the Rust client *(unreleased, cratestack#1268)*
+### Subscription procedures, topics, WebSocket, the Rust client *(since 0.18.0, cratestack#1268)*
 
 `subscription procedure name(args: T): Item` and `topic Name(key: String): Payload`
 add application events next to model feeds:
@@ -272,7 +272,7 @@ from an `Init` frame's headers. These are compile errors:
   serve");
 - the extension under `include_embedded_schema!`.
 
-Clients that speak WebTransport *(unreleased)*: the generated TypeScript client
+Clients that speak WebTransport *(since 0.18.0)*: the generated TypeScript client
 (`subscriptions.webTransport.url`, cratestack PR #1269) and the generated Rust
 client (`ClientConfig::with_webtransport`; the `webtransport` feature on
 `cratestack-client`, `client-webtransport` on the server facades, cratestack PR
@@ -413,7 +413,7 @@ bytes REST puts on the query string means the same validator runs unmodified.
 ## REST-only and RPC-only
 
 - `@status(...)` is **REST-only** and hard-rejected under `transport rpc`.
-- `@@subscribe` was **RPC-only** until cratestack#1267 (unreleased); it now
+- `@@subscribe` was **RPC-only** until cratestack#1267 (0.18.0); it now
   works on both.
 - The `RpcLink` middleware chain is RPC-only.
 - WireMock stubs for RPC model CRUD have **no per-record statefulness** by
@@ -424,7 +424,7 @@ bytes REST puts on the query string means the same validator runs unmodified.
 Resumable subscriptions (no cursors, no replay), in-batch transactional mode,
 in-batch dependencies, per-frame signing in WebSocket sessions, HTTP/2 push, and
 cross-schema dispatch are all explicit v1 non-features. The **WebSocket binding**
-exists for subscriptions only *(unreleased, cratestack#1268)*; unary calls over it
+exists for subscriptions only *(since 0.18.0, cratestack#1268)*; unary calls over it
 stay gated. Batch parallelisation is deferred. The batch protocol's
 `StreamItem` / `StreamEnd` / `Cancel` variants in the design doc are wired nowhere
 (the subscription sessions' `end` and `cancel` frames are a different protocol) (`cratestack_core::codec::StreamEnd` is an

@@ -19,9 +19,9 @@ otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.17.1** (tag `v0.17.1`, 2026-10-31). Its changes, 0.17.0's, 0.16.0's
-and 0.15.4's, are recorded below and marked *(since 0.17.1)* / *(since 0.17.0)* /
-*(since 0.16.0)* / *(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
+The latest release is **0.18.0** (tag `v0.18.0`, 2026-11-06). Its changes, 0.17.2's, 0.17.1's,
+0.17.0's, 0.16.0's and 0.15.4's, are recorded below and marked *(since 0.18.0)* / *(since 0.17.2)* /
+*(since 0.17.1)* / *(since 0.17.0)* / *(since 0.16.0)* / *(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
 latest release, as AGENTS.md requires.
 
 ## Reading order for an upgrade
@@ -53,11 +53,122 @@ each step's breaking changes assume the one before:
    `ClientError::Remote`'s `error` is boxed; `principal_actor_id()` returns a `Cow`; an exhaustive
    `match` on `ExtensionKind` needs the `Webtransport` arm; an `auth` block that declares a
    reserved claim (`roles`, `auth_time`, `amr`, …) with another type fails `check`.
-7. [Unreleased on `main`](#unreleased-on-main-after-0171) only if you build `main`.
+7. [0.17.2](#0172-2026-10-31): a refusal before the body no longer burns the `Idempotency-Key`.
+8. [0.18.0](#0180-2026-11-06): `--no-native-cbor` is gone (generated Dart clients are
+   Flutter-only); hand-written event code sees `Updated { matches: false }` on filter exit and the
+   outbox gains `payload_before`; `cratestack_cose::CallBinding` struct literals gain
+   `payload_type` and `payload_accept`.
+9. [Unreleased on `main`](#unreleased-on-main-after-0180) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
+
+## Unreleased on `main`, after 0.18.0
+
+Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
+security fix merged from a private fork with no PR number. When 0.18.0 was recorded here, the
+only entry below is the sync-engine prototype, which is in the tags' source but in no published
+crate.
+
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
+  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
+  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
+  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
+  must not depend on it.
+
+## 0.18.0 (2026-11-06)
+
+Tag `v0.18.0`. Compact wire keys (plain, streamed and sealed), the removal of
+`--no-native-cbor`, and subscriptions on every binding and client.
+
+- **Breaking: native CBOR is the only codec of generated TypeScript and Dart clients**
+  (cratestack PR #1281) *(since 0.18.0, cratestack#1281)*. `--no-native-cbor` is removed from
+  both generators. A TypeScript RPC client always depends on `@cratestack/cbor`; a generated Dart
+  client is Flutter-only (`cratestack_cbor`), and Windows arm64 (TypeScript) and Linux arm64
+  (Dart) are not covered. Owners: `cratestack-clients`, `cratestack-cli`.
+- **A payload-size gate** (cratestack PR #1281) *(since 0.18.0, cratestack#1281)*.
+  `crates/cratestack-api/tests/payload_sizes.rs` measures representative bodies per codec, raw and
+  gzipped, against a committed baseline; re-baseline with `CRATESTACK_UPDATE_PAYLOAD_SIZES=1`.
+  Owner: `cratestack-contributing`.
+- **Compact wire keys, negotiated per op contract** (cratestack PR #1285, #1292)
+  *(since 0.18.0, cratestack#1285)*. Opt-in integer field keys:
+  `application/vnd.cratestack.compact+{cbor,json,cbor-seq}`, selected by `Cratestack-Contract`;
+  numbering comes from the op contract, older contracts from the `contracts =` lock. Clients:
+  Rust `with_compact_keys`, TypeScript `compactKeys: true` (feature-detects `createCompactKeys`),
+  Dart `CratestackCompactHooks` wired to `createCompactKeys(cratestackKeyTables)`. Under COSE the
+  compact type is the inner payload type (no `+cose` type): list it in the envelope layer's
+  `payload_media_types` for requests and responses; the Rust client negotiates it under
+  `with_envelope`, and the Dart and web sealers take `CallBinding.payloadType` / `payloadAccept`.
+  Breaking for Rust callers building `cratestack_cose::CallBinding` by struct literal (two new
+  fields). Owners: `cratestack-clients`, `cratestack-server`, `cratestack-troubleshooting`.
+- **Subscriptions reach every replica: the subscription backplane** (cratestack#1266)
+  *(since 0.18.0, cratestack#1266)*. `SubscriptionBackplane`, with `PgNotifyBackplane` (the default;
+  the writing transaction notifies for `@@subscribe` models) and `InProcessBackplane`, swapped with
+  `Cratestack::builder(pool).with_backplane(..)`. SSE sends `event: ready` first, and items start at
+  id 2. A listener reconnect ends subscriptions with `"subscription interrupted"`. The outbox drain
+  claims rows with `FOR UPDATE SKIP LOCKED`. On 0.17.x only the committing replica's subscribers get
+  an event. Owners: `cratestack-rpc`, `cratestack-server`.
+- **Subscriptions: refused at open, credential expiry, keepalive, feed input, REST `$subscribe`**
+  (cratestack#1267) *(since 0.18.0, cratestack#1267)*. A caller no row could pass is refused at open
+  (`unauthenticated` / `permission_denied`) instead of getting an empty feed. SSE errors before the
+  stream are JSON with their own status, not `406`. A feed ends with `"credential expired"` at the
+  context's `exp`. SSE sends `: keepalive` after 15 s idle. A feed takes `list`'s filter syntax plus
+  `operations` and `fields` (query string on SSE, `cratestack::rpc::RpcSubscribeInput` through the
+  dispatcher). Paging keys, relation/full-text filters and unknown fields are `invalid_argument`.
+  `@@subscribe` no longer requires `transport rpc`: REST serves `GET /<plural>/$subscribe`. Owners:
+  `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
+- **Subscription procedures and topics; the WebSocket binding; the Rust client subscribes**
+  (cratestack#1268) *(since 0.18.0, cratestack#1268)*. `subscription procedure name(args): Item` (handler
+  resolves to `SubscriptionStream<Output>`; served as `procedure.<name>` on `/rpc/subscribe` — `GET`
+  with JSON-valued query arguments or `POST` with a JSON body — and `GET /$procs/<name>` on REST) and
+  `topic Name(key): Payload` (`db.topics().<topic>(key)`: `publish`, `publish_in_tx`, `subscribe`).
+  With one, the dispatcher is `db.subscriptions(registry)`. `extension websocket { }` + the
+  `websocket` feature: `cratestack-websocket`, `db.subscriptions(..).websocket(config, auth)` at
+  `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
+  `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
+  (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+- **Filter-exit events on model feeds; breaking for hand-written event code** (cratestack PR
+  #1282) *(since 0.18.0)*. An update that moves a row out of a subscriber's filter or read policy
+  sends `Updated` with `matches: false` and the pre-image as `data`. The outbox gains
+  `payload_before` (added once per runtime; add it in a migration for apps that only update via
+  `run_in_tx`). `ModelEvent` / `CratestackEventEnvelope` gain public fields. Owners:
+  `cratestack-rpc`, `cratestack-clients`.
+- **Topics in `db = None` schemas** (cratestack PR #1280) *(since 0.18.0)*. `InProcessBackplane`
+  and `TopicHandle` live in `cratestack-core`; `cratestack-api` exports them (`cratestack::Topic`).
+  The generated `db = None` builder gets `with_backplane`; the default backplane is shared per schema
+  per process. Owners: `cratestack-rpc`, `cratestack-troubleshooting`.
+- **`topics()` on the `@isolation` handle** (cratestack PR #1280) *(since 0.18.0)*.
+  `IsolatedCratestack::topics()`: `publish` delivered only if the attempt commits (in-transaction
+  `pg_notify` on `PgNotifyBackplane`, queued until commit otherwise); `publish_in_tx(tx, ..)` inside
+  `tx_db.transaction(..)`. Identical messages in one transaction are no longer folded into one.
+  Owners: `cratestack-rpc` (`references/subscriptions.md`), `cratestack-data-integrity`.
+- **The Dart client subscribes over WebSocket and WebTransport** (cratestack PR #1271)
+  *(since 0.18.0)*. `CratestackSubscriptionOptions` (`subscriptions:` on the client,
+  `<prefix>SubscriptionOptionsProvider` in riverpod); `auto` WebTransport (web) → WebSocket → SSE,
+  sockets only once `credentials` is set.
+- **The Rust client subscribes over WebTransport** (cratestack PR #1270) *(since 0.18.0)*.
+  `cratestack-webtransport`'s `client` feature (`WebTransportClient`, `ServerTrust`); the Rust
+  client's `webtransport` feature (`client-webtransport` on the server facades),
+  `ClientConfig::with_webtransport`, `SubscriptionTransport::WebTransport`, and `Auto` trying it
+  first.
+- **The TypeScript and Dart clients subscribe; `examples/realtime-chat`** (cratestack PR #1269)
+  *(since 0.18.0)*. TypeScript: `subscribe()` on model APIs and `ProceduresApi`, `"auto"`
+  WebTransport → WebSocket → SSE, `useSubscription` (`--swr`), `useSubscriptionQuery`
+  (`--tanstack`). Dart: SSE `Stream`s through the HTTP seam, riverpod stream providers.
+
+## 0.17.2 (2026-10-31)
+
+- **A refusal before the body releases the `Idempotency-Key`** (cratestack#1261)
+  *(since 0.17.2, cratestack#1261)*. A 401/403 the generated dispatch produces before any procedure body runs
+  (`authenticate`, `@allow`/`@deny`, `@authn`, `@authorize`) is no longer recorded by
+  `IdempotencyLayer` or MCP admission, so a retry after renewal or step-up runs once under the same
+  key; a refusal a body returns is still recorded. New `AuthRefusal::is_dispatch_owned()`; the mark is
+  set only by generated code (`#[doc(hidden)]` `__generated_claim_auth_refusal`,
+  `__generated_dispatch_with_db`). On 0.17.1 every refusal is recorded. Owner:
+  `cratestack-data-integrity` (+ `cratestack-policy-auth`, `cratestack-mcp`, `cratestack-clients`).
 
 ## 0.17.1 (2026-10-31)
 
@@ -161,89 +272,12 @@ CHANGELOG says how), so read them before upgrading.
   `4401` (401), `4403` (403 or a changed principal), `4400` (malformed `Init`) or `4500` (the
   provider could not decide). `CborSeqChunkDecoder` moved to `cratestack-codec-cbor`, still
   re-exported by `cratestack-client-rust`. Owner: `cratestack-rpc` (points at the crate README).
-- **Known issue: a `401` is recorded under an `Idempotency-Key`** (cratestack#1261, fixed on `main`, unreleased: see below). Not a
+- **Known issue: a `401` is recorded under an `Idempotency-Key`** (cratestack#1261, fixed in 0.17.2: see [0.17.2](#0172-2026-10-31)). Not a
   change, a gap in this release: the idempotency layer and MCP's admission record an
   `AuthRefusal` like any other answer, so a retry under the same key after renewing a credential
   or stepping up (`retry_after_step_up` / `retryAfterStepUp` with a fixed key) gets the stored
   `401` replayed and never runs. Owners: `cratestack-data-integrity`, `cratestack-policy-auth`,
   `cratestack-clients`, `cratestack-mcp`.
-
-## Unreleased on `main`, after 0.17.1
-
-Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. When 0.17.1 was recorded
-here, framework `main` was the `v0.17.1` commit and its `## Unreleased` was empty; the
-sync-engine entry below is in the tag's source but in no published crate.
-
-- **A refusal before the body releases the `Idempotency-Key`** (cratestack#1261)
-  *(unreleased, cratestack#1261)*. A 401/403 the generated dispatch produces before any procedure body runs
-  (`authenticate`, `@allow`/`@deny`, `@authn`, `@authorize`) is no longer recorded by
-  `IdempotencyLayer` or MCP admission, so a retry after renewal or step-up runs once under the same
-  key; a refusal a body returns is still recorded. New `AuthRefusal::is_dispatch_owned()`; the mark is
-  set only by generated code (`#[doc(hidden)]` `__generated_claim_auth_refusal`,
-  `__generated_dispatch_with_db`). On 0.17.1 every refusal is recorded. Owner:
-  `cratestack-data-integrity` (+ `cratestack-policy-auth`, `cratestack-mcp`, `cratestack-clients`).
-- **Subscriptions reach every replica: the subscription backplane** (cratestack#1266)
-  *(unreleased, cratestack#1266)*. `SubscriptionBackplane`, with `PgNotifyBackplane` (the default;
-  the writing transaction notifies for `@@subscribe` models) and `InProcessBackplane`, swapped with
-  `Cratestack::builder(pool).with_backplane(..)`. SSE sends `event: ready` first, and items start at
-  id 2. A listener reconnect ends subscriptions with `"subscription interrupted"`. The outbox drain
-  claims rows with `FOR UPDATE SKIP LOCKED`. On 0.17.x only the committing replica's subscribers get
-  an event. Owners: `cratestack-rpc`, `cratestack-server`.
-- **Subscriptions: refused at open, credential expiry, keepalive, feed input, REST `$subscribe`**
-  (cratestack#1267) *(unreleased, cratestack#1267)*. A caller no row could pass is refused at open
-  (`unauthenticated` / `permission_denied`) instead of getting an empty feed. SSE errors before the
-  stream are JSON with their own status, not `406`. A feed ends with `"credential expired"` at the
-  context's `exp`. SSE sends `: keepalive` after 15 s idle. A feed takes `list`'s filter syntax plus
-  `operations` and `fields` (query string on SSE, `cratestack::rpc::RpcSubscribeInput` through the
-  dispatcher). Paging keys, relation/full-text filters and unknown fields are `invalid_argument`.
-  `@@subscribe` no longer requires `transport rpc`: REST serves `GET /<plural>/$subscribe`. Owners:
-  `cratestack-rpc`, `cratestack-server`, `cratestack-schema`.
-- **Subscription procedures and topics; the WebSocket binding; the Rust client subscribes**
-  (cratestack#1268) *(unreleased, cratestack#1268)*. `subscription procedure name(args): Item` (handler
-  resolves to `SubscriptionStream<Output>`; served as `procedure.<name>` on `/rpc/subscribe` — `GET`
-  with JSON-valued query arguments or `POST` with a JSON body — and `GET /$procs/<name>` on REST) and
-  `topic Name(key): Payload` (`db.topics().<topic>(key)`: `publish`, `publish_in_tx`, `subscribe`).
-  With one, the dispatcher is `db.subscriptions(registry)`. `extension websocket { }` + the
-  `websocket` feature: `cratestack-websocket`, `db.subscriptions(..).websocket(config, auth)` at
-  `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
-  `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
-  (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
-- **Filter-exit events on model feeds; breaking for hand-written event code** (cratestack PR
-  #1282) *(unreleased)*. An update that moves a row out of a subscriber's filter or read policy
-  sends `Updated` with `matches: false` and the pre-image as `data`. The outbox gains
-  `payload_before` (added once per runtime; add it in a migration for apps that only update via
-  `run_in_tx`). `ModelEvent` / `CratestackEventEnvelope` gain public fields. Owners:
-  `cratestack-rpc`, `cratestack-clients`.
-- **Topics in `db = None` schemas** (cratestack PR #1280) *(unreleased)*. `InProcessBackplane`
-  and `TopicHandle` live in `cratestack-core`; `cratestack-api` exports them (`cratestack::Topic`).
-  The generated `db = None` builder gets `with_backplane`; the default backplane is shared per schema
-  per process. Owners: `cratestack-rpc`, `cratestack-troubleshooting`.
-- **`topics()` on the `@isolation` handle** (cratestack PR #1280) *(unreleased)*.
-  `IsolatedCratestack::topics()`: `publish` delivered only if the attempt commits (in-transaction
-  `pg_notify` on `PgNotifyBackplane`, queued until commit otherwise); `publish_in_tx(tx, ..)` inside
-  `tx_db.transaction(..)`. Identical messages in one transaction are no longer folded into one.
-  Owners: `cratestack-rpc` (`references/subscriptions.md`), `cratestack-data-integrity`.
-- **The Dart client subscribes over WebSocket and WebTransport** (cratestack PR #1271)
-  *(unreleased)*. `CratestackSubscriptionOptions` (`subscriptions:` on the client,
-  `<prefix>SubscriptionOptionsProvider` in riverpod); `auto` WebTransport (web) → WebSocket → SSE,
-  sockets only once `credentials` is set.
-- **The Rust client subscribes over WebTransport** (cratestack PR #1270) *(unreleased)*.
-  `cratestack-webtransport`'s `client` feature (`WebTransportClient`, `ServerTrust`); the Rust
-  client's `webtransport` feature (`client-webtransport` on the server facades),
-  `ClientConfig::with_webtransport`, `SubscriptionTransport::WebTransport`, and `Auto` trying it
-  first.
-- **The TypeScript and Dart clients subscribe; `examples/realtime-chat`** (cratestack PR #1269)
-  *(unreleased)*. TypeScript: `subscribe()` on model APIs and `ProceduresApi`, `"auto"`
-  WebTransport → WebSocket → SSE, `useSubscription` (`--swr`), `useSubscriptionQuery`
-  (`--tanstack`). Dart: SSE `Stream`s through the HTTP seam, riverpod stream providers.
-- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
-  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
-  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
-  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
-  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
-  must not depend on it.
 
 ## 0.17.0 (2026-10-28)
 

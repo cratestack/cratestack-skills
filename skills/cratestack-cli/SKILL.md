@@ -92,7 +92,7 @@ All three generators share a `--check` drift mode and `--base-path` (default
 | `--fespalier-ref <REF>` | `v0.21.0` (`--preset fespalier` only) |
 | `--check` | off |
 | `--run-build-runner` | off |
-| `--no-native-cbor` | off (native CBOR is on); *(removed on `main`, unreleased, cratestack#1281)* |
+| `--no-native-cbor` | off (native CBOR is on); *(removed in 0.18.0, cratestack#1281)* |
 
 `--preset fespalier` *(since 0.16.0, cratestack#1204)* is the `riverpod` layout sending
 through fespalier's `HttpTransport` instead of Dio: no `dio` in the pubspec, a generated
@@ -105,7 +105,7 @@ empty value or one holding whitespace. See `cratestack-clients` for when to pick
 `--run-build-runner` shells out to
 `dart run build_runner build --delete-conflicting-outputs` in `--out`, and **has
 no effect with `--check`**. On 0.17.2, `--no-native-cbor` (pure-Dart `package:cbor`) is needed only
-on Linux arm64 or outside Flutter. It is *(removed on `main`, unreleased, cratestack#1281)*: generated Dart clients then always depend on
+on Linux arm64 or outside Flutter. It is *(removed in 0.18.0, cratestack#1281)*: generated Dart clients now always depend on
 the Flutter plugin `cratestack_cbor`, so Linux arm64 and plain-Dart programs are unsupported.
 `--native-cbor` was removed and is now an unknown-flag error, not a silent no-op.
 
@@ -119,13 +119,13 @@ the Flutter plugin `cratestack_cbor`, so Linux arm64 and plain-Dart programs are
 | `--template-dir` | none |
 | `--check`, `--full-selection` | off |
 | `--swr`, `--refine`, `--tanstack`, `--rtk` | off |
-| `--no-native-cbor` | off; *(removed on `main`, unreleased, cratestack#1281)* |
+| `--no-native-cbor` | off; *(removed in 0.18.0, cratestack#1281)* |
 
 **The four layer flags are purely additive** — the default `src/` layout is
 always emitted. `--swr` adds `src/swr/`, `--refine` adds `src/refine.ts`,
 `--tanstack` adds `src/react-query.ts`, `--rtk` adds `src/rtk-api.ts` plus the
 RTK peer dependencies. `--no-native-cbor` has **no effect on a REST-transport
-schema**; the one napi gap is `win32-arm64`. Once the flag is *(removed on `main`, unreleased, cratestack#1281)*, RPC clients
+schema**; the one napi gap is `win32-arm64`. Since the flag was *(removed in 0.18.0, cratestack#1281)*, RPC clients
 always depend on `@cratestack/cbor`, `win32-arm64` is unsupported, and JSON on the wire is
 `codec: jsonRpcCodec` at construction.
 
