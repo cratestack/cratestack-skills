@@ -484,7 +484,11 @@ automatic in the generated router, and needs no schema change and no flag.
 
 - **Rust:** `Client::with_compact_keys(runtime)` on the generated client, or
   `CratestackClient::with_compact_keys(KeyTables)` / `with_compact_key_bytes(KEY_TABLES,
-  OP_CONTRACTS)` on the runtime. Sealed (COSE) calls stay named.
+  OP_CONTRACTS)` on the runtime. With `with_envelope` too, sealed calls negotiate the same way:
+  the compact types go first in `Cratestack-Payload-Accept`, the request is sealed under
+  `application/vnd.cratestack.compact+cbor` only after that op answered compact, and an unsigned
+  `415` (`EnvelopeError::Unsigned { status: 415 }`) turns the op back to named for the next call;
+  that call is not retried (`crates/cratestack-api/tests/compact_client_sealed_rest.rs`).
 - **TypeScript:** `compactKeys: true` in the RPC or REST client options. It feature-detects
   `createCompactKeys` on `@cratestack/cbor` and stays named on a version without it. A REST
   package lists `@cratestack/cbor` as an optional peer dependency.
@@ -492,6 +496,13 @@ automatic in the generated router, and needs no schema change and no flag.
   keys.fromCompact, selector: keys.selector)` to the HTTP adapter, with `keys = await
   createCompactKeys(cratestackKeyTables)` from `cratestack_cbor`. Compact is CBOR format only.
   Generated Dart code never calls the binding itself.
+- **Sealing your own Dart call** (`ClientEnvelope` from `cratestack_cbor`): `CallBinding` takes
+  `payloadType` (`'application/vnd.cratestack.compact+cbor'`) and `payloadAccept`; send
+  `envelope.selectorHeaders(binding)` with the sealed body; pass the response's
+  `Cratestack-Payload-Type` as `openResponse(..., responsePayloadType:)` and check
+  `opened.payloadType` before `keys.fromCompact`. Omitting both fields is plain CBOR, unchanged.
+  The web build's binding object takes `payloadType` / `payloadAccept` the same way. Not
+  exercised by a Dart test run in this repo yet (`dart-packages/cratestack_cbor/test/cose/misuse_test.dart`).
 - **Do not hand-roll it.** Never write integer keys or the `application/vnd.cratestack.compact+*`
   media types yourself. A compact request body is only sent after the server answered compact
   for that op; a body with an unknown `Cratestack-Contract` selector is a `415`.

@@ -313,8 +313,12 @@ native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Moun
 `application/vnd.cratestack.compact+{cbor,json,cbor-seq}` by itself, per op, from the
 `Cratestack-Contract` selector. Old contracts are served compactly too when the schema macro is
 given `contracts = "<lock>"`. Nothing to configure on the server. Under the COSE envelope layer,
-add the compact types to `payload_media_types`. See `cratestack-clients` for enabling it on a
-client.
+list the compact types in `payload_media_types` for requests **and** responses together, e.g.
+`.payload_media_types(["application/cbor", "application/vnd.cratestack.compact+cbor"],
+["application/cbor", "application/vnd.cratestack.compact+cbor"])`. A route permits a compact type
+exactly when it declares the plain one (`crates/cratestack-axum/src/envelope_layer/payload.rs`),
+`/rpc/batch` stays CBOR, and signed streams are never compact (`+cbor-seq` is unsealable). See
+`cratestack-clients` for enabling it on a client.
 
 ## Events and the outbox
 
