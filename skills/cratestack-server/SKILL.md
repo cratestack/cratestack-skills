@@ -309,6 +309,13 @@ native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Moun
 `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`
 (`--no-native-cbor` is *(removed on `main`, unreleased, cratestack#1281)*).
 
+**Compact field keys** *(on `main`, unreleased)*: the generated router negotiates
+`application/vnd.cratestack.compact+{cbor,json,cbor-seq}` by itself, per op, from the
+`Cratestack-Contract` selector. Old contracts are served compactly too when the schema macro is
+given `contracts = "<lock>"`. Nothing to configure on the server. Under the COSE envelope layer,
+add the compact types to `payload_media_types`. See `cratestack-clients` for enabling it on a
+client.
+
 ## Events and the outbox
 
 `@@emit(created, updated, deleted)` generates, inside `cratestack_schema::events`:

@@ -476,6 +476,26 @@ strings and filters still use names.
 A client generated before the enum was numbered cannot read the numbers: regenerate and ship
 clients with the server.
 
+### Compact field keys *(on `main`, unreleased)*
+
+Opt-in, off by default: a client that enables it gets integer field keys negotiated per op
+contract (`docs/design/compact-wire-keys.md`, CHANGELOG `## Unreleased`). The server side is
+automatic in the generated router, and needs no schema change and no flag.
+
+- **Rust:** `Client::with_compact_keys(runtime)` on the generated client, or
+  `CratestackClient::with_compact_keys(KeyTables)` / `with_compact_key_bytes(KEY_TABLES,
+  OP_CONTRACTS)` on the runtime. Sealed (COSE) calls stay named.
+- **TypeScript:** `compactKeys: true` in the RPC or REST client options. It feature-detects
+  `createCompactKeys` on `@cratestack/cbor` and stays named on a version without it. A REST
+  package lists `@cratestack/cbor` as an optional peer dependency.
+- **Dart:** pass `compact: CratestackCompactHooks(toCompact: keys.toCompact, fromCompact:
+  keys.fromCompact, selector: keys.selector)` to the HTTP adapter, with `keys = await
+  createCompactKeys(cratestackKeyTables)` from `cratestack_cbor`. Compact is CBOR format only.
+  Generated Dart code never calls the binding itself.
+- **Do not hand-roll it.** Never write integer keys or the `application/vnd.cratestack.compact+*`
+  media types yourself. A compact request body is only sent after the server answered compact
+  for that op; a body with an unknown `Cratestack-Contract` selector is a `415`.
+
 ### The schema-SHA header
 
 Every generated client stamps its schema's hex SHA-256 as
