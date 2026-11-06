@@ -250,8 +250,8 @@ nested `/api/rpc/...` mount wired through them fails closed and makes
 resolver is not `Clone`, so one instance cannot be passed to both.
 
 **A generated TypeScript RPC client gets 406 or 415.** It defaults to native
-CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)` or regenerate with
-`--no-native-cbor`.
+CBOR. Mount `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with
+`codec: jsonRpcCodec`. Do not reach for `--no-native-cbor`: it is *(removed on `main`, unreleased, cratestack#1281)*.
 
 **A CBOR request is answered `400` `CODEC_ERROR` (REST) or `invalid_argument` (`/rpc`), with the public message `invalid request payload`** *(since 0.16.0, cratestack#1153)*.
 The operator detail says `failed to decode CBOR body: N bytes left unconsumed after the value`:

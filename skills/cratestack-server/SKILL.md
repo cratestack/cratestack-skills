@@ -306,7 +306,8 @@ cratestack#1153)*. JSON already refused trailing characters the same way.
 
 **The practical trap:** generated `transport rpc` TypeScript clients default to
 native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Mount
-`CodecSet::new(CborCodec, JsonCodec)`, or generate with `--no-native-cbor`.
+`CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`
+(`--no-native-cbor` is *(removed on `main`, unreleased, cratestack#1281)*).
 
 ## Events and the outbox
 

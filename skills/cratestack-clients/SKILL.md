@@ -415,7 +415,8 @@ wire response still goes through revival, and REST endpoints use
 **Regeneration hazard:** native CBOR became the default for generated TypeScript
 RPC clients *in 0.8.14* (#746). Re-running `generate-typescript` on an RPC package
 generated before that silently upgrades its wire codec from JSON to CBOR. A JSON-only server `CodecSet` then answers 406/415. Either mount
-`CodecSet::new(CborCodec, JsonCodec)` or generate with `--no-native-cbor`.
+`CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`.
+On 0.17.2 `--no-native-cbor` also works; it is *(removed on `main`, unreleased, cratestack#1281)*, so prefer `codec:`.
 
 ### Always revive
 
