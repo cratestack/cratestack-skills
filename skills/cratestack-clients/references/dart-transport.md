@@ -374,7 +374,7 @@ inventing one. It also demonstrates the two limits below.
 
 ## Prepared retries *(unreleased, cratestack#1297)*
 
-REST `prepare(request, options: ...)` and RPC `prepareCall(opId, input, options: ...)` encode without sending. Persist `CratestackPreparedCall.toJson()` before the first `executePrepared`; restore with `fromJson` under the original service, format, contract and tables. The snapshot excludes credentials. A sealing transport must create a fresh envelope and corresponding `PendingResponse` for each execution; do not persist and resend an outer seal. Validate access to and integrity of the caller-owned journal. Source: `crates/cratestack-client-dart/tests/fixtures/compact_hooks_rest_test.dart` and `compact_hooks_rpc_test.dart`.
+REST `prepare(request, options: ...)` and RPC `prepareCall(opId, input, options: ...)` encode without sending. Persist `CratestackPreparedCall.toJson()` before the first `executePrepared`; restore with `fromJson` under the original service, format, contract and tables. The snapshot excludes credentials. If the REST client's `basePath` is overridden, set the adapter's `preparedBasePath` to match. Execution derives `useRustTransport` from the current adapter. CBOR validation checks one well-formed item and UTF-8 with nesting limited to 256; it does not enforce tag semantics or reject duplicate map keys. A sealing transport must create a fresh envelope and corresponding `PendingResponse` for each execution; do not persist and resend an outer seal. Validate access to and integrity of the caller-owned journal. Source: `crates/cratestack-client-dart/tests/fixtures/compact_hooks_rest_test.dart` and `compact_hooks_rpc_test.dart`.
 
 ## A transport of your own
 
