@@ -156,8 +156,13 @@ the event's `data`. Refused at open with `invalid_argument`: `limit`, `offset`,
 `sort`, `orderBy`, `include`, `includeFields[...]`, `computedParams` ("`limit` does
 not apply to a subscription"); a relation or full-text filter, or one over a
 `@server_only` column ("... cannot filter a subscription"); an unknown operation
-or field. A row updated **out of** a filter produces no event for that
-subscriber, so its copy goes stale: refetch on reconnect. In 0.17.x a feed took
+or field. A row updated **out of** a subscriber's filter or read policy sends
+that subscriber an `Updated` event with `matches: false` whose `data` is the
+**pre-image** (the row as it last could see it): drop the row by primary key,
+never read new values from it *(unreleased, cratestack PR #1282)*. Ordinary
+events omit `matches` (it means `true`). No exit event for `update_many`,
+Studio's routed update, or a feed whose `operations` exclude `updated`, so
+still refetch after a bulk update or a reconnect. In 0.17.x a feed took
 no input. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/filters.rs`,
 `.../rest.rs`.
 
