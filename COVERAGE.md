@@ -47,6 +47,8 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | `transport rpc`, `/rpc/batch`, subscriptions, `@stream` | `cratestack-rpc` |
 | MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |
+| Prepared keyed unary mutations *(unreleased, cratestack#1297)*: freeze, persist before first send, validate and restore | `cratestack-clients` (runtime APIs and sealing) + `cratestack-data-integrity` (retry boundary) |
+
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
 | COSE envelope layer *(since 0.14.0, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) + `cratestack-clients` (the Dart client: see the row below) |
 | Claim objects *(since 0.17.0, cratestack#1231)*: `cratestack_cose::claims`, `sign_claims` / `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError`, no freshness or replay check, domain separation from the envelope | `cratestack-server` (API, wire shape) + `cratestack-troubleshooting` (`ClaimsError`, "verified is not fresh") + `cratestack-clients` (not in Dart) |

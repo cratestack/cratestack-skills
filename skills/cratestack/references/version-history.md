@@ -24,6 +24,10 @@ and 0.15.4's, are recorded below and marked *(since 0.17.1)* / *(since 0.17.0)* 
 *(since 0.16.0)* / *(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
 latest release, as AGENTS.md requires.
 
+## Unreleased proposal: prepared mutations
+
+[cratestack#1297](https://github.com/cratestack/cratestack/pull/1297) proposes durable prepared unary requests. It is not in a published release. See [clients](../../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297) for the API and limits.
+
 ## Reading order for an upgrade
 
 The framework's own `CHANGELOG.md` is the authority and is unusually detailed —

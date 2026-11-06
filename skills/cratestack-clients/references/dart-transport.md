@@ -372,6 +372,10 @@ inventing one. It also demonstrates the two limits below.
 
 #1207 is open. #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
 
+## Prepared retries *(unreleased, cratestack#1297)*
+
+REST `prepare(request, options: ...)` and RPC `prepareCall(opId, input, options: ...)` encode without sending. Persist `CratestackPreparedCall.toJson()` before the first `executePrepared`; restore with `fromJson` under the original service, format, contract and tables. The snapshot excludes credentials. A sealing transport must create a fresh envelope and corresponding `PendingResponse` for each execution; do not persist and resend an outer seal. Validate access to and integrity of the caller-owned journal. Source: `crates/cratestack-client-dart/tests/fixtures/compact_hooks_rest_test.dart` and `compact_hooks_rpc_test.dart`.
+
 ## A transport of your own
 
 Implement one method. Resolve for every HTTP status; throw a

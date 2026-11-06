@@ -20,6 +20,16 @@ Three generated languages, one wire contract.
 | Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*since 0.16.0*), `--preset riverpod` / `fespalier` layers |
 | TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers |
 
+## Durable prepared mutations *(unreleased, cratestack#1297)*
+
+The proposed runtime APIs freeze a keyed unary mutation before any send. Persist the snapshot durably **before the first execution**; restore the same bytes after restart with the matching service, codec/format, contract and key tables. The snapshot keeps its original inner bytes, media type, route, query, key and `If-Match`; it contains no credentials or reusable COSE envelope. Invalid, oversized or incompatible snapshots are rejected before network I/O. The caller owns storage integrity, authorization and journaling; this is not an automatic queue or server idempotency store.
+
+- Rust: `CratestackClient::prepare_call`, `PreparedCall::to_bytes` / `from_bytes`, `execute_prepared` or `execute_prepared_typed`. Compact key tables are required even for a named payload. Configured sealing reauthorizes and reseals each attempt.
+- TypeScript REST: `prepare(method, path, options)`; RPC: `prepare(op, input, options)`; both use `executePrepared`. RPC refuses custom unary links, including sealing links.
+- Dart: REST `CratestackHttpAdapter.prepare`; RPC `CratestackRpcHttpAdapter.prepareCall`; `CratestackPreparedCall.toJson` / `fromJson` and `executePrepared`. For transport sealing use a fresh seal and matching `PendingResponse` for every attempt; see [the transport reference](references/dart-transport.md).
+
+These are proposed in [cratestack#1297](https://github.com/cratestack/cratestack/pull/1297), not released. They do not cover batch or streaming calls. Source: `crates/cratestack-client-rust/src/client/prepared_client.rs`, generated `runtime.ts` snapshots and Dart `compact_hooks_rest_test.dart` / `compact_hooks_rpc_test.dart`.
+
 ## Rust — `include_client_schema!`
 
 ```toml
