@@ -209,6 +209,12 @@ sync-engine entry below is in the tag's source but in no published crate.
   `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
   `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
   (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+- **Filter-exit events on model feeds; breaking for hand-written event code** (cratestack PR
+  #1282) *(unreleased)*. An update that moves a row out of a subscriber's filter or read policy
+  sends `Updated` with `matches: false` and the pre-image as `data`. The outbox gains
+  `payload_before` (added once per runtime; add it in a migration for apps that only update via
+  `run_in_tx`). `ModelEvent` / `CratestackEventEnvelope` gain public fields. Owners:
+  `cratestack-rpc`, `cratestack-clients`.
 - **Topics in `db = None` schemas** (cratestack PR #1280) *(unreleased)*. `InProcessBackplane`
   and `TopicHandle` live in `cratestack-core`; `cratestack-api` exports them (`cratestack::Topic`).
   The generated `db = None` builder gets `with_backplane`; the default backplane is shared per schema

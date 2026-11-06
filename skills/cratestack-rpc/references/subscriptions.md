@@ -200,7 +200,11 @@ while let Some(item) = lines.recv().await { let line = item?; }
 - **The call** resolves at `Ready` to a `ClientSubscription<Item>`, a bounded
   `mpsc::Receiver<Result<Item, ClientError>>`. A refusal is the call's `Err`,
   never an item. Dropping the receiver cancels the subscription.
-- **Model feed items** are `ModelEvent<Model>`. With `fields` the records are
+- **Model feed items** are `ModelEvent<Model>`. `event.matches == false` on an
+  `Updated` event means the row left this subscriber's filter or read policy;
+  `data` is the pre-image *(unreleased, cratestack PR #1282)*. TypeScript: test
+  `event.matches === false` (absent from older servers). Dart:
+  `event.matches`. With `fields` the records are
   partial: use `runtime().subscribe::<ModelEvent<serde_json::Value>>(target)`.
 - **`SubscriptionTransport::Auto`** (the default) tries, in order, each binding
   the build has, moving on only when one cannot be opened, never on a refusal:
