@@ -378,8 +378,10 @@ framework `docs/design/procedure-isolation.md`.
 `db: &IsolatedCratestack` (generated in `cratestack_schema`, only for a
 `db = Postgres` schema that declares an `@isolation` procedure). It has the
 model accessors, `bind_context` / `bind_auth`, `transaction(..)` (a savepoint
-inside the procedure's transaction) and `dispatch_audit_sink` (queued until
-commit). It has **no `pool()`, `events()`, `views()` or `queries()`** —
+inside the procedure's transaction), `dispatch_audit_sink` (queued until
+commit) and, when the schema declares a `topic`, `topics()` *(unreleased)* (publishes
+delivered only if the attempt commits; see `cratestack-rpc`'s
+`references/subscriptions.md`). It has **no `pool()`, `events()`, `views()` or `queries()`** —
 `db.pool()` is `E0599`. Raw SQL goes through the savepoint:
 
 ```rust

@@ -104,10 +104,23 @@ on the runtime's backplane, channel `cratestack.topic.RoomMessage.<key>`.
 - **`subscribe().await`** resolves once the subscription is live. It ends with
   `unavailable` on lag or resync.
 - **Size**: a message must encode under Postgres' 8000-byte `NOTIFY` limit.
-- **`db = None`**: a topic is a compile error ("needs a subscription
-  backplane").
-- **`@isolation` procedures**: `IsolatedCratestack` has no `topics()`. Publish
-  after the commit.
+- **`db = None`** *(unreleased, cratestack PR #PRNUM)*: topics work, on the
+  `cratestack-api` facade (or `cratestack-pg` with `postgres` off). Same
+  `db.topics().<topic>(key)` with `publish`, `subscribe`, `channel`; no
+  `publish_in_tx` (no transaction, so publish after the work). The default
+  backplane is one `InProcessBackplane` per schema, shared by every
+  `Cratestack::builder().build()` in the process: single replica. For several
+  replicas pass your own with `.with_backplane(Arc::new(..))` (the builder takes
+  no pool). With a topic, the `db = None` `Cratestack` is `Clone`, not `Copy`.
+- **`@isolation` procedures** *(unreleased, cratestack PR #PRNUM)*: use
+  `tx_db.topics()` on the `IsolatedCratestack` handle. Its `publish` is delivered only if the attempt commits, never for an
+  attempt that errors or is retried, on either backplane (`PgNotifyBackplane`
+  notifies inside the transaction; `InProcessBackplane` queues until the
+  commit). Don't publish "after the commit" by hand. Inside
+  `tx_db.transaction(async |tx| ..)` call `publish_in_tx(tx, &msg)` (plain
+  `publish` is refused there); a `transaction(..)` that rolls back drops its
+  messages even when the attempt commits. Topics from a plain `Cratestack`
+  publish immediately, including in `@authorize` and `@computed` hooks.
 
 ## The WebSocket binding
 
