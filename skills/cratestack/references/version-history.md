@@ -209,6 +209,15 @@ sync-engine entry below is in the tag's source but in no published crate.
   `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
   `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
   (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+- **Topics in `db = None` schemas** (cratestack PR #1280) *(unreleased)*. `InProcessBackplane`
+  and `TopicHandle` live in `cratestack-core`; `cratestack-api` exports them (`cratestack::Topic`).
+  The generated `db = None` builder gets `with_backplane`; the default backplane is shared per schema
+  per process. Owners: `cratestack-rpc`, `cratestack-troubleshooting`.
+- **`topics()` on the `@isolation` handle** (cratestack PR #1280) *(unreleased)*.
+  `IsolatedCratestack::topics()`: `publish` delivered only if the attempt commits (in-transaction
+  `pg_notify` on `PgNotifyBackplane`, queued until commit otherwise); `publish_in_tx(tx, ..)` inside
+  `tx_db.transaction(..)`. Identical messages in one transaction are no longer folded into one.
+  Owners: `cratestack-rpc` (`references/subscriptions.md`), `cratestack-data-integrity`.
 - **The Dart client subscribes over WebSocket and WebTransport** (cratestack PR #1271)
   *(unreleased)*. `CratestackSubscriptionOptions` (`subscriptions:` on the client,
   `<prefix>SubscriptionOptionsProvider` in riverpod); `auto` WebTransport (web) → WebSocket → SSE,
