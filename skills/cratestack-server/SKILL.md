@@ -307,9 +307,9 @@ cratestack#1153)*. JSON already refused trailing characters the same way.
 **The practical trap:** generated `transport rpc` TypeScript clients default to
 native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Mount
 `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`
-(`--no-native-cbor` is *(removed on `main`, unreleased, cratestack#1281)*).
+(`--no-native-cbor` is *(removed in 0.18.0, cratestack#1281)*).
 
-**Compact field keys** *(on `main`, unreleased)*: the generated router negotiates
+**Compact field keys** *(since 0.18.0)*: the generated router negotiates
 `application/vnd.cratestack.compact+{cbor,json,cbor-seq}` by itself, per op, from the
 `Cratestack-Contract` selector. Old contracts are served compactly too when the schema macro is
 given `contracts = "<lock>"`. Nothing to configure on the server. Under the COSE envelope layer,
@@ -335,7 +335,7 @@ flushes undelivered rows — which is also the required opt-in after a
 caller-managed `run_in_tx` commit.
 
 `@@subscribe` adds an SSE endpoint: `/rpc/subscribe/model.<M>.subscribe` under
-`transport rpc`, `GET /<plural>/$subscribe` under REST *(REST since unreleased,
+`transport rpc`, `GET /<plural>/$subscribe` under REST *(REST since 0.18.0,
 cratestack#1267; RPC-only before)*. A feed takes `list`'s filter syntax plus
 `operations` and `fields`, and a caller no row could pass is refused at open. Each event passes the
 subscriber's read policy (the model's `detail`/`read` rules, as `get`) and is
@@ -347,12 +347,12 @@ The same feeds can be served over WebTransport with `extension webtransport { }`
 and the `webtransport` feature: `db.subscriptions().webtransport(config, auth)`
 *(since 0.17.1, cratestack#1255)*. See `cratestack-rpc`. Events reach subscribers
 on **every** replica through the subscription backplane, Postgres `LISTEN`/`NOTIFY`
-by default *(unreleased, cratestack#1266)*. Behind PgBouncer in transaction mode, use
+by default *(since 0.18.0, cratestack#1266)*. Behind PgBouncer in transaction mode, use
 `.with_backplane(Arc::new(cratestack::InProcessBackplane::new()))` on the builder,
 and a single replica. In 0.17.x only the committing replica's subscribers got the
 event. `drain()` claims rows with `FOR UPDATE SKIP LOCKED`, so two replicas never
-both run one `on_<model>_<op>` handler *(unreleased, cratestack#1266)*.
-`subscription procedure`s and `topic`s *(unreleased, cratestack#1268)*: a handler
+both run one `on_<model>_<op>` handler *(since 0.18.0, cratestack#1266)*.
+`subscription procedure`s and `topic`s *(since 0.18.0, cratestack#1268)*: a handler
 resolves to a `SubscriptionStream<Output>` (usually
 `db.topics().<topic>(key).subscribe().await`), and `topics().<topic>(key)` also has
 `publish` and `publish_in_tx(tx, &msg)` (delivered only if `tx` commits; refused with

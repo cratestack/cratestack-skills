@@ -1,7 +1,7 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
 > **Verified against CrateStack `main` after 0.17.2** — everything here is
-> *(unreleased, cratestack#1268)*. None of it exists in a published crate yet.
+> *(since 0.18.0, cratestack#1268)*. None of it exists in a published crate yet.
 > Source of truth: `docs/design/subscriptions-websocket.md` §3.2–3.4, §6, §8,
 > §11 ("S4 status", "S5 status", "S6 status, Rust").
 
@@ -104,7 +104,7 @@ on the runtime's backplane, channel `cratestack.topic.RoomMessage.<key>`.
 - **`subscribe().await`** resolves once the subscription is live. It ends with
   `unavailable` on lag or resync.
 - **Size**: a message must encode under Postgres' 8000-byte `NOTIFY` limit.
-- **`db = None`** *(unreleased, cratestack PR #1280)*: topics work, on the
+- **`db = None`** *(since 0.18.0, cratestack PR #1280)*: topics work, on the
   `cratestack-api` facade (or `cratestack-pg` with `postgres` off). Same
   `db.topics().<topic>(key)` with `publish`, `subscribe`, `channel`; no
   `publish_in_tx` (no transaction, so publish after the work). The default
@@ -112,7 +112,7 @@ on the runtime's backplane, channel `cratestack.topic.RoomMessage.<key>`.
   `Cratestack::builder().build()` in the process: single replica. For several
   replicas pass your own with `.with_backplane(Arc::new(..))` (the builder takes
   no pool). With a topic, the `db = None` `Cratestack` is `Clone`, not `Copy`.
-- **`@isolation` procedures** *(unreleased, cratestack PR #1280)*: use
+- **`@isolation` procedures** *(since 0.18.0, cratestack PR #1280)*: use
   `tx_db.topics()` on the `IsolatedCratestack` handle. Its `publish` is delivered only if the attempt commits, never for an
   attempt that errors or is retried, on either backplane (`PgNotifyBackplane`
   notifies inside the transaction; `InProcessBackplane` queues until the
@@ -202,14 +202,14 @@ while let Some(item) = lines.recv().await { let line = item?; }
   never an item. Dropping the receiver cancels the subscription.
 - **Model feed items** are `ModelEvent<Model>`. `event.matches == false` on an
   `Updated` event means the row left this subscriber's filter or read policy;
-  `data` is the pre-image *(unreleased, cratestack PR #1282)*. TypeScript: test
+  `data` is the pre-image *(since 0.18.0, cratestack PR #1282)*. TypeScript: test
   `event.matches === false` (absent from older servers). Dart:
   `event.matches`. With `fields` the records are
   partial: use `runtime().subscribe::<ModelEvent<serde_json::Value>>(target)`.
 - **`SubscriptionTransport::Auto`** (the default) tries, in order, each binding
   the build has, moving on only when one cannot be opened, never on a refusal:
   1. **WebTransport**, when the client has the `webtransport` feature and
-     `ClientConfig::with_webtransport(url, trust)` names the listener *(unreleased,
+     `ClientConfig::with_webtransport(url, trust)` names the listener *(since 0.18.0,
      cratestack PR #1270)*. A session not open within 3 s counts as unreachable,
      and that is remembered for 10 minutes.
   2. **A WebSocket**, with the `ws` feature.
@@ -237,7 +237,7 @@ let config = ClientConfig::new(base)
 
 ## The TypeScript client
 
-*(unreleased, cratestack PR #1269)*. A package generated from a schema with an
+*(since 0.18.0, cratestack PR #1269)*. A package generated from a schema with an
 `@@subscribe` model or a `subscription procedure` gains `src/subscriptions.ts`
 and `src/subscription-sockets.ts`; any other schema generates exactly as before.
 
@@ -272,7 +272,7 @@ for await (const line of client.procedures.lines({ args: { roomId: "r1" } })) { 
 
 ## The Dart client
 
-*(unreleased, cratestack PR #1269; sockets cratestack PR #1271)*. SSE goes through
+*(since 0.18.0, cratestack PR #1269; sockets cratestack PR #1271)*. SSE goes through
 the same `CratestackHttpTransport` every call uses (Dio, fespalier, the Rust
 transport). A WebSocket (native and web) and WebTransport (Flutter web only, the
 browser's own) are opened by the client itself. It needs the generated
