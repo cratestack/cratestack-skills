@@ -372,6 +372,10 @@ inventing one. It also demonstrates the two limits below.
 
 #1207 is open. #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
 
+## Prepared retries *(unreleased, cratestack#1297)*
+
+REST `prepare(request, options: ...)` and RPC `prepareCall(opId, input, options: ...)` encode without sending. Persist `CratestackPreparedCall.toJson()` before the first `executePrepared`; restore with `fromJson` under the original service, format, contract and tables. The snapshot excludes authentication headers and rejects URL userinfo; query strings and bodies are persisted and can contain secrets. If the REST client's `basePath` is overridden, set the adapter's `preparedBasePath` to match. Execution derives `useRustTransport` from the current adapter and sends `x-cratestack-schema-sha` as an ordinary call does. Pass per-attempt headers (a tenant, a trace id) as `executePrepared(call, headers: {...})` and a fresh credential as `authorization:`; a header naming `Idempotency-Key`, `If-Match`, `Accept`, `Content-Type` or `Cratestack-Contract` is a `FormatException`. CBOR validation checks one well-formed item and UTF-8 with nesting limited to 256; it does not enforce tag semantics or reject duplicate map keys. A sealing transport must create a fresh envelope and corresponding `PendingResponse` for each execution; do not persist and resend an outer seal. Validate access to and integrity of the caller-owned journal. Source: `crates/cratestack-client-dart/tests/fixtures/compact_hooks_rest_test.dart` and `compact_hooks_rpc_test.dart`.
+
 ## A transport of your own
 
 Implement one method. Resolve for every HTTP status; throw a

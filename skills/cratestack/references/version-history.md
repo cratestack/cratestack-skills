@@ -68,9 +68,17 @@ each step's breaking changes assume the one before:
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number. When 0.18.0 was recorded here, the
-only entry below is the sync-engine prototype, which is in the tags' source but in no published
+only entry below was the sync-engine prototype, which is in the tags' source but in no published
 crate.
 
+- **Durable prepared mutations; compact encoding pins evict the oldest key** (cratestack PR #1297)
+  *(unreleased, cratestack#1297)*. `prepare_call` / `execute_prepared` (Rust), `prepare` /
+  `executePrepared` (TypeScript), `prepare` / `prepareCall` / `executePrepared` (Dart) freeze a keyed
+  unary mutation's inner bytes for retries across restarts. The in-memory pin table (1024 keys Rust,
+  512 TS/Dart) now evicts its oldest key when full. In Rust, an authorizer-only `Idempotency-Key` on a
+  compact call with a body is refused. Owners: `cratestack-clients` (see
+  [clients](../../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297)),
+  `cratestack-data-integrity`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
