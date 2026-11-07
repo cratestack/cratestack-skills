@@ -18,7 +18,7 @@ thing on this page.
 
 ## Durable retry input *(unreleased, cratestack#1297)*
 
-A prepared keyed unary mutation freezes the original encoded body, media type, route, query and conditional headers. Persist it before the first send and restore it with matching client/service/contract/tables; do not re-encode after compact negotiation changes. This preserves request-hash inputs but provides neither a durable queue nor a server store, nor proof that the business action is still authorized. Secure the journal and verify its integrity. See [clients](../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297) for the proposed API and its boundaries.
+A prepared keyed unary mutation freezes the original encoded body, media type, route, query and conditional headers. Persist it before the first send and restore it with matching client/service/contract/tables; do not re-encode after compact negotiation changes. This preserves request-hash inputs but provides neither a durable queue nor a server store, nor proof that the business action is still authorized. Secure the journal and verify its integrity. See [clients](../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297) for the API and its boundaries.
 
 ## Three tiers — know which one a feature is in
 
