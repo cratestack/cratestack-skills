@@ -12,13 +12,16 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 > the full feature-to-release map is in
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
-One file, one schema. **There is no `import` and no `part`** — multi-service
-setups keep separate `.cstack` files and separate macro invocations. Both words
-are nonetheless **reserved identifiers** *(since 0.13.0)*: `model import`,
-`part String` and every other identifier position is rejected at parse time, so
-the multi-file grammar those words are earmarked for can land without breaking
-schemas written today (#922). The reservation is exact and case-sensitive — `of`,
-`Import` and `partOf` are all still available.
+A schema may span files *(unreleased, cratestack#910)*. Point the macro or the CLI at the
+**root** file; split it with `part "…"` (in the root) and `part of "…"` (in each part); share
+`type` / `enum` / `mixin` between schemas with `import "…"`. An import **cannot carry a
+`model`** (or a view, procedure, topic, query or extension): do not try. There is no
+`import … as`. Full rules, the where-each-declaration-may-go table, path rules and a worked
+example: [references/multi-file.md](references/multi-file.md). On any release that predates
+that feature, a schema is exactly one file and `part` / `import` lines are refused. `part`
+and `import` are also **reserved identifiers** *(since 0.13.0)*: `model import` and
+`part String` are rejected in every identifier position. The reservation is exact and
+case-sensitive: `of`, `Import` and `partOf` are all still available.
 
 Validate with `cratestack check --schema schema.cstack`. Errors are precise and
 worth reading literally; most of this skill is about the ones that are not
@@ -42,7 +45,13 @@ subscription procedure <name>(a: T): Item  // since 0.18.0, cratestack#1268; see
 topic <Name>(key: String | Int | Uuid): Payload  // since 0.18.0, cratestack#1268; one line, no attributes
 query <name>(a: T): ResultType      // declarative SQL, Postgres-only
 view <Name> from <M>, <M> { … }
+part "models/post.cstack"           // root only: this file is more of me (unreleased, cratestack#910)
+part of "../schema.cstack"          // in a part, once: I belong to that root (unreleased)
+import "../shared/money.cstack"    // brings in type / enum / mixin only; no `as` (unreleased)
 ```
+
+The three directives (`part`, `part of`, `import`) are one line each, a quoted relative path
+and nothing after it. Details in [references/multi-file.md](references/multi-file.md).
 
 Anything else is `unsupported top-level declaration`. **`config` and `version`
 are not keywords** — `@version` is a *field* attribute. `transport grpc` is
@@ -427,7 +436,8 @@ actually catch people:
 - **`self`, `Self`, `super`, `crate`** are unusable as any identifier. Every
   *other* Rust keyword is fine (escaped as `r#type` at codegen).
 - **`part`, `import`** are unusable as any identifier *(since 0.13.0)* — reserved
-  for the future multi-file grammar, not for codegen. Exact and case-sensitive:
+  as the multi-file directives (`part`, `part of`, `import`; *unreleased, cratestack#910*,
+  see [references/multi-file.md](references/multi-file.md)), not for codegen. Exact and case-sensitive:
   `Import` and `partOf` are fine.
 - **snake_case collisions**: `myField` and `my_field` on one model both normalize
   to the same column. So do `model Foo` and `model foo`.

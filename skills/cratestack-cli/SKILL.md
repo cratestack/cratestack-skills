@@ -70,10 +70,37 @@ before the step fails:
   "diagnostics": [ { "message": "…", "file": "…", "line": 12, "start": 240, "end": 252 } ] }
 ```
 
-`line` is 1-based; `start`/`end` are byte offsets. The array always holds exactly
-one diagnostic today — `check` parses one file and the parser returns a single
-error. `file` is per-diagnostic and deliberately duplicated alongside the
-top-level `schema` so the shape survives multi-file reporting later.
+`line` is 1-based; `start`/`end` are byte offsets. Syntax and structural errors stop
+at the first one; validation errors may be several, from several files *(unreleased,
+cratestack#910)*. `file` is per-diagnostic and duplicated alongside the top-level
+`schema`.
+
+### Multi-file schemas *(unreleased, cratestack#910)*
+
+`check` loads the whole graph (`part`, `part of`, `import`; see
+`cratestack-schema`, `references/multi-file.md`). **Every command that takes `--schema`
+takes the root.** `check`, `print-ir`, `generate-dart`, `generate-typescript`,
+`generate-wiremock`, `migrate diff`, `migrate baseline`, `diff <old> <new>` and
+`contract …` all resolve the full graph. Given a part, every one of them is refused
+(``` `{file}` is a part of `{root}`, not a schema root; point the macro or command at `{root}` ```)
+**except `check`**, which follows `part of` to the root, checks the whole schema and says so:
+
+```text
+$ cratestack check --schema schema/task.cstack
+`schema/task.cstack` is a part of `schema.cstack`; checked the whole schema
+schema OK: schema.cstack
+```
+
+If the root does not list the part, that is an error, exit 1.
+
+- `check --list-files` prints the resolved file set after `schema OK`, one per line with its
+  role (`root`, `part`, `import`, `import part`). Without the flag the output is unchanged.
+- In `--format json`: `"root"` is added only when it differs from `schema` (a part was given);
+  `"files": [{ "path", "role" }]` is added by `--list-files`; a diagnostic gains
+  `"related": [{ "file", "line", "start", "end", "message" }]` only when the error involves a
+  second location (a cycle, a duplicate name across files). `file` and `line` always refer to
+  the diagnostic's own file.
+- Messages: `cratestack-troubleshooting`, "Multi-file schema errors".
 
 ## Code generation
 
@@ -202,6 +229,10 @@ failure.
 for seeing what mixins expanded to, what a `@relation` resolved to, and which
 attributes actually attached. It is a *different* IR from `cratestack-migrate`'s
 projections; nothing in the CLI prints that one.
+
+`print-ir --no-spans` *(unreleased, cratestack#910)* prints the same dump with every source
+position zeroed. Use it to compare a split schema with its single-file equivalent (they
+print identically); without the flag the output is unchanged.
 
 ## Exit codes
 

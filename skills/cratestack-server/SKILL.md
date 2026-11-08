@@ -27,6 +27,11 @@ include_server_schema!("schema.cstack", db = Postgres);
 include_server_schema!("schema.cstack", db = None);
 ```
 
+The first argument is the schema's **root** file; if it uses `part` / `import`
+*(unreleased, cratestack#910)* every part and import is tracked as a rebuild dependency
+through the generated `SCHEMA_FILES` (only emitted for a multi-file schema), while
+`SCHEMA_SOURCE` stays the root's text and `SCHEMA_SHA256` is unchanged by a split.
+
 Third, optional argument: `decimal = RustDecimal | BigDecimal`, **required** if the
 schema declares a `Decimal` anywhere. Those three are the only accepted
 arguments.

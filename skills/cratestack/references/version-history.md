@@ -71,6 +71,15 @@ security fix merged from a private fork with no PR number. When 0.18.0 was recor
 only entry below was the sync-engine prototype, which is in the tags' source but in no published
 crate.
 
+- **Multi-file schemas** (cratestack#910, design `docs/design/multi-file-schemas.md`, ADR 0023)
+  *(unreleased, cratestack#910)*. `part "…"` / `part of "…"` split one schema across files,
+  `import "…"` shares `type` / `enum` / `mixin`; macros take the root and emit `SCHEMA_FILES`
+  for a multi-file schema; `check --list-files`, `check` on a part, `print-ir --no-spans`;
+  the LSP follows the graph. Written from the accepted design before release; the version it
+  ships in is not yet recorded here. Limits: imports carry no models, no `import … as`, LSP
+  rename refused across files, references and highlights file-local. Owners:
+  `cratestack-schema` (`references/multi-file.md`), `cratestack-cli`,
+  `cratestack-editor-tooling`, `cratestack-troubleshooting`.
 - **Durable prepared mutations; compact encoding pins evict the oldest key** (cratestack PR #1297)
   *(unreleased, cratestack#1297)*. `prepare_call` / `execute_prepared` (Rust), `prepare` /
   `executePrepared` (TypeScript), `prepare` / `prepareCall` / `executePrepared` (Dart) freeze a keyed
@@ -1064,6 +1073,11 @@ As of 0.14.2, each of these parses, validates, and then does nothing (re-checked
   (issue #136).
 - The five `batch_*` ORM primitives — complete, and reachable from no generated
   route.
+- Multi-file schemas *(unreleased)*, by design rather than by accident: an `import` may carry
+  only `type`, `enum` and `mixin` (a `model` there is refused, M12); `import … as` / `show` /
+  `hide` do not exist; the LSP refuses rename in a multi-file schema and answers references
+  and highlights only within the requesting file; a `part of` file no root lists is never read
+  by a build.
 
 **No longer inert since 0.15.4.** An unknown or wrong-kind **field** attribute
 (`@whatever`, `@Id` / `@ID`, `@immutable`, `@string`, `@unique` on a `view` field,

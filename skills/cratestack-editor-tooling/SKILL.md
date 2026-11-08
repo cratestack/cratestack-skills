@@ -63,8 +63,34 @@ be a non-keyword non-builtin identifier, collisions are rejected, and it refuses
 entirely while the file has a syntax error. The keyword list it checks includes
 the reserved multi-file words `part` and `import` *(since 0.13.0)*, queried from
 `cratestack_parser::reserved_multi_file_keywords()` rather than copied — so a
-rename to `import` is refused with a message instead of rewriting the buffer into
-a file that no longer parses.
+rename *to* `part` or `import` is refused with a message instead of rewriting the
+buffer into a file that no longer parses. (Those words are now the directives
+`part`, `part of` and `import` *(unreleased, cratestack#910)*, still reserved as
+identifiers.)
+
+### Schemas split across files *(unreleased, cratestack#910)*
+
+When the document is a file on disk, the server loads the whole schema that contains it
+(`part` / `part of` / `import`), using every open editor buffer in preference to disk, so
+unsaved edits in any open file are what is checked.
+
+- Diagnostics are published **per file**, for every file in the graph including files that
+  are not open; a file that had errors and now has none gets an empty publish. An error that
+  involves two files carries `relatedInformation`.
+- A part opened alone is analysed through its root, so you see the whole schema's real
+  diagnostics. If the root cannot be loaded the one diagnostic says why (the root does not
+  list the part, or the root cannot be read).
+- Editing any file re-analyses every root whose graph contains it (editing a shared
+  `money.cstack` refreshes every open importer).
+- Go to definition crosses files. Completion offers the whole graph's declarations.
+- Hover, document symbols, semantic tokens, **references and highlights** answer only with
+  spans inside the requesting file, so references and highlights are file-local.
+- **Rename is refused** in a schema that spans more than one file: `prepareRename` returns
+  nothing and `rename` fails with `rename is not available yet in a schema split across files`.
+- A buffer with no file path (untitled) keeps single-text analysis.
+- Completion offers `part` and `import` as directives; the detail no longer says they are
+  unimplemented.
+- Every keystroke re-parses the whole graph.
 
 ### Pointing an editor at it
 

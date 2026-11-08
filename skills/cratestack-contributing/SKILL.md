@@ -71,6 +71,14 @@ months.
 
 Read `cratestack-troubleshooting` before trusting a green run.
 
+**Multi-file schemas** *(unreleased, cratestack#910)*: `just verify-multi-file-rebuild`
+(CI job `multi-file rebuild`) drives real `cargo` builds of a multi-file fixture and reads
+cargo's `fresh` flag to prove that editing the root, a part, an import, or adding and listing
+a part rebuilds the consuming crate. A committed multi-file fixture is loaded **through its
+root** by the parser's census test (`crates/cratestack-parser/tests/committed_schemas.rs`);
+never parse a part on its own. Not verified against a merged tree: the recipe and job names
+come from the accepted design, so check the `justfile`.
+
 ## Conventions that cost a review round-trip
 
 **The ~200-line file ceiling.** Split by concern rather than growing a file —

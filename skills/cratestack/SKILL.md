@@ -64,6 +64,7 @@ If you find yourself wanting two of these in one crate, you want two crates.
 | Generating or consuming Rust / Dart / TypeScript clients | `cratestack-clients` |
 | `transport rpc`, `/rpc/batch`, streaming, batching links | `cratestack-rpc` |
 | Migrations, schema diff, baselines | `cratestack-migrations` |
+| A schema split across files (`part`, `part of`, `import`) *(unreleased)* | `cratestack-schema` (`references/multi-file.md`) |
 | The `cratestack` CLI, any subcommand or flag | `cratestack-cli` |
 | Studio (admin/testing surface) | `cratestack-studio` |
 | LSP, VS Code, Neovim/Helix/Zed, tree-sitter grammar | `cratestack-editor-tooling` |
@@ -138,6 +139,10 @@ Worth knowing before you design around them:
   still stabilizing.
 - Runtime custom-field resolution beyond the generated trait metadata is not
   supported.
+- Multi-file schemas *(unreleased, cratestack#910)* have deliberate limits: an `import`
+  carries only `type`, `enum` and `mixin` (no models); there is no `import … as`; the LSP
+  refuses rename in a schema split across files and its references and highlights stay
+  file-local; a `part of` file that no root lists is ignored by builds.
 
 ## Sources
 

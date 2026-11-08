@@ -41,6 +41,9 @@ serde = { version = "1", features = ["derive"] }
 ```
 
 Arguments: a path literal, plus an optional `decimal = RustDecimal | BigDecimal`.
+The path is the schema's **root** file; parts and imports *(unreleased, cratestack#910)* are
+tracked as rebuild dependencies through the generated `SCHEMA_FILES`, and `SCHEMA_SOURCE`
+stays the root's text. Generated clients are identical for a split schema.
 That facade re-exports **only** `include_client_schema!` — not the other two
 entry macros — and `cratestack-axum` (and therefore `axum`, `tower`, `hyper`,
 `tower-http`) is structurally absent from its graph under default features.
