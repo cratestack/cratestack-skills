@@ -271,7 +271,9 @@ named constraints.
 
 **Both entry macros emit a module literally named `cratestack_schema`.** To use
 `include_embedded_schema!` and `include_client_schema!` in one crate — a real,
-supported combination, see `examples/tauri-native` — wrap each in its own `mod`.
+supported combination, see `examples/tauri-native` — wrap each in its own `mod`. The same holds for two embedded schemas in one crate; see
+`examples/shared-types-import` (billing and shipping modules sharing an imported file, and
+[multi-file schemas](../cratestack-schema/references/multi-file.md)).
 
 **The schema path is relative to `CARGO_MANIFEST_DIR`**, not to the `.rs` file.
 

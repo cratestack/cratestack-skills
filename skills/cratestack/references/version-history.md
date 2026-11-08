@@ -58,12 +58,27 @@ each step's breaking changes assume the one before:
    Flutter-only); hand-written event code sees `Updated { matches: false }` on filter exit and the
    outbox gains `payload_before`; `cratestack_cose::CallBinding` struct literals gain
    `payload_type` and `payload_accept`.
-9. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate.
+9. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate. Then
+   [0.19.1](#0191-2026-11-08): an LSP rename guard, nothing to migrate.
 10. [Unreleased on `main`](#unreleased-on-main-after-0180) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
+
+## 0.19.1 (2026-11-08)
+
+- **LSP refuses rename in a file another schema imports** (cratestack#910) *(since 0.19.1)*. A
+  shared file holding only `type` / `enum` / `mixin` used to be renamed in place when opened
+  alone, silently breaking every importer. The server now records the workspace folders at
+  `initialize` and refuses `prepareRename` / `rename` when any `.cstack` there (open buffers
+  included) imports the file or lists it as a `part`. Limit: an importer outside the workspace
+  folders, or no workspace folders from the client, is invisible. `cratestack-parser` gains the
+  public `directive_targets` and `DirectiveKind`. Owner: `cratestack-editor-tooling`.
+- **New example `examples/shared-types-import`** *(since 0.19.1)*: two embedded services importing
+  one shared file (transitive imports, a diamond, a cross-file mixin, two
+  `include_embedded_schema!` calls in one crate). Owner: `cratestack-schema`
+  (`references/multi-file.md`).
 
 ## 0.19.0 (2026-11-08)
 

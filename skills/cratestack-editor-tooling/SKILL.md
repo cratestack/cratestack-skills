@@ -87,8 +87,15 @@ unsaved edits in any open file are what is checked.
   spans inside the requesting file, so references and highlights are file-local.
 - **Rename is refused** in a schema that spans more than one file: `prepareRename` returns
   nothing and `rename` fails with `rename is not available yet in a schema split across files`.
-  The same applies to any file whose text contains a `part` / `part of` / `import` line. Known
-  limit: a shared import opened alone (no directive in it, no analysed importer) can still be renamed.
+  The same applies to any file whose text contains a `part` / `part of` / `import` line.
+  *(since 0.19.1)* Rename is also refused in a file that another `.cstack` in the workspace
+  folders imports or lists as a `part`, even when the file has no directive of its own and is
+  opened alone (a shared `common.cstack` holding only `type` / `enum` / `mixin`). The server walks
+  the workspace folders the client sent at `initialize` (skipping hidden directories, `target` and
+  `node_modules`; it gives up past 10,000 files and refuses), reads open unsaved buffers before
+  disk, and compares canonical paths. Remaining limit: an importer outside the workspace folders,
+  or a client that sent no workspace folders, cannot be seen, and rename behaves as before. On
+  0.19.0 a shared import opened alone could be renamed, breaking its importers.
 - **Closing a file without saving** reverts analysis to its disk text. An open part removed from
   its root's `part` list shows M3 rather than going silent.
 - A buffer with no file path (untitled) keeps single-text analysis.

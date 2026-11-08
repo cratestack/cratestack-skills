@@ -1,6 +1,6 @@
 # Multi-file schemas: `part`, `part of`, `import`
 
-> **Verified against the CrateStack 0.19.0 implementation (cratestack#910); everything on this page is *(since 0.19.0)*.**
+> **Verified against the CrateStack 0.19.0 implementation (cratestack#910); everything on this page is *(since 0.19.0)* unless marked *(since 0.19.1)*, which adds the `examples/shared-types-import` example and the LSP importer check.**
 > Checked against the parser and macro tests, the `cratestack check` output, the language server
 > tests and the committed `examples/react-vite-swr` split on the implementation branch (design:
 > `docs/design/multi-file-schemas.md`; ADR 0023 in `cratestack-docs/internals/`). On 0.18.x or
@@ -150,50 +150,111 @@ model Task {
 }
 ```
 
-An import of shared types (the shared file has no `part of`, so it belongs to nobody):
+## Worked example: sharing types with `import`
+
+The committed example is `examples/shared-types-import` in the framework repo (a README, four
+`.cstack` files, `src/lib.rs` and tests; run it with `cargo run -p shared-types-import-example`).
+Two services, billing and shipping, each with its own schema root and its own SQLite database,
+import one shared set of shapes. The layout:
+
+```text
+shared/currency.cstack    enum Currency                       (imported by both)
+shared/common.cstack      type Money, mixin OrderRecord       (imports currency.cstack)
+billing/schema.cstack     model Invoice                       (imports common.cstack)
+shipping/schema.cstack    enum ShipmentStatus, model Shipment (imports currency.cstack and common.cstack)
+```
+
+`examples/shared-types-import/shared/common.cstack` (the shared file has no `part of`, so it
+belongs to no schema and any schema may import it):
 
 ```cstack
-// shared/money.cstack
-enum Currency {
-  EUR
-  XAF
-}
+// Shapes both services use. This file imports `currency.cstack` itself, so a
+// schema that imports this file sees `Currency` too: imports are transitive.
 
+import "currency.cstack"
+
+/// An amount in the currency's minor unit (cents; whole francs for XAF).
 type Money {
-  amount Decimal
+  amountMinor Int
   currency Currency
 }
 
-mixin Timestamps {
+// The fields every service row carries. `@use(OrderRecord)` copies them into
+// the importer's model, so each service stores them in its own table.
+mixin OrderRecord {
+  orderId Int
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
 }
 ```
 
+`examples/shared-types-import/billing/schema.cstack`:
+
 ```cstack
-// billing/schema.cstack
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url = env("DATABASE_URL")
 }
 
-import "../shared/money.cstack"
+import "../shared/common.cstack"
 
 model Invoice {
-  @use(Timestamps)
-
+  @use(OrderRecord)
   id Int @id
-  total Decimal
+  customer String
+  totalMinor Int
   currency Currency
-}
-
-type QuoteResult {
-  price Money
+  paid Boolean
 }
 ```
 
-Two services importing `money.cstack` each generate their own `Money`; they are wire-compatible
-because the shape is the same.
+What the example proves:
+
+- **Transitivity.** Billing never imports `currency.cstack`; it gets `Currency` through
+  `common.cstack`.
+- **The diamond loads once.** `examples/shared-types-import/shipping/schema.cstack` imports both
+  `../shared/currency.cstack` and `../shared/common.cstack`, and `common.cstack` imports
+  `currency.cstack` again. The loader keys files by canonical path, so `check --list-files`
+  shows three files, not four.
+- **An import shares shapes, not tables.** Each service generates its own `Currency` and
+  `Money` from the same file: the two `Currency` types are different Rust types with the same
+  variants, and a billing `Money` decodes as a shipping `Money`. Each service stores `Currency`
+  and the `OrderRecord` columns in its own table.
+- **A mixin from another file** is expanded by `@use` into the importer's model, so
+  `Invoice` and `Shipment` both get `orderId` and `createdAt`.
+
+**Pitfall: a `type` cannot be a model field.** `Money` above is declared as a `type`, but
+`Invoice` stores `totalMinor Int` plus `currency Currency`, not `total Money`. A `type` is
+usable in procedure arguments and returns and in hand-written code (the example's
+`billing::total` builds a `Money` from an `Invoice`), never as a model column. An `enum` and a
+`mixin` have no such limit. To store the shape, spread its fields into the model, or share a
+mixin.
+
+### Two schemas in one crate
+
+Every `include_*_schema!` call emits a module named `cratestack_schema`, so two calls in one
+crate each go in their own `mod`. From `examples/shared-types-import/src/lib.rs` (the example does
+this so one test can compare the two services; real services would be two crates):
+
+```rust
+pub mod billing {
+    cratestack::include_embedded_schema!("billing/schema.cstack");
+
+    use self::cratestack_schema::Money;
+    use self::cratestack_schema::models::Invoice;
+    // ...
+}
+
+pub mod shipping {
+    cratestack::include_embedded_schema!("shipping/schema.cstack");
+
+    use self::cratestack_schema::Money;
+    use self::cratestack_schema::models::Shipment;
+    // ...
+}
+```
+
+Editing `shared/common.cstack` rebuilds both modules, because each one's `SCHEMA_FILES` lists
+every file it was built from.
 
 ## Macros and tooling
 
