@@ -71,13 +71,15 @@ months.
 
 Read `cratestack-troubleshooting` before trusting a green run.
 
-**Multi-file schemas** *(unreleased, cratestack#910)*: `just verify-multi-file-rebuild`
-(CI job `multi-file rebuild`) drives real `cargo` builds of a multi-file fixture and reads
+**Multi-file schemas** *(since 0.19.0)*: `just verify-multi-file-rebuild`
+(CI job `multi-file rebuild (adding a part re-expands the macro)`) drives real `cargo` builds of a multi-file fixture and reads
 cargo's `fresh` flag to prove that editing the root, a part, an import, or adding and listing
 a part rebuilds the consuming crate. A committed multi-file fixture is loaded **through its
 root** by the parser's census test (`crates/cratestack-parser/tests/committed_schemas.rs`);
-never parse a part on its own. Not verified against a merged tree: the recipe and job names
-come from the accepted design, so check the `justfile`.
+never parse a part on its own. The recipe runs `.ci/multi-file-rebuild-check.sh`, which edits
+the fixture under `crates/cratestack-sqlite/tests/fixtures/multi_file` in place (restoring it on
+exit) and refuses to start over uncommitted changes there. It also proves the designed gap: a
+`part of` file no root lists does not rebuild.
 
 ## Conventions that cost a review round-trip
 

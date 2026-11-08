@@ -12,7 +12,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 > the full feature-to-release map is in
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
-A schema may span files *(unreleased, cratestack#910)*. Point the macro or the CLI at the
+A schema may span files *(since 0.19.0)*. Point the macro or the CLI at the
 **root** file; split it with `part "…"` (in the root) and `part of "…"` (in each part); share
 `type` / `enum` / `mixin` between schemas with `import "…"`. An import **cannot carry a
 `model`** (or a view, procedure, topic, query or extension): do not try. There is no
@@ -45,9 +45,9 @@ subscription procedure <name>(a: T): Item  // since 0.18.0, cratestack#1268; see
 topic <Name>(key: String | Int | Uuid): Payload  // since 0.18.0, cratestack#1268; one line, no attributes
 query <name>(a: T): ResultType      // declarative SQL, Postgres-only
 view <Name> from <M>, <M> { … }
-part "models/post.cstack"           // root only: this file is more of me (unreleased, cratestack#910)
-part of "../schema.cstack"          // in a part, once: I belong to that root (unreleased)
-import "../shared/money.cstack"    // brings in type / enum / mixin only; no `as` (unreleased)
+part "models/post.cstack"           // root only: this file is more of me (since 0.19.0)
+part of "../schema.cstack"          // in a part, once: I belong to that root (since 0.19.0)
+import "../shared/money.cstack"    // brings in type / enum / mixin only; no `as` (since 0.19.0)
 ```
 
 The three directives (`part`, `part of`, `import`) are one line each, a quoted relative path
@@ -436,7 +436,7 @@ actually catch people:
 - **`self`, `Self`, `super`, `crate`** are unusable as any identifier. Every
   *other* Rust keyword is fine (escaped as `r#type` at codegen).
 - **`part`, `import`** are unusable as any identifier *(since 0.13.0)* — reserved
-  as the multi-file directives (`part`, `part of`, `import`; *unreleased, cratestack#910*,
+  as the multi-file directives (`part`, `part of`, `import`; *since 0.19.0*,
   see [references/multi-file.md](references/multi-file.md)), not for codegen. Exact and case-sensitive:
   `Import` and `partOf` are fine.
 - **snake_case collisions**: `myField` and `my_field` on one model both normalize

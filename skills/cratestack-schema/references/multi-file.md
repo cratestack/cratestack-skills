@@ -1,11 +1,11 @@
 # Multi-file schemas: `part`, `part of`, `import`
 
-> **Verified against CrateStack 0.14.2; everything on this page is *(unreleased, cratestack#910)*.**
-> It is written from the accepted design, `docs/design/multi-file-schemas.md` in the framework
-> repository (ADR 0023 in `cratestack-docs/internals/`), while the implementation lands. No
-> published release has it: on 0.18.x or earlier a `part` or `import` line is refused and a
-> schema is exactly one file. Not yet verified against a released build. If a message below does
-> not match what `cratestack check` prints, source wins (`crates/cratestack-parser/`).
+> **Verified against the CrateStack 0.19.0 implementation (cratestack#910); everything on this page is *(since 0.19.0)*.**
+> Checked against the parser and macro tests, the `cratestack check` output, the language server
+> tests and the committed `examples/react-vite-swr` split on the implementation branch (design:
+> `docs/design/multi-file-schemas.md`; ADR 0023 in `cratestack-docs/internals/`). On 0.18.x or
+> earlier a `part` or `import` line is refused and a schema is exactly one file. If a message
+> below does not match what `cratestack check` prints, source wins (`crates/cratestack-parser/`).
 
 Back to [cratestack-schema](../SKILL.md).
 
@@ -103,10 +103,10 @@ generated clients are unchanged. **Splitting an existing schema needs no migrati
 
 ## Worked example: the split `examples/react-vite-swr`
 
-Excerpted verbatim from design sections 2 and 16. The files are
+Excerpted verbatim from the committed example. The files are
 `examples/react-vite-swr/schema.cstack` (root) and `examples/react-vite-swr/schema/task.cstack`,
-with `schema/board.cstack` and `schema/procedures.cstack` alongside. Re-check against the tree
-once that example lands.
+with `schema/board.cstack` and `schema/procedures.cstack` alongside (the root also opens with a
+comment block, omitted here).
 
 `examples/react-vite-swr/schema.cstack`:
 
@@ -193,9 +193,11 @@ because the shape is the same.
 ## Macros and tooling
 
 - `include_*_schema!("schema.cstack", …)` takes the **root**. Every part and import is tracked
-  as a rebuild dependency through `SCHEMA_FILES`, emitted only for a schema spanning more than
-  one file (a single-file schema's generated output is unchanged). `SCHEMA_SOURCE` stays the
-  **root file's text only**.
+  as a rebuild dependency through `SCHEMA_FILES: &[(&str, &str)]`, emitted by all three
+  `include_*_schema!` macros only for a schema spanning more than one file (a single-file
+  schema's generated output is unchanged). Each entry is `(path relative to CARGO_MANIFEST_DIR,
+  include_str!(absolute path))`, in load order, and `SCHEMA_FILES[0] == (SCHEMA_PATH,
+  SCHEMA_SOURCE)`. `SCHEMA_SOURCE` stays the **root file's text only**.
 - Adding a part is two edits: create the file, and add its `part` line to the root. The root
   edit is what triggers the rebuild.
 - Errors: [cratestack-troubleshooting](../../cratestack-troubleshooting/SKILL.md), "Multi-file

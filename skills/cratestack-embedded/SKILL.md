@@ -24,8 +24,7 @@ use cratestack::include_embedded_schema;
 include_embedded_schema!("schema.cstack");
 ```
 
-The argument is the schema's **root** file; parts and imports *(unreleased,
-cratestack#910)* are tracked as rebuild dependencies through the generated
+The argument is the schema's **root** file; parts and imports *(since 0.19.0)* are tracked as rebuild dependencies through the generated
 `SCHEMA_FILES`, and `SCHEMA_SOURCE` stays the root's text.
 
 Sync API. `rusqlite` with **bundled** SQLite, no tokio on the data path. Compiles

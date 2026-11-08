@@ -65,10 +65,10 @@ the reserved multi-file words `part` and `import` *(since 0.13.0)*, queried from
 `cratestack_parser::reserved_multi_file_keywords()` rather than copied — so a
 rename *to* `part` or `import` is refused with a message instead of rewriting the
 buffer into a file that no longer parses. (Those words are now the directives
-`part`, `part of` and `import` *(unreleased, cratestack#910)*, still reserved as
+`part`, `part of` and `import` *(since 0.19.0)*, still reserved as
 identifiers.)
 
-### Schemas split across files *(unreleased, cratestack#910)*
+### Schemas split across files *(since 0.19.0)*
 
 When the document is a file on disk, the server loads the whole schema that contains it
 (`part` / `part of` / `import`), using every open editor buffer in preference to disk, so
@@ -82,14 +82,15 @@ unsaved edits in any open file are what is checked.
   list the part, or the root cannot be read).
 - Editing any file re-analyses every root whose graph contains it (editing a shared
   `money.cstack` refreshes every open importer).
-- Go to definition crosses files. Completion offers the whole graph's declarations.
+- Go to definition crosses files. Completion offers the whole graph's models, mixins, types, procedures and fields (no enum names, in any schema).
 - Hover, document symbols, semantic tokens, **references and highlights** answer only with
   spans inside the requesting file, so references and highlights are file-local.
 - **Rename is refused** in a schema that spans more than one file: `prepareRename` returns
   nothing and `rename` fails with `rename is not available yet in a schema split across files`.
 - A buffer with no file path (untitled) keeps single-text analysis.
-- Completion offers `part` and `import` as directives; the detail no longer says they are
-  unimplemented.
+- `part`, `part of` and `import` complete as keywords; the detail reads "reserved multi-file
+  schema directive: `part "…"` lists a part, `part of "…"` names this part's root, `import "…"`
+  brings in shared types; never valid as a name".
 - Every keystroke re-parses the whole graph.
 
 ### Pointing an editor at it

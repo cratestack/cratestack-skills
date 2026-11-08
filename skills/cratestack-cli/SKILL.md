@@ -71,11 +71,10 @@ before the step fails:
 ```
 
 `line` is 1-based; `start`/`end` are byte offsets. Syntax and structural errors stop
-at the first one; validation errors may be several, from several files *(unreleased,
-cratestack#910)*. `file` is per-diagnostic and duplicated alongside the top-level
+at the first one; validation errors may be several, from several files *(since 0.19.0)*. `file` is per-diagnostic and duplicated alongside the top-level
 `schema`.
 
-### Multi-file schemas *(unreleased, cratestack#910)*
+### Multi-file schemas *(since 0.19.0)*
 
 `check` loads the whole graph (`part`, `part of`, `import`; see
 `cratestack-schema`, `references/multi-file.md`). **Every command that takes `--schema`
@@ -93,12 +92,23 @@ schema OK: schema.cstack
 
 If the root does not list the part, that is an error, exit 1.
 
-- `check --list-files` prints the resolved file set after `schema OK`, one per line with its
-  role (`root`, `part`, `import`, `import part`). Without the flag the output is unchanged.
+- `check --list-files` prints the resolved file set after `schema OK`: `files (N):`, then one
+  `  role  path` line per file in load order (`root`, `part`, `import`, `import part` for an
+  imported root's part). Without the flag the output is unchanged:
+
+  ```text
+  $ cratestack check --schema schema.cstack --list-files
+  schema OK: schema.cstack
+  files (4):
+    root        schema.cstack
+    part        schema/board.cstack
+    part        schema/task.cstack
+    part        schema/procedures.cstack
+  ```
 - In `--format json`: `"root"` is added only when it differs from `schema` (a part was given);
   `"files": [{ "path", "role" }]` is added by `--list-files`; a diagnostic gains
   `"related": [{ "file", "line", "start", "end", "message" }]` only when the error involves a
-  second location (a cycle, a duplicate name across files). `file` and `line` always refer to
+  second location (a duplicate name across files, a part that names another root, an import of a part or of a forbidden declaration). Labels: `` `{kind} {name}` is declared here first ``, `` `{part}` is listed here ``, `` `{file}` declares `part of` here ``, `` `{file}` is imported here ``. `file` and `line` always refer to
   the diagnostic's own file.
 - Messages: `cratestack-troubleshooting`, "Multi-file schema errors".
 
@@ -230,7 +240,7 @@ for seeing what mixins expanded to, what a `@relation` resolved to, and which
 attributes actually attached. It is a *different* IR from `cratestack-migrate`'s
 projections; nothing in the CLI prints that one.
 
-`print-ir --no-spans` *(unreleased, cratestack#910)* prints the same dump with every source
+`print-ir --no-spans` *(since 0.19.0)* prints the same dump with every source
 position zeroed. Use it to compare a split schema with its single-file equivalent (they
 print identically); without the flag the output is unchanged.
 

@@ -25,7 +25,7 @@ cratestack migrate baseline --schema schema.cstack --database-url <url>
 **`migrate verify` does not exist** — one source comment claims it is the CI gate
 for snapshot integrity; it is stale.
 
-A schema split across files *(unreleased, cratestack#910)* needs no migration: pass the
+A schema split across files *(since 0.19.0)* needs no migration: pass the
 **root** to `--schema` (a part is refused, M4) and the diff against an existing snapshot is
 empty, because a split schema is identical to its single-file equivalent. An enum imported
 from a shared file and used by a model column is materialized in *your* migrations.
