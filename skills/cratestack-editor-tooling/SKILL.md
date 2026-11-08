@@ -87,6 +87,10 @@ unsaved edits in any open file are what is checked.
   spans inside the requesting file, so references and highlights are file-local.
 - **Rename is refused** in a schema that spans more than one file: `prepareRename` returns
   nothing and `rename` fails with `rename is not available yet in a schema split across files`.
+  The same applies to any file whose text contains a `part` / `part of` / `import` line. Known
+  limit: a shared import opened alone (no directive in it, no analysed importer) can still be renamed.
+- **Closing a file without saving** reverts analysis to its disk text. An open part removed from
+  its root's `part` list shows M3 rather than going silent.
 - A buffer with no file path (untitled) keeps single-text analysis.
 - `part`, `part of` and `import` complete as keywords; the detail reads "reserved multi-file
   schema directive: `part "…"` lists a part, `part of "…"` names this part's root, `import "…"`

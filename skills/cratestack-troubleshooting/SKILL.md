@@ -235,7 +235,7 @@ involving two files name both in the text and carry a related location (`related
 | M1 | ``` `{part}` is listed as a part of `{root}`, but does not declare `part of`; add `part of "{back}"` to `{part}` ``` | The root lists a file that has no `part of` line. Add it. |
 | M2 | ``` `{part}` is listed as a part of `{root}`, but declares itself a part of `{other}` ``` | The part's `part of` names a different root. Fix whichever side is wrong. |
 | M3 | ``` `{part}` declares itself a part of `{root}`, but `{root}` does not list it; add `part "{rel}"` to `{root}` ``` | A `part of` file nobody lists. Add the `part` line to the root. |
-| M4 | ``` `{file}` is a part of `{root}`, not a schema root; point the macro or command at `{root}` ``` | A part was given where a root is required. Point the macro or command at the root. (`check` accepts a part.) `{file}` is the part's file name and `{root}` is the path exactly as the part wrote it in `part of` (e.g. `../schema.cstack`), so it is relative to the part. |
+| M4 | ``` `{file}` is a part of `{root}`, not a schema root; point the macro or command at `{root}` ``` | A part was given where a root is required. Point the macro or command at the root. (`check` accepts a part.) `{file}` is the part as given and `{root}` is the root resolved against it (`--schema examples/react-vite-swr/schema/task.cstack` names `examples/react-vite-swr/schema.cstack`), so both work as given. |
 | M5 | ``` `{kind}` belongs in the root schema (`{root}`), not in a part ``` | `datasource`, `auth`, `transport` or `mcp` in a part. Move it to the root. |
 | M6 | ``` a part cannot list parts of its own; move `part "{path}"` to the root schema (`{root}`) ``` | A part has a `part` line. Move it to the root. |
 | M7 | ``` duplicate `part of` (first declared on line {n}) ``` | Two `part of` in one file. Delete one. |
@@ -249,6 +249,7 @@ involving two files name both in the text and carry a related location (`related
 | M15 | ``` `{directive}` path `{path}` must be a relative path written with `/` and ending in `.cstack` ``` | Empty path, absolute path, backslash, or missing `.cstack` suffix (a bare `.cstack` is refused too). `{directive}` is `part`, `part of` or `import`. |
 | M16 | ``` expected a quoted path after `{directive}`, like `{directive} "models/post.cstack"` ``` | Missing or unterminated quote, or text (even a comment) after the closing quote. |
 | M17 | ``` `{directive}` needs the schema to be loaded from a file, because "{path}" is resolved against that file's directory; use `parse_schema_file` or `cratestack check --schema <root>` ``` | A `part` / `part of` / `import` reached a single-source parser entry point (`parse_schema`, `parse_schema_named`, ...). Load by file. |
+| M18 | ``` `{relative}` changed while it was being loaded; load it again ``` | A file changed between two reads of one load (rare race). Re-run. |
 
 An unreadable root keeps the single-file text: `failed to read schema file {path}: {error}`.
 

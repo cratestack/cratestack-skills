@@ -76,6 +76,11 @@ different files with identical contents are two files and collide.
 - Every `part`, `part of` and `import` path is relative to **the directory of the file that
   contains the directive**: `part of "../schema.cstack"` inside `schema/task.cstack` names
   `schema.cstack`.
+- Resolution is against the directory of the containing file's **canonical (real) path**; `..` is
+  left to the OS. A symlinked part's `part of` is written relative to its **real** location. The
+  root is displayed as given, other files at their real location relative to the root's real
+  directory. Macros emit each `include_str!` from the path actually read, so absolute literals and
+  symlinked roots work.
 - A path must be relative, use `/` as its only separator and end in `.cstack` (M15): no
   absolute paths, no backslashes, no `part "models/post"`.
 - `cargo publish` packages only the crate directory, so a published crate must keep its schema
