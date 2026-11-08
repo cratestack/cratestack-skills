@@ -192,8 +192,8 @@ and `crate` are unusable. Every other Rust keyword is fine, escaped as `r#type`.
 
 **``uses `.cstack` keyword `part`, reserved for multi-file schemas``**
 *(since 0.13.0)* — `part` and `import` are refused in every identifier position,
-not because codegen cannot spell them but because the multi-file grammar is
-going to claim them (#922). Rename the declaration, field, variant or parameter.
+not because codegen cannot spell them but because the multi-file directives claim
+them (#922; the directives are *since 0.19.0*). Rename the declaration, field, variant or parameter.
 The match is exact and case-sensitive, so `Import`, `partOf` and `of` all still
 parse.
 
@@ -220,6 +220,43 @@ is now enforced, so it is refused where there is no transaction to run in: a
 streamed response is produced after the procedure returns, and a schema with no
 database has none. Remove the attribute or the conflicting declaration. On every
 release through 0.14.0 these compiled and the attribute did nothing.
+
+## Multi-file schema errors *(since 0.19.0)*
+
+Message text is checked against the assertions in `crates/cratestack-parser/tests/multi_file_*.rs`
+and `src/tests_single_source_directives.rs`; paths are shown relative to the root file's
+directory unless noted. If the text differs from what `check` prints, source wins. Structural checks (M1-M16 and every file's syntax) stop at
+the first error; validation errors are then reported together, from several files. Errors
+involving two files name both in the text and carry a related location (`related` in `check
+--format json`, `relatedInformation` in the LSP).
+
+| # | Message | Cause and fix |
+| --- | --- | --- |
+| M1 | ``` `{part}` is listed as a part of `{root}`, but does not declare `part of`; add `part of "{back}"` to `{part}` ``` | The root lists a file that has no `part of` line. Add it. |
+| M2 | ``` `{part}` is listed as a part of `{root}`, but declares itself a part of `{other}` ``` | The part's `part of` names a different root. Fix whichever side is wrong. |
+| M3 | ``` `{part}` declares itself a part of `{root}`, but `{root}` does not list it; add `part "{rel}"` to `{root}` ``` | A `part of` file nobody lists. Add the `part` line to the root. |
+| M4 | ``` `{file}` is a part of `{root}`, not a schema root; point the macro or command at `{root}` ``` | A part was given where a root is required. Point the macro or command at the root. (`check` accepts a part.) `{file}` is the part as given and `{root}` is the root resolved against it (`--schema examples/react-vite-swr/schema/task.cstack` names `examples/react-vite-swr/schema.cstack`), so both work as given. |
+| M5 | ``` `{kind}` belongs in the root schema (`{root}`), not in a part ``` | `datasource`, `auth`, `transport` or `mcp` in a part. Move it to the root. |
+| M6 | ``` a part cannot list parts of its own; move `part "{path}"` to the root schema (`{root}`) ``` | A part has a `part` line. Move it to the root. |
+| M7 | ``` duplicate `part of` (first declared on line {n}) ``` | Two `part of` in one file. Delete one. |
+| M8 | ``` `{path}` is already listed as a part on line {n} ``` | The root lists one file twice. |
+| M9 | ``` `{root}` lists itself as a part ``` | A `part` line naming the root. Remove it. |
+| M10 | ``` cannot import `{file}`: it is a part of `{root}`, and a part is locked to its root; import a file that does not declare `part of` instead ``` | An `import` names a part. Import a standalone shared file. |
+| M11 | ``` import cycle: `{a}` → `{b}` → … → `{a}` ``` | Imports form a loop (a file importing itself included); the message lists every file from the main root. A step through a part reads `` `{root}` (part `{part}`) ``. Break it at the import line the error points to. |
+| M12 | ``` `{kind} {name}` cannot come from an import: `{file}` is imported by `{importer}`, and an imported file may declare only `type`, `enum` and `mixin`; use `part` to split one schema across files ``` | A `model`, `view`, `procedure`, `topic`, `query`, `extension` (`{kind}` alone for `transport` / `mcp`) in an imported file. Imports carry only types, enums and mixins. Move the declaration into the importing schema, or split with `part`. |
+| M13 | ``` `{name}` is declared twice: `{kind_a} {name}` in `{file_a}` (line {la}) and `{kind_b} {name}` in `{file_b}` (line {lb}) ``` | One flat namespace across all files. Rename one. There is no `import … as`. |
+| M14 | ``` cannot read `{path}` (listed on line {n} of `{file}`): {io error} ``` | A listed file is missing or unreadable. Fix the path or restore the file. |
+| M15 | ``` `{directive}` path `{path}` must be a relative path written with `/` and ending in `.cstack` ``` | Empty path, absolute path, backslash, or missing `.cstack` suffix (a bare `.cstack` is refused too). `{directive}` is `part`, `part of` or `import`. |
+| M16 | ``` expected a quoted path after `{directive}`, like `{directive} "models/post.cstack"` ``` | Missing or unterminated quote, or text (even a comment) after the closing quote. |
+| M17 | ``` `{directive}` needs the schema to be loaded from a file, because "{path}" is resolved against that file's directory; use `parse_schema_file` or `cratestack check --schema <root>` ``` | A `part` / `part of` / `import` reached a single-source parser entry point (`parse_schema`, `parse_schema_named`, ...). Load by file. |
+| M18 | ``` `{relative}` changed while it was being loaded; load it again ``` | A file changed between two reads of one load (rare race). Re-run. |
+
+An unreadable root keeps the single-file text: `failed to read schema file {path}: {error}`.
+
+**"My new part's models do not exist."** The root must list the part with a `part "…"` line.
+A file that declares `part of` but that no root lists is read by no build, by design
+(`cratestack check` on that file reports M3, and the LSP reports it when the file is opened).
+Add the `part` line to the root; that edit is also what triggers the rebuild.
 
 ## Runtime behaviour that looks like a bug and is not
 

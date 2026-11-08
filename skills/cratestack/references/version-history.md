@@ -58,11 +58,24 @@ each step's breaking changes assume the one before:
    Flutter-only); hand-written event code sees `Updated { matches: false }` on filter exit and the
    outbox gains `payload_before`; `cratestack_cose::CallBinding` struct literals gain
    `payload_type` and `payload_accept`.
-9. [Unreleased on `main`](#unreleased-on-main-after-0180) only if you build `main`.
+9. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate.
+10. [Unreleased on `main`](#unreleased-on-main-after-0180) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
+
+## 0.19.0 (2026-11-08)
+
+- **Multi-file schemas** (cratestack#910, design `docs/design/multi-file-schemas.md`, ADR 0023)
+  *(since 0.19.0)*. `part "…"` / `part of "…"` split one schema across files,
+  `import "…"` shares `type` / `enum` / `mixin`; macros take the root and emit `SCHEMA_FILES`
+  for a multi-file schema; `check --list-files`, `check` on a part, `print-ir --no-spans`;
+  the LSP follows the graph. Verified against the implementation (parser and macro tests, CLI output, LSP tests,
+  the split `examples/react-vite-swr`). Limits: imports carry no models, no `import … as`, LSP
+  rename refused across files, references and highlights file-local. Owners:
+  `cratestack-schema` (`references/multi-file.md`), `cratestack-cli`,
+  `cratestack-editor-tooling`, `cratestack-troubleshooting`.
 
 ## Unreleased on `main`, after 0.18.0
 
@@ -1064,6 +1077,11 @@ As of 0.14.2, each of these parses, validates, and then does nothing (re-checked
   (issue #136).
 - The five `batch_*` ORM primitives — complete, and reachable from no generated
   route.
+- Multi-file schemas *(since 0.19.0)*, by design rather than by accident: an `import` may carry
+  only `type`, `enum` and `mixin` (a `model` there is refused, M12); `import … as` / `show` /
+  `hide` do not exist; the LSP refuses rename in a multi-file schema and answers references
+  and highlights only within the requesting file; a `part of` file no root lists is never read
+  by a build.
 
 **No longer inert since 0.15.4.** An unknown or wrong-kind **field** attribute
 (`@whatever`, `@Id` / `@ID`, `@immutable`, `@string`, `@unique` on a `view` field,

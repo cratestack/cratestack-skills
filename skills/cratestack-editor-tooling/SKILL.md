@@ -63,8 +63,39 @@ be a non-keyword non-builtin identifier, collisions are rejected, and it refuses
 entirely while the file has a syntax error. The keyword list it checks includes
 the reserved multi-file words `part` and `import` *(since 0.13.0)*, queried from
 `cratestack_parser::reserved_multi_file_keywords()` rather than copied — so a
-rename to `import` is refused with a message instead of rewriting the buffer into
-a file that no longer parses.
+rename *to* `part` or `import` is refused with a message instead of rewriting the
+buffer into a file that no longer parses. (Those words are now the directives
+`part`, `part of` and `import` *(since 0.19.0)*, still reserved as
+identifiers.)
+
+### Schemas split across files *(since 0.19.0)*
+
+When the document is a file on disk, the server loads the whole schema that contains it
+(`part` / `part of` / `import`), using every open editor buffer in preference to disk, so
+unsaved edits in any open file are what is checked.
+
+- Diagnostics are published **per file**, for every file in the graph including files that
+  are not open; a file that had errors and now has none gets an empty publish. An error that
+  involves two files carries `relatedInformation`.
+- A part opened alone is analysed through its root, so you see the whole schema's real
+  diagnostics. If the root cannot be loaded the one diagnostic says why (the root does not
+  list the part, or the root cannot be read).
+- Editing any file re-analyses every root whose graph contains it (editing a shared
+  `money.cstack` refreshes every open importer).
+- Go to definition crosses files. Completion offers the whole graph's models, mixins, types, procedures and fields (no enum names, in any schema).
+- Hover, document symbols, semantic tokens, **references and highlights** answer only with
+  spans inside the requesting file, so references and highlights are file-local.
+- **Rename is refused** in a schema that spans more than one file: `prepareRename` returns
+  nothing and `rename` fails with `rename is not available yet in a schema split across files`.
+  The same applies to any file whose text contains a `part` / `part of` / `import` line. Known
+  limit: a shared import opened alone (no directive in it, no analysed importer) can still be renamed.
+- **Closing a file without saving** reverts analysis to its disk text. An open part removed from
+  its root's `part` list shows M3 rather than going silent.
+- A buffer with no file path (untitled) keeps single-text analysis.
+- `part`, `part of` and `import` complete as keywords; the detail reads "reserved multi-file
+  schema directive: `part "…"` lists a part, `part of "…"` names this part's root, `import "…"`
+  brings in shared types; never valid as a name".
+- Every keystroke re-parses the whole graph.
 
 ### Pointing an editor at it
 
