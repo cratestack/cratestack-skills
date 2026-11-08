@@ -141,7 +141,7 @@ Worth knowing before you design around them:
   supported.
 - Multi-file schemas *(since 0.19.0)* have deliberate limits: an `import`
   carries only `type`, `enum` and `mixin` (no models); there is no `import … as`; the LSP
-  refuses rename in a schema split across files and its references and highlights stay
+  refuses rename in a schema split across files (and, since 0.19.1, in a file another workspace schema imports) and its and highlights stay
   file-local; a `part of` file that no root lists is ignored by builds.
 
 ## Sources
