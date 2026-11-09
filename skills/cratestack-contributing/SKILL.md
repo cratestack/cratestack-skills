@@ -5,7 +5,7 @@ description: Working inside the cratestack framework repository itself — the j
 
 # Contributing to the framework
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -37,7 +37,14 @@ off-by-default feature, because `--workspace` resolves *default* features and
 would never lint the gated code: `cratestack-client-rust`'s `middleware`; `mcp`
 on `cratestack-api` and `cratestack-pg`, and `cratestack-cose`'s `auth`
 *(since 0.13.0)*; `envelope` / `cose` on `cratestack-axum` and `cratestack-api`
-*(since 0.14.0)*. Seven clippy runs in all.
+*(since 0.14.0)*; `cose,middleware` on `cratestack-client-rust` and `cose` on
+`cratestack-pg` *(since 0.15.0)*; `cose` on `cratestack-client-flutter` and on
+`cratestack-cbor-wasm` for `wasm32-unknown-unknown` *(since 0.15.4)*;
+`client,server` on `cratestack-sync` *(since 0.16.0)*; `dev-cert,client` on
+`cratestack-webtransport` *(since 0.17.1, `client` since 0.18.0)*; and
+`ws,webtransport` on `cratestack-client-rust` *(since 0.18.0)*. Fourteen clippy
+runs in all on 0.19.1 (seven on 0.14.2). A new off-by-default feature with code
+behind it needs its own line, or nothing lints it.
 
 Never add `--all-features`. See `cratestack-troubleshooting` for why, and note
 that the *reason* given in several places in the repo is stale.
@@ -57,7 +64,18 @@ just test-pg-tc                                            # ephemeral testconta
 CI runs the suite as **parallel shards** (`just test-ci-db`, `test-ci-redis`,
 `test-ci-studio`, `test-ci-host`, and friends) because no single runner can
 compile the whole workspace — the Tauri, wasm and napi example crates exhaust
-runner disk.
+runner disk. Shards added since 0.14.2: `test-ci-db-cose` *(0.15.0)*,
+`test-ci-db-sync` *(0.16.0)*, `test-ci-db-webtransport` *(0.17.1)* and
+`test-ci-db-websocket` *(0.18.0)*, plus the browser recipes
+`test-webtransport-browser` *(0.17.1)* and `test-realtime-chat` *(0.18.0)*, both run by
+the CI job `webtransport-browser`.
+
+**The payload-size gate** *(since 0.18.0)*: `cratestack-api`'s `tests/payload_sizes.rs`
+encodes representative bodies through the real codecs and compares them with the committed
+`tests/payload_sizes.baseline`, so a change that grows or shrinks a body fails the **plain**
+workspace test run. Re-baseline deliberately with
+`CRATESTACK_UPDATE_PAYLOAD_SIZES=1 cargo test -p cratestack-api --test payload_sizes`
+and commit the new baseline.
 
 Four of those shards exist because a 2026-08 coverage audit found their tests had
 **never run in CI at all**: outbox, migrate-introspect, cli-baseline and
@@ -132,6 +150,20 @@ the `forbid` locally — the root table cannot reach a disjoint workspace.
 `just verify-layering` over `cargo metadata --no-deps`; `dev` and `build`
 dependencies are exempt, target-gated normal dependencies are not. Do not edit
 that file to legalise a new edge.
+
+**No authentication library in the workspace graph** *(since 0.17.1, ADR 0021)*.
+`.ci/auth-independence-check.sh` (CI job `auth library independence (ADR 0021)`) fails if
+any package with a guarded prefix (default `authkestra`) appears anywhere in the root
+`Cargo.lock`. External auth plugs in through `AuthProvider`; an example that wires one
+lives outside the workspace with its own lockfile (`examples/auth-pluggable`, CI job
+`auth-pluggable`).
+
+**Vendored Rust skills** *(since 0.18.0)*: `.claude/skills/` holds two third-party agent
+skills (`rust-best-practices`, `rust-async-patterns`), pinned by `skills-lock.json` and
+copied unmodified. Where they disagree with the framework's `CLAUDE.md`, `CLAUDE.md` wins:
+the gate is `just all-checks` / `just lint`, never their `--all-features` clippy line; no
+crate-level `#![deny(missing_docs)]`; dependencies go through `[workspace.dependencies]`;
+the 200-line ceiling and facade disjointness outrank their advice.
 
 ## MSRV, toolchain, deny
 

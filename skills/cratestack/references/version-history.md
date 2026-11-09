@@ -13,16 +13,16 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.14.2** unless a marker says
+Everything in these skills is verified against **0.19.1** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.18.0** (tag `v0.18.0`, 2026-11-06). Its changes, 0.17.2's, 0.17.1's,
-0.17.0's, 0.16.0's and 0.15.4's, are recorded below and marked *(since 0.18.0)* / *(since 0.17.2)* /
-*(since 0.17.1)* / *(since 0.17.0)* / *(since 0.16.0)* / *(since 0.15.4)* where they are taught; the banners stay at 0.14.2 until every skill has been re-checked against the
-latest release, as AGENTS.md requires.
+The latest release is **0.19.1** (tag `v0.19.1`, 2026-11-08). Every release from 0.15.0 to
+0.19.1 is recorded below, and its changes are marked *(since X.Y.Z)* where they are taught. The
+banners moved from 0.14.2 to 0.19.1 in one change, after every skill was re-checked against the
+`v0.19.1` tag, as AGENTS.md requires.
 
 ## Reading order for an upgrade
 
@@ -57,63 +57,91 @@ each step's breaking changes assume the one before:
 8. [0.18.0](#0180-2026-11-06): `--no-native-cbor` is gone (generated Dart clients are
    Flutter-only); hand-written event code sees `Updated { matches: false }` on filter exit and the
    outbox gains `payload_before`; `cratestack_cose::CallBinding` struct literals gain
-   `payload_type` and `payload_accept`.
-9. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate. Then
-   [0.19.1](#0191-2026-11-08): an LSP rename guard, nothing to migrate.
-10. [Unreleased on `main`](#unreleased-on-main-after-0180) only if you build `main`.
+   `payload_type` and `payload_accept`; a Rust `ClientConfig { base_url }` literal gains
+   `subscription_transport` (use `ClientConfig::new(url)`).
+9. [0.18.1](#0181-2026-11-07): prepared unary mutations, additive; in Rust an authorizer-only
+   `Idempotency-Key` on a compact call with a body is refused before send.
+10. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate. Then
+   [0.19.1](#0191-2026-11-08): an LSP rename guard and an example, nothing to migrate.
+11. [Unreleased on `main`](#unreleased-on-main-after-0191) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
+## Unreleased on `main`, after 0.19.1
+
+Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
+security fix merged from a private fork with no PR number. At the `v0.19.1` tag the framework's
+`## Unreleased` changelog heading is empty, so the only entry below is the sync-engine prototype,
+which is in the tags' source but in no published crate. (The prepared-mutation work recorded
+here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
+
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.1`)
+  and the 0.16.0 changelog lists it as a prototype, but `publish = false` keeps it off crates.io,
+  so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
+  crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
+  note). Agents must not depend on it.
+
 ## 0.19.1 (2026-11-08)
 
-- **LSP refuses rename in a file another schema imports** (cratestack#910) *(since 0.19.1)*. A
+- **LSP refuses rename in a file another schema imports** (cratestack#910, PR #1317) *(since 0.19.1)*. A
   shared file holding only `type` / `enum` / `mixin` used to be renamed in place when opened
   alone, silently breaking every importer. The server now records the workspace folders at
   `initialize` and refuses `prepareRename` / `rename` when any `.cstack` there (open buffers
   included) imports the file or lists it as a `part`. Limit: an importer outside the workspace
   folders, or no workspace folders from the client, is invisible. `cratestack-parser` gains the
   public `directive_targets` and `DirectiveKind`. Owner: `cratestack-editor-tooling`.
-- **New example `examples/shared-types-import`** *(since 0.19.1)*: two embedded services importing
+- **New example `examples/shared-types-import`** (cratestack#910, PR #1317) *(since 0.19.1)*: two embedded services importing
   one shared file (transitive imports, a diamond, a cross-file mixin, two
   `include_embedded_schema!` calls in one crate). Owner: `cratestack-schema`
   (`references/multi-file.md`).
 
 ## 0.19.0 (2026-11-08)
 
-- **Multi-file schemas** (cratestack#910, design `docs/design/multi-file-schemas.md`, ADR 0023)
-  *(since 0.19.0)*. `part "…"` / `part of "…"` split one schema across files,
-  `import "…"` shares `type` / `enum` / `mixin`; macros take the root and emit `SCHEMA_FILES`
-  for a multi-file schema; `check --list-files`, `check` on a part, `print-ir --no-spans`;
-  the LSP follows the graph. Verified against the implementation (parser and macro tests, CLI output, LSP tests,
-  the split `examples/react-vite-swr`). Limits: imports carry no models, no `import … as`, LSP
-  rename refused across files, references and highlights file-local. Owners:
-  `cratestack-schema` (`references/multi-file.md`), `cratestack-cli`,
-  `cratestack-editor-tooling`, `cratestack-troubleshooting`.
+- **Multi-file schemas** (cratestack#910 with #914, #921, #924, merged as
+  cratestack PR #1311; design `docs/design/multi-file-schemas.md`, ADR 0023) *(since 0.19.0)*. `part "…"` / `part of "…"`
+  split one schema across files, `import "…"` shares `type` / `enum` / `mixin`; macros take the
+  root and emit `SCHEMA_FILES` for a multi-file schema (`SCHEMA_SOURCE` stays the root's text; a
+  single-file schema's output is byte-identical); `check --list-files`, `check` on a part,
+  `print-ir --no-spans`, a `related` array in `--format json` diagnostics; Studio's workspace
+  loader and the LSP follow the graph. New `cratestack-parser` API (`load_schema`,
+  `load_schema_diagnostics`, `LoadOptions`, `SchemaError::related()`, …); the single-source entry
+  points refuse a directive. `examples/react-vite-swr` is split across `schema/`. CI proves
+  rebuilds with `just verify-multi-file-rebuild`. Verified against the `v0.19.1` tag (parser and
+  macro tests, CLI handlers and tests, LSP tests, the split `examples/react-vite-swr`). Limits:
+  imports carry no models, no `import … as`, LSP rename refused across files, references and
+  highlights file-local. Additive: no public signature changed. Owners: `cratestack-schema`
+  (`references/multi-file.md`), `cratestack-cli`, `cratestack-editor-tooling`,
+  `cratestack-troubleshooting`, `cratestack-contributing` (the rebuild gate).
 
-## Unreleased on `main`, after 0.18.0
+## 0.18.1 (2026-11-07)
 
-Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. When 0.18.0 was recorded here, the
-only entry below was the sync-engine prototype, which is in the tags' source but in no published
-crate.
+Tag `v0.18.1`: one `CHANGELOG.md` entry (cratestack PR #1297) and one example. Skills mark it
+*(since 0.18.1)*.
 
-- **Durable prepared mutations; compact encoding pins evict the oldest key** (cratestack PR #1297)
-  *(unreleased, cratestack#1297)*. `prepare_call` / `execute_prepared` (Rust), `prepare` /
-  `executePrepared` (TypeScript), `prepare` / `prepareCall` / `executePrepared` (Dart) freeze a keyed
-  unary mutation's inner bytes for retries across restarts. The in-memory pin table (1024 keys Rust,
-  512 TS/Dart) now evicts its oldest key when full. In Rust, an authorizer-only `Idempotency-Key` on a
-  compact call with a body is refused. Owners: `cratestack-clients` (see
-  [clients](../../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297)),
-  `cratestack-data-integrity`.
-- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
-  framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` and the 0.16.0 changelog
-  lists it as a prototype, but `publish = false` keeps it off crates.io, so no release ships
-  it: nothing installable exists. There is no `@@sync` attribute, and the crate's API is
-  expected to change. Owner: `cratestack-embedded` (the "no supported sync engine" note). Agents
-  must not depend on it.
+- **Durable compact idempotent calls; prepared unary mutations** (cratestack PR #1297)
+  *(since 0.18.1, cratestack#1297)*. A compact-capable keyed call keeps its first encoding while
+  the client instance lives; the pin table is bounded (1024 keys in Rust, 512 in TypeScript and
+  Dart) and evicts its oldest key when full. In Rust the `Idempotency-Key` must be in the
+  per-call headers to be pinned: an authorizer-only key on a call with a body is refused before
+  send, and keys injected later by custom HTTP defaults or middleware are outside the guarantee.
+  Duplicate `Idempotency-Key` or `If-Match` entries are refused before compact planning, ordinary
+  compact streaming calls included. For a retry across client recreation, `prepare_call` /
+  `execute_prepared` (Rust), `prepare` / `executePrepared` (TypeScript) and `prepare` /
+  `prepareCall` / `executePrepared` (Dart) freeze a keyed unary mutation's inner bytes: store the
+  snapshot before sending, restore it with the same service and contract
+  (`docs/design/prepared-idempotent-calls.md`). On 0.18.0 the prepared-call APIs do not exist
+  (`crates/cratestack-client-rust/src/client/prepared_client.rs` is absent at `v0.18.0`). Owners:
+  `cratestack-clients` (see [clients](../../cratestack-clients/SKILL.md), its durable prepared
+  mutations section), `cratestack-data-integrity`.
+- **New example `examples/signed-compact`** (cratestack PR #1294; no `CHANGELOG.md` entry, in the
+  `v0.18.1` tag and not `v0.18.0`). A COSE-sealed `transport rpc`, `db = None` service whose
+  envelope layer opts the compact payload types in with `.payload_media_types(..)`, and its
+  generated Rust client using `with_envelope` plus `with_compact_keys`. Owner:
+  `cratestack-server`.
 
 ## 0.18.0 (2026-11-06)
 
@@ -123,12 +151,19 @@ Tag `v0.18.0`. Compact wire keys (plain, streamed and sealed), the removal of
 - **Breaking: native CBOR is the only codec of generated TypeScript and Dart clients**
   (cratestack PR #1281) *(since 0.18.0, cratestack#1281)*. `--no-native-cbor` is removed from
   both generators. A TypeScript RPC client always depends on `@cratestack/cbor`; a generated Dart
-  client is Flutter-only (`cratestack_cbor`), and Windows arm64 (TypeScript) and Linux arm64
+  client is Flutter-only (`cratestack_cbor`, a Flutter FFI plugin, is its only codec, so plain-Dart
+  programs on the standalone Dart SDK are out), and Windows arm64 (TypeScript) and Linux arm64
   (Dart) are not covered. Owners: `cratestack-clients`, `cratestack-cli`.
 - **A payload-size gate** (cratestack PR #1281) *(since 0.18.0, cratestack#1281)*.
   `crates/cratestack-api/tests/payload_sizes.rs` measures representative bodies per codec, raw and
   gzipped, against a committed baseline; re-baseline with `CRATESTACK_UPDATE_PAYLOAD_SIZES=1`.
   Owner: `cratestack-contributing`.
+- **Vendored Rust agent skills in the framework repo** (cratestack PR #1279; no `CHANGELOG.md`
+  entry, first in the `v0.18.0` tag). `.claude/skills/rust-best-practices` and
+  `.claude/skills/rust-async-patterns`, installed with `npx skills` and recorded in
+  `skills-lock.json`, copied unmodified; the framework's `CLAUDE.md` overrides them where they
+  disagree (gates, lints, dependencies, the 200-line ceiling). Framework-repository only, no user
+  surface. Owner: `cratestack-contributing`.
 - **Compact wire keys, negotiated per op contract** (cratestack PR #1285, #1292)
   *(since 0.18.0, cratestack#1285)*. Opt-in integer field keys:
   `application/vnd.cratestack.compact+{cbor,json,cbor-seq}`, selected by `Cratestack-Contract`;
@@ -164,8 +199,15 @@ Tag `v0.18.0`. Compact wire keys (plain, streamed and sealed), the removal of
   With one, the dispatcher is `db.subscriptions(registry)`. `extension websocket { }` + the
   `websocket` feature: `cratestack-websocket`, `db.subscriptions(..).websocket(config, auth)` at
   `/rpc/ws`. The generated Rust client: `subscribe()` and a method per subscription procedure,
-  `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. Owners: `cratestack-rpc`
-  (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`.
+  `ClientConfig::with_subscription_transport`, `client-ws` / `ws` features. `POST
+  /rpc/subscribe/{op_id}` takes any subscription's input as a JSON body, model feeds included
+  (`GET /rpc/subscribe/{op_id}` stays the SSE entry point). **Breaking for Rust callers** building
+  `cratestack_client_rust::ClientConfig { base_url }` by struct literal: it gains
+  `subscription_transport` (and, under the `webtransport` feature, `webtransport`, cratestack PR
+  #1270), so build it with `ClientConfig::new(url)` (`crates/cratestack-client-rust/src/config.rs`;
+  no `CHANGELOG.md` entry says so). Owners: `cratestack-rpc`
+  (`references/subscriptions.md`), `cratestack-server`, `cratestack-schema`, `cratestack-troubleshooting`,
+  `cratestack-clients` (the `ClientConfig` literal).
 - **Filter-exit events on model feeds; breaking for hand-written event code** (cratestack PR
   #1282) *(since 0.18.0)*. An update that moves a row out of a subscriber's filter or read policy
   sends `Updated` with `matches: false` and the pre-image as `data`. The outbox gains
@@ -229,8 +271,13 @@ CHANGELOG says how), so read them before upgrading.
   on REST, RPC unary and RPC batch. `CratestackErrorResponse` and `RpcErrorBody` gain a public
   `extra` map, and their struct literals need `extra: Default::default()`.
   `cratestack-client-rust`'s `ClientError::Remote { error }` becomes `Option<Box<_>>`. MCP and
-  sync render it too (next entry, same release). Closes the #1208 known gap listed under 0.16.0.
-  Owners: `cratestack-policy-auth`, `cratestack-clients`.
+  sync render it too (next entry, same release). A provider returns it as the new
+  `CratestackError::AuthRefused` variant through `refusal.into_error()` (deliberately no
+  `From<AuthRefusal>`, which would make inferred `?` conversions ambiguous, E0283);
+  `AuthRefusal::unauthenticated(..)` is a 401 and `forbidden(..)` a 403, the codes stay `UNAUTHORIZED` / `FORBIDDEN` (RPC `unauthenticated` /
+  `permission_denied`), and `.with_details(value)` sets `details`. `CratestackError` is
+  `#[non_exhaustive]`, so existing `match`es already have a wildcard arm. Closes the #1208 known gap
+  listed under 0.16.0. Owners: `cratestack-policy-auth`, `cratestack-clients`.
 - **MCP credential presence is pluggable; MCP and sync render an `AuthRefusal`** (cratestack#1243)
   *(since 0.17.1, cratestack#1243)*. `CredentialPresence` (`bearer` default, `provider_decides`,
   `when`, `with_credential_headers`) on `StreamableHttpServer::with_credential_presence`. The
@@ -537,7 +584,12 @@ still a JSON number. Skills mark it *(since 0.15.4)*.
   and generated clients do not validate before sending. Owners: `cratestack-schema`,
   `cratestack-troubleshooting` (a `422` on a procedure that used to accept the call).
 - **`BigInt`: an exact 64-bit integer on every codec and client** (ADR 0019 D2, D3)
-  *(since 0.15.4)*. A built-in scalar beside `Int`, valid wherever `Int` is. The reason: a JSON
+  *(since 0.15.4)*. A built-in scalar beside `Int`, valid wherever `Int` is: an `@id` or foreign
+  key, a `@version` (its `ETag` round-trips above 2^53), `@range`, a numeric `@default` (must fit
+  `i64`), a `@default(auth().x)` column (the claim may be the canonical string), a `<Model>Where`
+  comparable filter (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `in`), and an MCP resource key
+  (`cratestack://ledger/notes/9007199254740993`; a non-canonical spelling answers like a missing
+  row). The reason: a JSON
   number past 2^53 is rounded by every JavaScript and dart2js consumer without an error. On
   the wire it is a **canonical decimal string** on JSON and CBOR alike (never a number, never
   a CBOR integer or bignum); a JSON number, a CBOR integer, `+5`, `007`, `-0`, `" 1"` or a
@@ -622,7 +674,7 @@ whole schema and binds the called op instead. Skills mark it *(since 0.15.2)*.
   client-facing change refuses it. Breaking API: `Binding::schema_sha` is now
   `contract_sha`; `EnvelopeLayer::builder(envelope, audience, contracts)` takes
   `AcceptedContracts` (the generated `ACCEPTED_CONTRACTS`) where it took a
-  `[u8; 32]` (the generated `envelope_layer(envelope, policy, audience)` is
+  `[u8; 32]`, the generated `SCHEMA_SHA256_BYTES` on 0.15.1 (the generated `envelope_layer(envelope, policy, audience)` is
   unchanged for callers); `CratestackClient::with_schema_sha_bytes` is replaced
   by `with_contracts(OP_CONTRACTS)` and `with_contract_sha([u8; 32])`, and
   `RuntimeHandle::with_envelope(config, envelope, contracts)` takes
@@ -1080,7 +1132,14 @@ skills mark them *(since 0.13.0)*. The framework's 0.13.0 section lists more.
 
 ## Things that are declared but inert — check before assuming a version fixed it
 
-As of 0.14.2, each of these parses, validates, and then does nothing (re-checked for 0.15.4's field-attribute change, and against the `v0.15.4..v0.16.0` diff, which touches none of them):
+As of 0.19.1, each of these parses, validates, and then does nothing. Re-checked against the
+`v0.19.1` source: `@@id([...])` is still refused by every entry macro
+(`cratestack-macros/src/include/parse.rs`, `reject_composite_primary_keys`), `@@retain` still
+only fills the descriptor's `retention_days` that nothing calls, `prefer_for` is still read by
+nothing (`cratestack-studio/src/lib.rs` says so), the batch frame's `idem` is still a field of
+`cratestack_core::rpc::RpcRequest` that no code reads, the `batch_*` delegates still have no
+generated route, and `@from` still has no generator reader. No entry became live between 0.14.2
+and 0.19.1:
 
 - `@from(Model.field)` on a view field: since 0.15.4 its shape and target are
   checked (a real model and field), but no generator reads it, so it still changes

@@ -5,7 +5,7 @@ description: CrateStack's data-integrity surface — idempotency keys, rate limi
 
 # Data integrity
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -16,9 +16,9 @@ CrateStack calls this "banking readiness". Most of it is real and test-backed.
 Some of it is declared-but-inert, and the difference is the single most important
 thing on this page.
 
-## Durable retry input *(unreleased, cratestack#1297)*
+## Durable retry input *(since 0.18.1, cratestack#1297)*
 
-A prepared keyed unary mutation freezes the original encoded body, media type, route, query and conditional headers. Persist it before the first send and restore it with matching client/service/contract/tables; do not re-encode after compact negotiation changes. This preserves request-hash inputs but provides neither a durable queue nor a server store, nor proof that the business action is still authorized. Secure the journal and verify its integrity. See [clients](../cratestack-clients/SKILL.md#durable-prepared-mutations-unreleased-cratestack1297) for the API and its boundaries.
+A prepared keyed unary mutation freezes the original encoded body, media type, route, query and conditional headers. Persist it before the first send and restore it with matching client/service/contract/tables; do not re-encode after compact negotiation changes. This preserves request-hash inputs but provides neither a durable queue nor a server store, nor proof that the business action is still authorized. Secure the journal and verify its integrity. See [clients](../cratestack-clients/SKILL.md#durable-prepared-mutations-since-0181-cratestack1297) for the API and its boundaries.
 
 ## Three tiers — know which one a feature is in
 
@@ -113,8 +113,8 @@ Custom `.with_principal_fingerprint(..)` functions are unaffected.
 ### Idempotency under the envelope layer *(since 0.14.0, cratestack#1006)*
 
 With `EnvelopeLayer` as the router's last `.layer(..)` (see `cratestack-server`),
-this layer sees the **opened** request, so the body hash covers the CBOR
-payload, not the COSE bytes. A client that re-seals a retry (fresh `cti`, same
+this layer sees the **opened** request, so the body hash covers the inner
+payload (CBOR unless a payload type was negotiated), not the COSE bytes. A client that re-seals a retry (fresh `cti`, same
 payload, same `Idempotency-Key`) gets the stored response, sealed afresh for
 the new request. The signature binds `Idempotency-Key` **exactly as sent**
 (untrimmed), so:
@@ -124,7 +124,10 @@ the new request. The signature binds `Idempotency-Key` **exactly as sent**
 - a proxy that strips or alters the key breaks the signature (**401**), instead
   of turning a replay into a second execution;
 - sending `Idempotency-Key` (or `If-Match`) **twice** is an unsigned **400**
-  before anything is verified.
+  before anything is verified;
+- *(since 0.15.4, cratestack#1168)* a retry must repeat its `Cratestack-Payload-Accept`:
+  a stored response in a type the retry did not negotiate is a sealed **500**, never
+  sent.
 
 ## Rate limiting
 
@@ -195,7 +198,8 @@ derivation, the store-error policy, the lookup timeout and the `429` stay in
 
 ## Optimistic locking
 
-`@version` on a required `Int` field, at most one per model, never the PK. Zero
+`@version` on a required `Int` field (or `BigInt`, *since 0.15.4*; its `ETag`
+round-trips above 2^53), at most one per model, never the PK. Zero
 is fine and normal — "exactly one per model" is a docs-site error.
 
 Flow: read, capture the `ETag` (a strong validator, `"7"`), send it back as
@@ -212,6 +216,16 @@ On a version mismatch the runtime re-reads the row **through the read policy**
 before answering. If you can see it and the version differs, you get 412 with
 `"version mismatch: expected N, found M"`. If you cannot see it, you get
 `Forbidden` — so **policy denials stay indistinguishable from missing rows**.
+
+*(since 0.15.0, cratestack#1117)* That probe, create policies and their relation
+`EXISTS` lookups, and the upsert update-policy gate run **on the write's own
+connection**, not a second pooled one. Inside one transaction (`db.transaction(..)`,
+`run_in_tx`, `batch_*`) they see the caller's own uncommitted writes: a stale `If-Match`
+after the caller's own version bump is 412, not 403, and a parent created earlier in the
+transaction authorises its child. Under `REPEATABLE READ` / `SERIALIZABLE` they read the
+caller's snapshot, and a probe error (a `40001`) aborts the caller's transaction. On
+0.14.x they ran on the pool, outside the transaction (except inside an `@isolation`
+procedure, since 0.14.1).
 
 `update_many` has no `if_match` slot at all and bumps every matched row
 unconditionally; bulk update is not an optimistic-locking idiom. `upsert` bumps
@@ -443,7 +457,8 @@ What bites:
   attempt (the outermost attempt owns retries). A stricter declared level than the
   attempt's is refused, and so is a second joined call while one is running.
   A procedure called through a pool you hold yourself gets its own transaction.
-- **Refused:** with `@stream`, and under `provider = "none"` (both parse errors),
+- **Refused:** with `@stream`, on a `subscription procedure` *(since 0.18.0)*, and
+  under `provider = "none"` (all parse errors),
   and with `include_server_schema!(.., db = None)` (`compile_error!`). The
   embedded and client roles have nothing to enforce.
 - **Size the pool:** each in-flight call holds one connection for its whole
@@ -545,8 +560,8 @@ which is structurally always CrateStack's own.
 
 ## Multi-tenancy
 
-**`@@unique_per_tenant` is not a real attribute.** Its only appearance in the
-entire codebase is a test asserting its absence. Use a composite unique:
+**`@@unique_per_tenant` is not a real attribute.** Its only appearances in the
+codebase are tests asserting that it is refused. Use a composite unique:
 `@@unique([tenantId, name])`.
 
 `@default(auth().tenantId)` — dotted paths work — fills a column on create.
@@ -574,8 +589,12 @@ authoring rules. Runtime facts that matter here:
   re-encode, and reusing the REST validator byte-for-byte.
 - Malformed JSON, unknown top-level keys, keys naming a param-less field, or
   params for a field excluded by `?fields=` are all **422** on both transports.
-- **Only top-level keys are validated before the database is touched.** Decoding
-  a key's value happens at response-serialisation time, after rows are fetched.
+- **Only top-level keys are validated before the database is touched**, unless the
+  params `type` carries a validator (`@length`, `@range`, …): then its value is decoded
+  and validated before any database read, over REST and RPC, and a bad value is **422**
+  naming the path (`field 'computedParams.proxyUrl.width' exceeds maximum 4000`)
+  *(since 0.15.4, ADR 0019 D5)*. Otherwise decoding a key's value happens at
+  response-serialisation time, after rows are fetched.
 - **Unknown keys *inside* a params object are silently ignored** — plain serde,
   not `deny_unknown_fields`.
 - **Create/update/delete commit the write before resolvers run.** A resolver

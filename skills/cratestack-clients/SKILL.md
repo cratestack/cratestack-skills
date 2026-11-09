@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -20,7 +20,7 @@ Three generated languages, one wire contract.
 | Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*since 0.16.0*), `--preset riverpod` / `fespalier` layers |
 | TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers |
 
-## Durable prepared mutations *(unreleased, cratestack#1297)*
+## Durable prepared mutations *(since 0.18.1, cratestack#1297)*
 
 The runtime APIs freeze a keyed unary mutation before any send. Persist the snapshot durably **before the first execution**; restore the same bytes after restart with the matching service, codec/format, contract and key tables. The snapshot keeps its original inner bytes, media type, route, query, key and `If-Match`; it contains no authentication headers or reusable COSE envelope, and URL userinfo is rejected. Query strings and bodies are persisted and may contain secrets. Snapshots with invalid version, route, key, codec or table bindings, oversized data, or malformed JSON or CBOR framing are rejected before network I/O. The caller owns storage integrity, authorization and journaling; this is not an automatic queue or server idempotency store.
 
@@ -30,12 +30,12 @@ The CBOR snapshot check validates one complete item, UTF-8 text, simple-value fr
 - TypeScript REST: `prepare(method, path, options)`; RPC: `prepare(op, input, options)`; both use `executePrepared`. RPC refuses custom unary links, including sealing links.
 - Dart: REST `CratestackHttpAdapter.prepare`; RPC `CratestackRpcHttpAdapter.prepareCall`; `CratestackPreparedCall.toJson` / `fromJson` and `executePrepared`. Set the adapter's `preparedBasePath` to the generated REST client's overridden `basePath`; prepared execution uses the current adapter's `useRustTransport`, sends `x-cratestack-schema-sha`, and takes per-attempt headers in `executePrepared(call, headers: {...})` beside `authorization:`; they cannot replace the frozen identity or media headers. TypeScript and Dart pin up to 512 keys in memory, evicting the oldest. For transport sealing use a fresh seal and matching `PendingResponse` for every attempt; see [the transport reference](references/dart-transport.md).
 
-These were merged in [cratestack#1297](https://github.com/cratestack/cratestack/pull/1297) after 0.18.0 and are not in a published release. They do not cover batch or streaming calls. Source: `crates/cratestack-client-rust/src/client/prepared_client.rs`, generated `runtime.ts` snapshots and Dart `compact_hooks_rest_test.dart` / `compact_hooks_rpc_test.dart`.
+They shipped in 0.18.1 ([cratestack#1297](https://github.com/cratestack/cratestack/pull/1297), `docs/design/prepared-idempotent-calls.md`); a 0.18.0 or older runtime has none of them. They do not cover batch or streaming calls. Source: `crates/cratestack-client-rust/src/client/prepared_client.rs`, generated `runtime.ts` snapshots and Dart `compact_hooks_rest_test.dart` / `compact_hooks_rpc_test.dart`.
 
 ## Rust — `include_client_schema!`
 
 ```toml
-cratestack = { package = "cratestack-client", version = "0.14" }
+cratestack = { package = "cratestack-client", version = "0.19" }
 # the generated structs derive through bare `serde::` paths
 serde = { version = "1", features = ["derive"] }
 ```
@@ -45,8 +45,10 @@ The path is the schema's **root** file; parts and imports *(since 0.19.0)* are
 tracked as rebuild dependencies through the generated `SCHEMA_FILES`, and `SCHEMA_SOURCE`
 stays the root's text. Generated clients are identical for a split schema.
 That facade re-exports **only** `include_client_schema!` — not the other two
-entry macros — and `cratestack-axum` (and therefore `axum`, `tower`, `hyper`,
-`tower-http`) is structurally absent from its graph under default features.
+entry macros — and `cratestack-axum`, and therefore `axum`, is structurally
+absent from its graph under default features. `tower`, `hyper` and `tower-http`
+*are* in it, through `reqwest`; CI's `facade-disjointness` job asserts only that
+`axum` / `cratestack-axum` are absent.
 
 Emitted into `cratestack_schema`: `models`, `types`, `inputs`
 (`Create<M>Input`, `Update<M>Input`, `<M>Where`, `<M>OrderByClause`,
@@ -64,7 +66,7 @@ Deliberately **absent** compared with the server macro: no policy constants, no
 consumer rather than a runtime 403.
 
 ```rust
-let runtime = CratestackClient::cbor(ClientConfig { base_url: url })
+let runtime = CratestackClient::cbor(ClientConfig::new(url))
     .with_request_authorizer(Arc::new(MyAuth));
 let client = cratestack_schema::client::Client::new(runtime);
 
@@ -72,6 +74,11 @@ let posts = client.posts().list(query, headers).await?;
 let one   = client.posts().get(&id, headers).await?;
 let out   = client.procedures().my_procedure(&args, headers).await?;
 ```
+
+Build the config with `ClientConfig::new(url)`. *(Since 0.18.0)* `ClientConfig` also
+carries `subscription_transport` (and, under the `webtransport` feature, `webtransport`),
+so the struct literal `ClientConfig { base_url: url }` that compiled through 0.17.2 no
+longer does (`crates/cratestack-client-rust/src/config.rs`).
 
 The model accessor is the **pluralised snake_case model name**. REST routes are
 `/<plural>` and `/$procs/<ProcedureName>`, or `/<version>/$procs/<ProcedureName>`
@@ -157,14 +164,16 @@ a transport:
 
 | | REST | RPC (`transport rpc`) |
 | --- | --- | --- |
-| Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:)` |
+| Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:, compact:, preparedBasePath:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:, compact:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
 | HTTP error answer | `CratestackRestException` (`status`, `body`; *(since 0.17.1)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(since 0.17.1)* `extra`, `challenges`, `headers`) |
 | Call options | `CratestackCallOptions(headers, idempotencyKey, abort)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort)` |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
 decoded by its own `Content-Type` either way. `baseUri` replaces
-`dio.options.baseUrl`, which the transport no longer reads.
+`dio.options.baseUrl`, which the transport no longer reads. `compact:` *(since 0.18.0)*
+is the compact-keys hook (below) and `preparedBasePath:` *(since 0.18.1)* the prefix
+prepared calls validate against (above); both are optional.
 
 ```dart
 final adapter = CratestackHttpAdapter(        // CratestackRpcHttpAdapter under transport rpc
@@ -274,18 +283,34 @@ is safe.
 
 `cratestack_cbor` on pub.dev is the native codec, auto-selecting
 flutter_rust_bridge natively and wasm-bindgen on web, byte-identical to the
-server's `CborCodec`. `createCborCodec()` is idempotent.
+server's `CborCodec`. `createCborCodec()` is idempotent. *(Since 0.18.0,
+cratestack#1281)* it is the **only** codec of a generated Dart package: every
+generated `pubspec.yaml` depends on it, the pure-Dart `package:cbor` fallback
+(`--no-native-cbor`) is gone, and because it is a Flutter FFI plugin a generated
+client needs the Flutter SDK. A plain Dart program (a CLI or server on the
+standalone Dart SDK) cannot use one; the generated pubspec also declares
+`flutter: sdk: flutter` on every preset.
 
 **Hard constraint before `pub add`:** it pins `flutter_rust_bridge: 2.13.0`, and
 in pub's grammar a bare version is an **exact** pin. If anything in your graph
 wants a different flutter_rust_bridge, `pub get` fails during version solving and
 you cannot add the package at all. That is upstream's requirement, not a
 CrateStack choice. Vendored platforms cover Linux x86_64, Android, Windows x64,
-macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**.
+macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**, and since
+0.18.0 that makes it a gap of every generated Dart client.
 
 ### A JSON or custom codec under an envelope, and sealing over your own HTTP *(Rust client, since 0.15.4, cratestack#1168)*
 
-`CratestackClient::with_envelope` (feature `cose`) used to refuse every codec but CBOR. It takes
+`CratestackClient::with_envelope(ClientEnvelope::new(envelope, audience)?)` (feature `cose` of
+`cratestack-client-rust`, forwarded by the `cratestack-client` / `-pg` / `-api` facades, off by
+default; *since 0.15.0, cratestack#1007*) makes a client `Required`: every request is sealed,
+every response must be a COSE message verifying against the request it answers
+(`EnvelopeError::Unverified`), and an unsealed answer is `EnvelopeError::Unsigned { status }`
+with its body never read. Streamed entry points (`*_streamed`, `call_streaming`) and
+subscriptions fail locally with `EnvelopeError::StreamsUnsupported`, and redirects are never
+followed. Reseal, never replay: a retry layer must send the call again through the client.
+
+On 0.15.0 to 0.15.3, `with_envelope` refused every codec but CBOR. It takes
 any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed
 request, and `HttpClientCodec::payload_accept` (a **provided** method; default: the same type) is the
 `Cratestack-Payload-Accept` value, so a `JsonCodec` client works as is, and an asymmetric codec (a
@@ -527,7 +552,12 @@ automatic in the generated router, and needs no schema change and no flag.
 Every generated client stamps its schema's hex SHA-256 as
 `x-cratestack-schema-sha` on every request. The server **warns on mismatch and
 never rejects**. An absent SHA simply omits the header. It is a drift signal, not
-integrity.
+integrity. *(Since 0.15.0, cratestack#1065)* the digest is the schema's identity
+(`cratestack_core::schema_digest`: a SHA-256 over a canonical form of the parsed
+schema), not of its text, so a comment, a `///` doc or a re-indent no longer changes
+it, while any IR change, server-only ones included, still does. Every value changed
+once in 0.15.0: regenerate clients and rebuild servers together. A schema split across
+files *(since 0.19.0)* has the same digest as its single-file equivalent.
 
 ## The npm family
 

@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -117,8 +117,8 @@ where people read the database raw (`psql` shows the integer). Design and limits
 `docs/design/enum-ordinals.md` §9.1. Do not hand-roll a status `Int` with a "1 = Pending" comment
 instead: that loses the `CHECK`, the typed client enums and the filter's named-value
 validation. For a closed set, use an `enum` rather than a `String`. Renaming or removing a variant
-breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(since 0.17.0)* on
-`main` it does, and adding a variant to an enum responses carry is breaking too (see
+breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(since 0.17.0)* it
+does, and adding a variant to an enum responses carry is breaking too (see
 [cratestack-cli](../cratestack-cli/SKILL.md)). `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
 is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
@@ -347,8 +347,8 @@ query loyaltyFeeSummary(userId: String, cutoff: DateTime): LoyaltyFeeSummary
 
 Rules that bite: the result type must be a **`type` block**, never a model (raw
 SQL gets none of a model read's soft-delete or policy filtering). Parameters must
-be **required scalars** from a restricted set (`String`, `Cuid`, `Int`, `Float`,
-`Boolean`, `DateTime`, `Uuid`, `Bytes` — no `Decimal`, no `Json`). Every declared
+be **required scalars** from a restricted set (`String`, `Cuid`, `Int`, `BigInt` *(since 0.15.4)*,
+`Float`, `Boolean`, `DateTime`, `Uuid`, `Bytes` — no `Decimal`, no `Json`). Every declared
 parameter must be referenced by its `$N`, and every `$N` must exist — checked in
 both directions. A `query` understands only `@@sql`, `@allow`, `@deny`, and is
 rejected entirely under `provider = "none"`.
@@ -403,16 +403,17 @@ GHSA-69g4-xvcm-vm2j)*. The same rules hold for `query` blocks:
 | `@deprecated` / `@deprecated("msg")` | Adds `Deprecation` response headers. |
 | `@status(202)` | 2xx only, and **rejected under `transport rpc`**. |
 | `@authorize(Model, action, args.path)` | `detail`/`read`, `update`, `delete` only. Three arguments and the action are checked by `cratestack check` *(since 0.14.1)*; on 0.14.0 a malformed or misspelled one (`@authorise`) was skipped, and `authorize_with_db` returned `Ok` without consulting the database. |
+| `@authn(maxAge: 300, amr: ["hwk"], acr: ["aal2"])` | *(since 0.17.1, cratestack#1244)* How fresh and how strong the caller's authentication must be: any of `maxAge` (1 to 31536000 seconds), `amr` (all present), `acr` (one matches), at least one, at most one `@authn`. Checked after `@allow`; unmet is a 401 step-up refusal. See `cratestack-policy-auth`. |
 
 `@status(204)` is accepted but the encoder still attaches a body — a known,
 documented limitation. Do not use it.
 
 That table plus `@mcp` is the whole list *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*. Any
-other procedure attribute is refused. A `subscription procedure` *(since 0.18.0,
+other procedure attribute is refused; on 0.14.0 it parsed and did nothing, and a
+misspelled `@deny` left the procedure more permissive than written. A `subscription procedure` *(since 0.18.0,
 cratestack#1268)* keeps only `@allow`, `@deny`, `@authn`, `@authorize` and
 `@api_version`, returns one item type (not `T[]`), and shares the name space of
-procedures; see `cratestack-rpc`'s `references/subscriptions.md`. On 0.14.0 it parsed and did nothing, and a
-misspelled `@deny` left the procedure more permissive than written.
+procedures; see `cratestack-rpc`'s `references/subscriptions.md`.
 
 ## `@computed` — the restrictions are the whole story
 

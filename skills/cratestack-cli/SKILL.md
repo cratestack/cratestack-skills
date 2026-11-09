@@ -1,11 +1,11 @@
 ---
 name: cratestack-cli
-description: The cratestack CLI — check, generate-dart, generate-typescript, generate-wiremock, studio, print-ir, migrate, diff — every subcommand, every flag, exit codes, the --check drift mode, JSON diagnostic shapes, and CI recipes. Load when running or scripting the cratestack binary, wiring schema validation or generated-client drift checks into CI, or installing @cratestack/cli.
+description: The cratestack CLI — check, generate-dart, generate-typescript, generate-wiremock, studio, print-ir, contract, migrate, diff — every subcommand, every flag, exit codes, the --check drift mode, JSON diagnostic shapes, and CI recipes. Load when running or scripting the cratestack binary, wiring schema validation or generated-client drift checks into CI, or installing @cratestack/cli.
 ---
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -14,12 +14,15 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 Binary name is `cratestack`, crate name is `cratestack-cli`.
 
-## Exactly eight subcommands
+## Exactly nine subcommands
 
 ```
 check  generate-dart  generate-typescript (alias generate-ts)  generate-wiremock
-studio  print-ir  migrate  diff
+studio  print-ir  contract  migrate  diff
 ```
+
+`contract` is *(since 0.15.1)* (`digest`, `print`), with `lock`, `check` and `prune`
+*(since 0.15.2)*; on 0.15.0 and earlier there are eight.
 
 **There is no top-level `init`, `run` or `eject`** — those three are `studio`
 subcommands. There is no `migrate apply`, `rollback`, `verify` or `drift`, no
@@ -50,7 +53,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 ```yaml
 - uses: cratestack/cratestack/.github/actions/install-cratestack-cli@main
   with:
-    version: "0.15.4"   # optional, defaults to "latest"
+    version: "0.19.1"   # optional, defaults to "latest"
 ```
 
 Pin `@main` to a tag or SHA for reproducibility.
@@ -70,9 +73,12 @@ before the step fails:
   "diagnostics": [ { "message": "…", "file": "…", "line": 12, "start": 240, "end": 252 } ] }
 ```
 
-`line` is 1-based; `start`/`end` are byte offsets. Syntax and structural errors stop
-at the first one; validation errors may be several, from several files *(since 0.19.0)*. `file` is per-diagnostic and duplicated alongside the top-level
-`schema`.
+`line` is 1-based; `start`/`end` are byte offsets. **`check` reports the first error
+only**, in both modes, so `diagnostics` holds at most one entry: fix it and run again
+(`crates/cratestack-cli/src/cli_support.rs` builds the array from one `SchemaError`;
+`load_schema` keeps the first). The LSP is what reports several independent errors at once.
+`file` is per-diagnostic: the file the error is in, which for a multi-file schema *(since
+0.19.0)* can be a part or an import rather than the top-level `schema`.
 
 ### Multi-file schemas *(since 0.19.0)*
 
@@ -129,7 +135,6 @@ All three generators share a `--check` drift mode and `--base-path` (default
 | `--fespalier-ref <REF>` | `v0.21.0` (`--preset fespalier` only) |
 | `--check` | off |
 | `--run-build-runner` | off |
-| `--no-native-cbor` | off (native CBOR is on); *(removed in 0.18.0, cratestack#1281)* |
 
 `--preset fespalier` *(since 0.16.0, cratestack#1204)* is the `riverpod` layout sending
 through fespalier's `HttpTransport` instead of Dio: no `dio` in the pubspec, a generated
@@ -141,10 +146,13 @@ empty value or one holding whitespace. See `cratestack-clients` for when to pick
 
 `--run-build-runner` shells out to
 `dart run build_runner build --delete-conflicting-outputs` in `--out`, and **has
-no effect with `--check`**. On 0.17.2, `--no-native-cbor` (pure-Dart `package:cbor`) is needed only
-on Linux arm64 or outside Flutter. It is *(removed in 0.18.0, cratestack#1281)*: generated Dart clients now always depend on
-the Flutter plugin `cratestack_cbor`, so Linux arm64 and plain-Dart programs are unsupported.
-`--native-cbor` was removed and is now an unknown-flag error, not a silent no-op.
+no effect with `--check`**.
+
+**`--no-native-cbor` is gone** *(removed in 0.18.0, cratestack#1281)*: passing it is an
+unknown-argument error. Through 0.17.2 it swapped in pure-Dart `package:cbor`, for Linux arm64
+or a plain-Dart program. Generated Dart clients now always depend on the Flutter plugin
+`cratestack_cbor`, so Linux arm64 and plain-Dart programs (CLIs, servers on the standalone Dart
+SDK) are unsupported. `--native-cbor` is an unknown-flag error too, not a silent no-op.
 
 ### `generate-typescript` (alias `generate-ts`)
 
@@ -156,22 +164,26 @@ the Flutter plugin `cratestack_cbor`, so Linux arm64 and plain-Dart programs are
 | `--template-dir` | none |
 | `--check`, `--full-selection` | off |
 | `--swr`, `--refine`, `--tanstack`, `--rtk` | off |
-| `--no-native-cbor` | off; *(removed in 0.18.0, cratestack#1281)* |
 
 **The four layer flags are purely additive** — the default `src/` layout is
 always emitted. `--swr` adds `src/swr/`, `--refine` adds `src/refine.ts`,
 `--tanstack` adds `src/react-query.ts`, `--rtk` adds `src/rtk-api.ts` plus the
-RTK peer dependencies. `--no-native-cbor` has **no effect on a REST-transport
-schema**; the one napi gap is `win32-arm64`. Since the flag was *(removed in 0.18.0, cratestack#1281)*, RPC clients
-always depend on `@cratestack/cbor`, `win32-arm64` is unsupported, and JSON on the wire is
-`codec: jsonRpcCodec` at construction.
+RTK peer dependencies.
+
+`--no-native-cbor` is gone here too *(removed in 0.18.0, cratestack#1281)*; through 0.17.2 it
+swapped the RPC runtime's `@cratestack/cbor` for the pure-TypeScript `jsonRpcCodec` and did
+nothing on a REST schema. Now every RPC-transport package depends on `@cratestack/cbor`, so
+`win32-arm64` (no `@cratestack/cbor-node` binding) is unsupported, and JSON on the wire is
+`codec: jsonRpcCodec` passed at construction. REST output did not change.
 
 The docs site's flag table omits `--tanstack` and `--rtk` entirely.
 
 ### `generate-wiremock`
 
 `--schema`, `--out`, `--base-path`, `--check`. Emits one stub per procedure and
-**five per model**. Note that `transport rest` model CRUD stubs are stateful and
+**five per model** (list, get, create, update, delete; fewer when `@@internal(...)` suppresses a
+verb, and on `transport rest` a `@version` model fans `update` / `delete` out into more,
+`crates/cratestack-mock-wiremock/src/model_mapping.rs`). Note that `transport rest` model CRUD stubs are stateful and
 need more than a plain WireMock.
 
 ### `--check`, precisely
@@ -216,7 +228,7 @@ gate on the *baseline*. The strict attribute parsing since 0.14.1
 | `INTERNAL` | `@@soft_delete`, `@@audit`, `@@retain`, `@@emit` — a known scope gap, not an oversight; *(since 0.17.0)* reordering an enum's variants |
 
 **Enums** *(since 0.17.0, `cratestack-cli/src/schema_diff/enums.rs`)*: on 0.16.0 and earlier `diff`
-never reads them, so an enum change reports nothing and exits 0. On `main` an added variant is
+never reads them, so an enum change reports nothing and exits 0. Since 0.17.0 an added variant is
 breaking when the enum is reachable from any model, view, procedure result or query result
 (through fields, `type`s, generic arguments), because the generated Dart and Rust decoders refuse
 an unknown value; otherwise it is additive. A rename is a removal plus an addition. `type`
@@ -244,10 +256,49 @@ projections; nothing in the CLI prints that one.
 position zeroed. Use it to compare a split schema with its single-file equivalent (they
 print identically); without the flag the output is unchanged.
 
+## `contract` *(since 0.15.1; `lock` / `check` / `prune` since 0.15.2)*
+
+The per-op contract digests a signed client binds, and the lock file of older ones a server
+keeps accepting (`include_server_schema!(.., contracts = "s.contracts.lock")`; see
+`cratestack-server`). Source: `crates/cratestack-cli/src/contract.rs`.
+
+```bash
+cratestack contract digest --schema s.cstack [--json]        # every op's digest + the client contract digest
+cratestack contract print  --schema s.cstack --op <key>      # the canonical JSON one op's digest is taken over
+cratestack contract lock   --schema s.cstack --lock s.contracts.lock [--note <text>] [--date YYYY-MM-DD]
+cratestack contract check  --schema s.cstack --lock s.contracts.lock [--json]   # the CI gate
+cratestack contract prune  --lock s.contracts.lock (--op <key> | --before YYYY-MM-DD | --keep N | --generation <hex>)
+```
+
+An op key is an RPC op id (`procedure.ping`) or, on REST, `"<METHOD> <route template>"`
+(`GET /widgets/{id}`). `lock` records the current contracts as a new generation (creating the
+file; `--date` defaults to today, UTC) and refuses, leaving the file alone, while the current
+contract breaks a locked one: `prune --op` that op first to ship the break on purpose.
+`check` fails when the current contract is not a locked generation or breaks one; with
+`--json` it prints one JSON document on every path, errors included. `prune` takes exactly one
+selector (`--generation` needs at least 8 hex digits).
+
+**Exit codes differ from the rest of the CLI:** 0 ok, 1 a failed verdict, **2** a tool error
+(an unreadable schema or lock, a bad date or flag value).
+
+## `migrate` and `studio` flags
+
+The behaviour is in `cratestack-migrations` and `cratestack-studio`; the flags, from
+`crates/cratestack-cli/src/cli_types.rs`:
+
+| Command | Flags (default) |
+| --- | --- |
+| `migrate diff` | `--schema` (required), `--out-dir` (`migrations`), `--backend postgres\|sqlite\|both` (`both`), `--name` (`migration`), `--allow-destructive` |
+| `migrate baseline` | `--schema`, `--database-url` (both required), `--out-dir` (`migrations`), `--backend postgres` (the only value), `--strict` |
+| `studio init` | `--out` (`.`), `--force` |
+| `studio run` | `--config` (`studio.toml`), `--bind` |
+| `studio eject` | `--out` (required), `--name`, `--force`, `--with-ui` |
+
 ## Exit codes
 
-Everything non-success is **1**. There is no distinct code for "breaking" versus
-"error".
+Everything a command reports as a failure is **1**, except `contract`'s tool errors (2,
+above) and argument-parsing errors (2, last row). There is no distinct code for "breaking"
+versus "error".
 
 | Situation | Code |
 | --- | --- |
@@ -257,6 +308,9 @@ Everything non-success is **1**. There is no distinct code for "breaking" versus
 | any `--check` drift | 1 |
 | `migrate diff` lossy without `--allow-destructive` | 1 |
 | `migrate baseline --strict` with drift, or snapshot already exists | 1 |
+| `contract check` not locked or broken; `contract lock` refused | 1 |
+| `contract …` tool error (unreadable schema or lock, bad date or flag) | 2 |
+| a usage error caught by argument parsing (an unknown flag such as the removed `--no-native-cbor`, a missing required argument) | 2 (clap's usage-error code; `main` calls `Cli::parse()`) |
 
 ## CI recipes
 

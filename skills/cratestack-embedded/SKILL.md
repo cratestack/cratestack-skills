@@ -5,7 +5,7 @@ description: Building CrateStack's embedded offline-first mode — include_embed
 
 # Embedded mode (SQLite on device)
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -13,9 +13,9 @@ description: Building CrateStack's embedded offline-first mode — include_embed
 > [cratestack/references/version-history.md](../cratestack/references/version-history.md).
 
 ```toml
-cratestack = { package = "cratestack-sqlite", version = "0.14" }
+cratestack = { package = "cratestack-sqlite", version = "0.19" }
 # the generated code names both of these directly; neither is optional
-cratestack-rusqlite = "0.14"
+cratestack-rusqlite = "0.19"
 serde = { version = "1", features = ["derive"] }
 ```
 
@@ -66,9 +66,9 @@ Before this, every non-builtin `@default` was written as NULL and the create fai
 the row. Verified against `crates/cratestack-sqlite/tests/embedded_literal_defaults.rs` and
 `embedded_database_defaults.rs`.
 
-**There is no supported sync engine** *(unreleased, prototype only)*. Server-to-device
-sync is not a released feature. The framework repository does contain an
-**unpublished** prototype, the `cratestack-sync` crate (`publish = false`) and
+**There is no supported sync engine** *(prototype only, in the repository since 0.16.0 and
+still unpublished on 0.19.1)*. Server-to-device sync is not a released feature. The
+framework repository does contain an **unpublished** prototype, the `cratestack-sync` crate (`publish = false`) and
 `examples/sync-notes`, behind ADR 0020, which is still *Proposed*
 (`cratestack-docs/internals/sync-engine-adr.md`). It is not on crates.io, it is not
 generated from the schema (its registries are hand-written, and the `@@sync`
@@ -171,6 +171,7 @@ These are hard `compile_error!`s at macro expansion, not runtime surprises:
 | `@@materialized` views | SQLite has no materialized views |
 | `extension pgvector` / `extension postgis` | Postgres-only, rejected regardless of features |
 | an `mcp { }` block, `@mcp(tool)`, or `@@mcp(resource: …)` *(since 0.13.0)* | MCP needs policy enforcement, which embedded does not do; rejected permanently |
+| `extension webtransport { }` *(since 0.17.1)* / `extension websocket { }` *(since 0.18.0)* | Server subscription bindings; the embedded role serves no subscriptions, so the block could only be a silent no-op |
 | composite `@@id([...])` | Rejected by all three entry macros |
 | a `Decimal` field with no `decimal = …` macro argument | Backend must be chosen explicitly |
 
@@ -179,7 +180,9 @@ category, because nothing tells you:
 
 `procedure` declarations · `event` blocks and `@@emit` · `@@audit` · `@version`
 optimistic locking · views declared `@@server_sql` only · everything about HTTP,
-routes, RPC and transports.
+routes, RPC and transports · subscriptions: `@@subscribe`, and *(since 0.18.0)*
+`subscription procedure` and `topic` — the embedded macro emits no subscription code
+(`docs/design/subscriptions-websocket.md` §9).
 
 Spatial and pgvector distance **filters** compile but `panic!` at runtime.
 
@@ -266,7 +269,9 @@ Reference implementations: `examples/embedded-webhook` (axum) and
 because BLOB affinity is the only one that preserves the bound storage class.
 Consequence: **integer primary keys do not alias rowid, so there is no
 auto-increment**. If you need one, write that `CREATE TABLE` yourself through
-`with_connection`. The helper also emits no composite indexes, foreign keys, or
+`with_connection`. Do not reach for `@default(autoincrement())`: `cratestack check`
+refuses it *(since 0.16.0, cratestack#1128)*, pointing at `@default(dbgenerated())`,
+which on the embedded role makes the field an `Option` in `Create*Input` (above). The helper also emits no composite indexes, foreign keys, or
 named constraints.
 
 **Both entry macros emit a module literally named `cratestack_schema`.** To use

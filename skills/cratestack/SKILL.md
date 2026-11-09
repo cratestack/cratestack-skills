@@ -5,7 +5,7 @@ description: Entry point and router for CrateStack, the Rust schema-first framew
 
 # CrateStack
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -18,7 +18,7 @@ for whatever the consuming crate is. No runtime reflection, no build script, no
 generated Rust files checked in. Change the schema and the compiler tells you
 what broke.
 
-Pre-1.0. The public crates version together (currently **0.17.1**, edition 2024,
+Pre-1.0. The public crates version together (currently **0.19.1**, edition 2024,
 MSRV **1.98.0**) and minor releases can break.
 
 ## First: which crate am I in?
@@ -29,10 +29,10 @@ which expose their library as `cratestack`, so you select one with Cargo's
 
 | The crate you are writing | Dependency | Entry macro |
 | --- | --- | --- |
-| HTTP service that owns a Postgres database | `cratestack = { package = "cratestack-pg", version = "0.14" }` | `include_server_schema!("schema.cstack", db = Postgres)` |
-| Procedures-only service, no database at all | `cratestack = { package = "cratestack-api", version = "0.14" }` | `include_server_schema!("schema.cstack", db = None)` |
-| Mobile / desktop / browser app with local SQLite | `cratestack = { package = "cratestack-sqlite", version = "0.14" }` | `include_embedded_schema!("schema.cstack")` |
-| A crate that only *calls* a CrateStack service | `cratestack = { package = "cratestack-client", version = "0.14" }` | `include_client_schema!("../schemas/billing.cstack")` |
+| HTTP service that owns a Postgres database | `cratestack = { package = "cratestack-pg", version = "0.19" }` | `include_server_schema!("schema.cstack", db = Postgres)` |
+| Procedures-only service, no database at all | `cratestack = { package = "cratestack-api", version = "0.19" }` | `include_server_schema!("schema.cstack", db = None)` |
+| Mobile / desktop / browser app with local SQLite | `cratestack = { package = "cratestack-sqlite", version = "0.19" }` | `include_embedded_schema!("schema.cstack")` |
+| A crate that only *calls* a CrateStack service | `cratestack = { package = "cratestack-client", version = "0.19" }` | `include_client_schema!("../schemas/billing.cstack")` |
 
 Whichever facade you pick, also depend on `serde = { version = "1", features = ["derive"] }`
 directly: the generated structs derive through bare `serde::` paths, so the build fails
@@ -62,7 +62,8 @@ If you find yourself wanting two of these in one crate, you want two crates.
 | Idempotency, optimistic locking, audit, soft delete, money-shaped data | `cratestack-data-integrity` |
 | Local SQLite: mobile, desktop, wasm/OPFS, Flutter, Expo, Tauri | `cratestack-embedded` |
 | Generating or consuming Rust / Dart / TypeScript clients | `cratestack-clients` |
-| `transport rpc`, `/rpc/batch`, streaming, batching links | `cratestack-rpc` |
+| `transport rpc`, `/rpc/batch`, streaming, batching links, subscriptions (SSE, WebSocket, WebTransport) | `cratestack-rpc` |
+| MCP tools and resources for agents (`mcp { }`, `@mcp`, `@@mcp`) *(since 0.13.0)* | `cratestack-mcp` |
 | Migrations, schema diff, baselines | `cratestack-migrations` |
 | A schema split across files (`part`, `part of`, `import`) *(since 0.19.0)* | `cratestack-schema` (`references/multi-file.md`) |
 | The `cratestack` CLI, any subcommand or flag | `cratestack-cli` |
@@ -124,14 +125,16 @@ rusqlite-only code; `include_client_schema!` emits axum-free client code. No
 cross-backend impl leaks between them. If you are tempted to "share" a runtime
 type across two of these paths, that is the boundary talking.
 
-## Known limits, current as of 0.14.2
+## Known limits, current as of 0.19.1
 
 Worth knowing before you design around them:
 
 - `db = Postgres` is the only sqlx backend. The parser is wired so adding
   others is non-breaking at existing call sites.
 - A generated router negotiates only among the codecs you configure it with:
-  one codec, or a `CodecSet` pair (CBOR + JSON). `application/cbor-seq` is served
+  one codec, or a `CodecSet` pair (CBOR + JSON), plus, *(since 0.18.0)*, the opt-in
+  compact-key variants of those codecs (`application/vnd.cratestack.compact+cbor` / `+json`)
+  for a client that asks for them. `application/cbor-seq` is served
   only when one of them is CBOR. (The framework's README and ROADMAP still call
   cbor-seq a target and per-request negotiation absent; the source has both.)
 - The embedded backend does not enforce `@@allow` / `@@deny` (see above).
@@ -141,8 +144,8 @@ Worth knowing before you design around them:
   supported.
 - Multi-file schemas *(since 0.19.0)* have deliberate limits: an `import`
   carries only `type`, `enum` and `mixin` (no models); there is no `import … as`; the LSP
-  refuses rename in a schema split across files (and, since 0.19.1, in a file another workspace schema imports) and its and highlights stay
-  file-local; a `part of` file that no root lists is ignored by builds.
+  refuses rename in a schema split across files (and, *since 0.19.1*, in a file another workspace
+  schema imports or lists as a part), and its references and highlights stay file-local; a `part of` file that no root lists is ignored by builds.
 
 ## Sources
 

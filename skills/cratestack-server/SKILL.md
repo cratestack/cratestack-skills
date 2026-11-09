@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -14,9 +14,9 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 ```toml
 # owns a Postgres database
-cratestack = { package = "cratestack-pg", version = "0.14" }
+cratestack = { package = "cratestack-pg", version = "0.19" }
 # procedures only, no database at all
-cratestack = { package = "cratestack-api", version = "0.14" }
+cratestack = { package = "cratestack-api", version = "0.19" }
 
 # either way: the generated structs derive through bare `serde::` paths
 serde = { version = "1", features = ["derive"] }
@@ -32,9 +32,13 @@ The first argument is the schema's **root** file; if it uses `part` / `import`
 through the generated `SCHEMA_FILES` (only emitted for a multi-file schema), while
 `SCHEMA_SOURCE` stays the root's text and `SCHEMA_SHA256` is unchanged by a split.
 
-Third, optional argument: `decimal = RustDecimal | BigDecimal`, **required** if the
-schema declares a `Decimal` anywhere. Those three are the only accepted
-arguments.
+After `db`, two optional arguments, in either order, each at most once:
+`decimal = RustDecimal | BigDecimal`, **required** if the schema declares a
+`Decimal` anywhere; and `contracts = "schema.contracts.lock"` *(since 0.15.2,
+cratestack#1123)*, the compatible-contract lock `cratestack contract lock` writes, so
+the server keeps accepting older signed clients and serving older compact
+contracts. Nothing else is accepted
+(`crates/cratestack-macros/src/include/schema_args.rs`).
 
 The macro checks that `db = …` and the schema's own
 `datasource { provider = … }` agree (`Postgres` ↔ `"postgresql"`, `None` ↔
@@ -99,7 +103,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`async fn authenticate` satisfies the trait directly. The `()` in third position
+`async fn authenticate` satisfies the trait directly. The facades re-export the
+codecs at the root *(since 0.15.4, cratestack#1147)*, so `cratestack::JsonCodec`
+and `cratestack::CborCodec` work without a direct `cratestack-codec-*`
+dependency; the committed example still imports the codec crate. The `()` in third position
 is the computed-field resolver — the macro emits `impl ComputedFieldResolver for ()`
 only when the schema declares zero `@computed` fields.
 
@@ -120,9 +127,11 @@ Everything lands in `pub mod cratestack_schema`. For a `model Article`:
 | `events::ArticleCreatedEvent` … | under `db = Postgres` with `@@emit` |
 
 Runtime, under `db = Postgres`: `Cratestack::builder(pool)` →
-`.with_audit_sink(…)` → `.build()`. Then `db.pool()`, `db.transaction(|tx| …)`,
-`db.events()`, `db.views()`, `db.queries()`, `db.bind_context(ctx)`,
-`db.bind_auth(principal)`, and one delegate accessor per model.
+`.with_audit_sink(…)` (and `.with_backplane(…)` *(since 0.18.0)*) → `.build()`. Then
+`db.pool()`, `db.transaction(|tx| …)`, `db.events()`, `db.views()`, `db.queries()`,
+`db.bind_context(ctx)`, `db.bind_auth(principal)`, one delegate accessor per model,
+and, when the schema has them, `db.subscriptions()` *(since 0.17.1)* and `db.topics()`
+*(since 0.18.0)* (see "Events and the outbox" below).
 
 *(since 0.14.1, GHSA-r67q-4qqq-g9gm)* The builder gains
 `.with_isolation_max_retries(n)`, and a schema that declares an `@isolation`
@@ -169,6 +178,10 @@ generated clients 404'd. All of this is fixed *(since 0.13.0)*: the router, the
 descriptor and every client share
 `cratestack_core::procedure_route::procedure_rest_route_path`.
 
+Subscriptions are `GET` routes answering SSE *(since 0.18.0)*: `GET
+/<plural>/$subscribe` for an `@@subscribe` model and `GET /$procs/<name>` for a
+`subscription procedure`; see "Events and the outbox" and `cratestack-rpc`.
+
 A verb suppressed with `@@internal("create")` is never registered: on a path
 that still serves another verb it is axum's bare 405, and a path whose verbs are
 all suppressed is a bare 404, with no fallback.
@@ -192,10 +205,15 @@ Filter operators, by field shape:
 - every required or optional scalar (not a scalar list): `eq`, `ne`, `in`
   (comma-separated). No `__` suffix means `eq`. Optional fields got these
   *(since 0.13.0, #953)*; before, `?optField=x` was a 400.
-- comparable **required** fields (`String`, `Cuid`, `Int`, `Float`, `DateTime`,
-  `Decimal`, `Uuid`): `lt`, `lte`, `gt`, `gte`. An optional field has none.
+- comparable **required** fields (`String`, `Cuid`, `Int`, `BigInt` *(since
+  0.15.4)*, `Float`, `DateTime`, `Decimal`, `Uuid`): `lt`, `lte`, `gt`, `gte`. An
+  optional field has none (`supports_comparison` in
+  `crates/cratestack-macros/src/shared/attrs.rs`).
 - `String` / `Cuid`: `contains`, `startsWith`
 - optional fields: `isNull` (value parsed as a bool; `false` means `IS NOT NULL`)
+
+A `BigInt` value is its canonical decimal string; an ordinal enum *(since 0.17.0)* is
+filtered by variant **name** only (`?status=2` is a 400 naming the accepted values).
 
 Relation filters use the path: `?author.email__eq=x@y.z` for to-one, and a
 **mandatory quantifier** for to-many — `?comments.some.body__contains=foo`, or
@@ -275,13 +293,18 @@ Encoded with the same negotiated codec as a success body. This is the REST shape
 | `UnsupportedMediaType` | `UNSUPPORTED_MEDIA_TYPE` | 415 |
 | `Validation` | `VALIDATION_ERROR` | **422** |
 | `TooManyRequests` | `TOO_MANY_REQUESTS` | 429 |
+| `AuthRefused` *(since 0.17.1)* | `UNAUTHORIZED` / `FORBIDDEN` | 401 / 403 — an `AuthRefusal`, see `cratestack-policy-auth` |
 | `Database`, `DatabaseTyped`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
 | `Unavailable` | `UNAVAILABLE` | 503 |
 
 4xx messages (and `Unavailable`'s 503) are the caller-supplied string, except
 `Codec`, whose 400 always reads `invalid request payload`. **500 messages are
 canned** (`internal error`) and the real detail goes to tracing only. `details`
-is always `null` on the wire.
+is `null` on the wire for every error except an `AuthRefused` *(since 0.17.1)*,
+which may carry `details`, extra top-level members (the envelope's `extra` map) and
+`WWW-Authenticate` challenges; the `@authn` step-up refusal is one
+(`CratestackError::into_response`, `crates/cratestack-core/src/error/response.rs`).
+Before 0.17.1 `details` was always `null`.
 
 **A denied model read is not a 403.** Read policy compiles into the `WHERE`
 clause, so a denied `find_unique` returns `Ok(None)` and the handler turns that
@@ -456,12 +479,16 @@ let app = axum::Router::new().nest("/api", router);
 ```
 
 The generated function picks the schema's transport, `ROUTE_TRANSPORTS` and
-`SCHEMA_SHA256_BYTES`, and returns the builder: `.mount_prefix(..)`,
-`.allow_unresolved([..])`, `.unresolved_mode(..)`, `.principal_mapper(..)`,
-`.response_seal_policy(..)`, `.max_body_bytes(..)`, then `.build()?`. The calls
-commute. The hand-rolled form is `EnvelopeLayer::builder(envelope, audience,
-cratestack_schema::SCHEMA_SHA256_BYTES).policy(..).rest(prefix, ROUTE_TRANSPORTS)`
-(or `.rpc(prefix)`); there is no default policy and no default transport.
+`ACCEPTED_CONTRACTS` *(since 0.15.2; `SCHEMA_SHA256_BYTES` before)*, and returns the
+builder: `.mount_prefix(..)`, `.allow_unresolved([..])`, `.unresolved_mode(..)`,
+`.principal_mapper(..)`, `.response_seal_policy(..)`, `.max_body_bytes(..)`,
+`.max_contract_trials(..)` *(since 0.15.2, default 4)*, `.payload_media_types(..)`
+*(since 0.15.4)*, then `.build()?`. The calls commute. The hand-rolled form is
+`EnvelopeLayer::builder(envelope, audience,
+cratestack_schema::ACCEPTED_CONTRACTS).policy(..).rest(prefix, ROUTE_TRANSPORTS)`
+(or `.rpc(prefix)`); there is no default policy and no default transport. On 0.15.1
+and earlier the third argument was `SCHEMA_SHA256_BYTES` (`[u8; 32]`), which no longer
+compiles.
 Source: `crates/cratestack-axum/src/envelope_layer/` and
 `crates/cratestack-api/tests/cose_envelope_*.rs`.
 
@@ -479,7 +506,7 @@ device). `RegistryVerifierResolver::with_max_keys(n)` is a hard bound: a new key
 across an `.await`; a request whose `resolve` already returned a key still finishes with it,
 so a revocation applies to later requests. State is per process: each replica needs the same
 registrations and a restart starts empty. An unknown or revoked `kid` resolves to no keys, so
-it is the same coarse, unsigned `401` as any other failure. Not on 0.14.2 or earlier: write a
+it is the same coarse, unsigned `401` as any other failure. Not on 0.15.3 or earlier: write a
 `CoseVerifierResolver`. Source:
 `crates/cratestack-cose/src/keys/registry_resolver.rs`.
 
@@ -500,7 +527,8 @@ rate limiting, so put an IP-level limiter **outside** the envelope layer.
   unmatched path still gets the router's plain `404`). Prefer `GET` over `HEAD`: a signed
   `HEAD`'s body may be dropped by an intermediary.
 - `Optional` — a signed request is opened and **always** answered sealed (its
-  `Accept` forced to CBOR); an unsigned one runs, sealed only with a valid
+  `Accept` rewritten to the sealable types it negotiated, CBOR unless
+  `Cratestack-Payload-Accept` names others); an unsigned one runs, sealed only with a valid
   `Cratestack-Nonce` and an `Accept` naming `application/cose`. That seal binds
   the nonce and payload, **not the caller**.
 - `Off` — plain traffic untouched.
@@ -510,8 +538,10 @@ rate limiting, so put an IP-level limiter **outside** the envelope layer.
 
 **Bound by the signature:** audience, method, route (REST template or RPC op
 id), path parameters (a parameterised mount's too), the canonical query,
-the schema digest, the payload type, and `Idempotency-Key` / `If-Match` exactly
-as sent. **Response headers (`ETag`, `Retry-After`) are not bound.**
+the called op's **contract digest** *(binding version 2, since 0.15.2, cratestack#1123;
+the whole-schema digest before)*, the payload type, and `Idempotency-Key` /
+`If-Match` exactly as sent. **Response headers (`ETag`, `Retry-After`) are not
+bound.**
 
 **Payload types** *(since 0.15.4, cratestack#1168)*. The payload inside a seal is CBOR unless
 the client names another type in two **unbound** selector headers (the `Cratestack-Contract`
@@ -537,8 +567,23 @@ service's own JSON error envelope, in a negotiated type, is sealed as it is. Sou
 `crates/cratestack-axum/src/envelope_layer/payload.rs`, `builder_payload.rs`, and the tests
 `tests/payload_types*.rs` beside them.
 
-`Required` is opt-in on purpose: the schema digest hashes the raw `.cstack`
-text, so a comment-only edit breaks every signed client (cratestack#1065).
+**Which schema edits break a signed client** *(since 0.15.2, cratestack#1123)*. The
+digest bound is the op's contract (`cratestack_core::op_contract_digest`), which moves
+only when **that op's** wire shape does. A policy, an `@@index`, a view's SQL, a
+validator, a comment or another op's edit leaves every older signed client working. A
+wire-shape edit makes that op, and only it, answer the **unsigned `426
+contract_unsupported`** (`CONTRACT_UNSUPPORTED` on REST, sent without `Upgrade`), unless
+the server is built with `contracts = "<lock>"` and the locked contract is still
+compatible (`cratestack contract lock` / `check` / `prune`). The client names its digest
+in the unbound `Cratestack-Contract` header (first 8 bytes, base64url); without it the
+layer tries the op's accepted digests, newest first, up to `max_contract_trials`. A
+signed `/rpc/batch` binds the whole-client contract, so any client-facing change refuses
+it. Version 2 refuses version-1 messages: upgrade clients and servers from 0.15.1 or
+earlier together. History: on 0.15.0–0.15.1 the binding was the whole-schema digest
+(comment- and whitespace-insensitive since 0.15.0, cratestack#1065); on 0.14.x it hashed
+the raw `.cstack` text, so a comment-only edit broke every signed client. Source:
+`crates/cratestack-axum/src/envelope_layer/mod.rs` ("Known limits"),
+`crates/cratestack-api/tests/cose_envelope_contract*.rs`.
 
 Traps:
 
@@ -697,7 +742,10 @@ Every failure branch logs at `WARN` with `cratestack_error` and
 ## `db = None` in one paragraph
 
 Procedures, types, enums, `auth` blocks, procedure policies, both transports,
-codecs, idempotency and rate limiting, tracing. **No `model` blocks** — rejected
+codecs, idempotency and rate limiting, tracing, and *(since 0.18.0)* subscription
+procedures and `topic`s (an in-process backplane by default; `Cratestack::builder()
+.with_backplane(..)` for several replicas; with a topic the `Cratestack` is `Clone`,
+not `Copy`). **No `model` blocks** — rejected
 at parse time, not at codegen — and no `query` blocks. Prefer the
 `cratestack-api` facade, which has no `cratestack-sqlx` dependency under any
 feature, so the mistake is a clear error rather than a link failure.

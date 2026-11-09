@@ -5,7 +5,7 @@ description: CrateStack's RPC transport — transport rpc, POST /rpc/{op_id}, PO
 
 # RPC transport
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -33,6 +33,7 @@ clients.
 | `POST /rpc/{op_id}` | unary |
 | `POST /rpc/batch` | batch |
 | `GET /rpc/subscribe/{op_id}` | SSE subscription |
+| `POST /rpc/subscribe/{op_id}` | SSE subscription, input as a JSON body *(since 0.18.0, cratestack#1268)* |
 
 Mount with:
 
@@ -67,7 +68,11 @@ it resolves as an unknown op — `not_found`, 404.
 ## Frames
 
 Unary request body is the **unwrapped input payload**, codec-encoded. No
-envelope. The success body is the unwrapped output.
+envelope. The success body is the unwrapped output. A `model.<M>.create` answers
+**201**, as on REST (`crates/cratestack-pg/tests/bigint_end_to_end_rpc.rs`). A client that turns compact keys
+on *(since 0.18.0)* sends and receives integer field keys
+(`application/vnd.cratestack.compact+cbor`, keyed by the op's contract); `/rpc/batch`,
+error bodies and framework wrappers stay named (see `cratestack-clients`).
 
 Batch frames, and these field names are worth getting right because the design
 doc uses different ones:
@@ -147,7 +152,8 @@ GET /rpc/subscribe/model.Note.subscribe?body__contains=keep&operations=created&f
 GET /notes/$subscribe?ownerId=7                      (REST)
 ```
 
-Through the dispatcher (WebTransport) the input is a JSON object,
+Through the dispatcher (WebTransport, WebSocket, or the JSON body of
+`POST /rpc/subscribe/{op_id}`) the input is a JSON object,
 `{"where", "or", "filters": [{"key", "value"}], "fields", "operations"}`
 (`cratestack::rpc::RpcSubscribeInput`, unknown keys refused). The filter is evaluated
 in memory against the event's row, three-valued like SQL, **before** the read
@@ -428,4 +434,5 @@ exists for subscriptions only *(since 0.18.0, cratestack#1268)*; unary calls ove
 stay gated. Batch parallelisation is deferred. The batch protocol's
 `StreamItem` / `StreamEnd` / `Cancel` variants in the design doc are wired nowhere
 (the subscription sessions' `end` and `cancel` frames are a different protocol) (`cratestack_core::codec::StreamEnd` is an
-unrelated envelope-sealing type, and streams cannot be sealed in 0.14.0).
+unrelated envelope-sealing type, and streams still cannot be sealed in 0.19.1, ADR 0006
+P1).

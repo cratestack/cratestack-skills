@@ -5,7 +5,7 @@ description: Serving a CrateStack schema to AI agents over the Model Context Pro
 
 # MCP operator
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -109,7 +109,11 @@ ignored.
     or `Geometry`, which have no faithful JSON Schema.
   - A `Decimal` needs the schema's `decimal = RustDecimal | BigDecimal` argument.
 - **Not a resource.** `@@mcp` on a model whose `@@internal` hides get or list, or whose
-  `@id` isn't `String`, `Cuid`, `Int` or `Uuid`.
+  `@id` isn't `String`, `Cuid`, `Int`, `BigInt` *(since 0.15.4; the id is its canonical
+  decimal string, `cratestack://ledger/notes/9007199254740993`)* or `Uuid`
+  (`crates/cratestack-macros/src/include/mcp_gate/resources.rs`).
+- **Not on a `subscription procedure`** *(since 0.18.0)*: `@mcp` there is refused ("MCP
+  exposes only unary tools").
 - **`db = None` schemas cannot expose resources.**
 
 ## Serving over stdio
@@ -145,8 +149,8 @@ let app = Router::new()
 
 - **Required builder arguments.** The `AuthProvider` and a non-empty allowed-origins list.
 - **The provider must check the token's audience** against the resource identifier.
-  CrateStack ships no generic OAuth provider. The example's `src/token.rs` is example
-  code, not an API.
+  CrateStack ships no generic OAuth provider. The example's `src/token.rs` and
+  `src/provider.rs` (`AudienceProvider`) are example code, not an API.
 - **Answers before MCP handling:**
   - 403 for a foreign `Origin`;
   - 405 for any method but `POST` (`GET`/`DELETE` included);
@@ -162,8 +166,8 @@ let app = Router::new()
   `CredentialPresence::ask_provider()` (the provider's own `AuthProvider::credential`: `Absent` is
   the 401 challenge before the body is read, `Malformed` a 400, `Present`/`Unknown` reach the
   provider), or `CredentialPresence::when(|parts| ...)` over the request head (never the body). Add
-  `.with_credential_headers([...])` for the headers that carry the credential (e.g.
-  `x-attestation`, `x-signature`): they are stripped before `rmcp` like `Authorization`, and
+  `.with_credential_headers([...])` on the `CredentialPresence` (it takes `HeaderName`s)
+  for the headers that carry the credential (e.g. `x-attestation`, `x-signature`): they are stripped before `rmcp` like `Authorization`, and
   redacted from the provider's logged detail. The default stays `CredentialPresence::bearer()`.
   An `AuthRefusal` keeps its status, members, `details` and challenges (after the guard's
   `resource_metadata` one). Copy from `crates/cratestack-mcp/tests/http_credential.rs`,
