@@ -44,6 +44,7 @@ Verified against **CrateStack 0.19.3**. Feature-to-release history lives in
 | `CoseAuthProvider` *(since 0.16.0, cratestack#1077)*: `cratestack_cose::auth`, `authenticate_devices`, `with_service_keys`, the `cose:<thumbprint>` principal and its `kind` / `thumbprint` / `alg` fields | `cratestack-server` (wiring, the device gate) + `cratestack-policy-auth` (`auth()` semantics) + `cratestack-troubleshooting` (anonymous device) |
 | `cratestack-auth` (Ed25519, SD-JWT, JWKS) | `cratestack-policy-auth` |
 | REST routes and query parameters | `cratestack-server` |
+| Cursor (keyset) pagination *(since 0.19.4, cratestack#1304)*: `?cursor=` on `@@paged` lists (REST + RPC `RpcListInput.cursor`), `pageInfo.nextCursor`, `CursorPageInput` / `CursorPage<T>`, `encode_cursor` / `decode_cursor`, `parse_keyset_sort` / `keyset_after`, the cursor 400s, client `cursor` / `nextCursor` | `cratestack-data-integrity` (semantics, when to choose it) + `cratestack-server` (query contract) + `cratestack-schema` (built-in types) + `cratestack-rpc` (frame slot) + `cratestack-embedded` (primitives) + `cratestack-clients` (Rust / Dart / TS) + `cratestack-troubleshooting` (the 400s) |
 | `transport rpc`, `/rpc/batch`, subscriptions, `@stream` | `cratestack-rpc` |
 | MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |

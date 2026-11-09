@@ -68,8 +68,9 @@ each step's breaking changes assume the one before:
 11. [0.19.3](#0193-2026-11-09): opt-in WebSocket / WebTransport subscription rate limiting, real error
    codes on subscription `err` frames in the Rust client, WireMock `@status`. Nothing to migrate, but
    read the **Action** in its entry if you serve WS/WT subscriptions behind `RateLimitLayer`.
-12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: TypeScript COSE signing,
-   and a `415` now sends a compact op back to named bodies.
+12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: cursor (keyset) pagination
+   (additive), TypeScript COSE signing, the CBOR decode nesting-depth limit (deep input is now refused), and a
+   `415` now sends a compact op back to named bodies.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -84,6 +85,14 @@ security fix merged from a private fork with no PR number. The TypeScript COSE e
 published crate. (The prepared-mutation work recorded here when 0.18.0 was current shipped in
 [0.18.1](#0181-2026-11-07).)
 
+- **Cursor (keyset) pagination** (cratestack#1304) *(since 0.19.4, on `main`, in no published release)*.
+  `GET /<plural>?cursor=` and RPC `model.<M>.list` with `cursor` on `@@paged` models;
+  `pageInfo.nextCursor`; built-in `CursorPageInput` / `CursorPage<T>` for procedures; embedded
+  `parse_keyset_sort` / `keyset_after`; Rust, Dart and TypeScript client support. New 400s: `cursor` with
+  `offset`, a non-`@@paged` model, relation/repeated/Boolean/enum/JSON sorts, bad cursors. `cursor` is now
+  a reserved query key; `RpcListInput` gains a field, so exhaustive literals need `cursor: None`.
+  Additive otherwise. Owners: `cratestack-data-integrity`, `cratestack-server`, `cratestack-schema`,
+  `cratestack-clients`, `cratestack-rpc`, `cratestack-embedded`, `cratestack-troubleshooting`.
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
   ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.1`)
