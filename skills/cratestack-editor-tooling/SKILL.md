@@ -5,7 +5,7 @@ description: Editor support for .cstack files — the cratestack-lsp language se
 
 # Editor tooling
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -40,6 +40,13 @@ genuinely absent. The README also pins an install version of `0.7`, several
 releases behind.
 
 Diagnostics are published on `didOpen` and `didChange`.
+
+Completion items are plain labels, no snippets. Inside a `model`, `view`, `mixin`, `type` or
+`auth` block the field attributes offered are exactly that kind's closed list, read from
+`cratestack_parser::field_attribute_names` *(since 0.15.4)*, so completion and `check` cannot
+disagree; elsewhere every list's names are offered once. `@authn` *(since 0.17.1)* and the MCP
+attributes *(since 0.13.0)* complete with their argument shapes in the detail
+(`crates/cratestack-lsp/src/attribute_completion.rs`, `authn_completion.rs`, `mcp_completion.rs`).
 
 **Last-known-good behaviour:** while a file has a syntax error the server keeps
 serving the last version that parsed, so navigation, symbols and colouring stay
@@ -82,7 +89,7 @@ unsaved edits in any open file are what is checked.
   list the part, or the root cannot be read).
 - Editing any file re-analyses every root whose graph contains it (editing a shared
   `money.cstack` refreshes every open importer).
-- Go to definition crosses files. Completion offers the whole graph's models, mixins, types, procedures and fields (no enum names, in any schema).
+- Go to definition crosses files. Completion offers the whole graph's models, mixins, types, procedures, `query` blocks and fields (no enum names, in any schema).
 - Hover, document symbols, semantic tokens, **references and highlights** answer only with
   spans inside the requesting file, so references and highlights are file-local.
 - **Rename is refused** in a schema that spans more than one file: `prepareRename` returns

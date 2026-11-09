@@ -5,7 +5,7 @@ description: CrateStack Studio — the admin and testing surface over one or mor
 
 # Studio
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -38,6 +38,12 @@ enforced at all**. The compensating control is the audit log, which is
 no more than the credential already has, because the deployed service enforces
 everything.
 
+Studio does run its own mirror of the field validators (`@email`, `@length`, `@range`,
+`@regex`, `@uri`, `@iso4217`) on a write, answering `422 VALIDATION_ERROR` with per-field
+errors (`crates/cratestack-studio/src/validators.rs`). A `BigInt` value must be its canonical
+string *(since 0.15.4)*, and an ordinal enum field takes the variant name or its number and is
+shown as `Pending (1)` *(since 0.17.0)*. That is input checking, not authorization.
+
 Two related facts:
 
 - `@version` **is** bumped for real on every driver — except on a write that
@@ -46,6 +52,8 @@ Two related facts:
 - `@@emit(...)` writes a real `cratestack_event_outbox` row **only on Postgres**.
   On SQLite that is a permanent capability difference, and a write returns
   `403 UNSAFE_DB_WRITE` unless the target sets `allow_unsafe_writes = true`.
+  *(Since 0.18.0)* a Studio update carries no pre-image, so it never sends a subscriber
+  the "row left your filter" exit event that a generated update does (CHANGELOG `## 0.18.0`).
 
 ## `studio.toml`
 
@@ -90,6 +98,11 @@ enforcement**.
 **`prefer_for` is parsed and consulted by nothing.** It does not redirect writes.
 
 Any secret-bearing string accepts `env:NAME` or `file:PATH` (trimmed).
+
+**`schema` names the root file** of a split schema: *(since 0.19.0)* the workspace loader
+reads the whole graph (its `part`s and `import`s) through `cratestack_parser::parse_schema_file`
+(`crates/cratestack-studio/src/workspace/builder.rs`). On 0.18.x and earlier it read one file,
+so a schema with a directive fails to load there.
 
 ## The HTTP surface
 

@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -112,10 +112,10 @@ they appear at the `include_*_schema!` call site.
 | `has no subscription op to serve over it` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` (or `websocket`, *since 0.18.0, cratestack#1268*) in a schema with no `@@subscribe` model or `subscription procedure` | add `@@subscribe` to a model (under `transport rpc` in 0.17.x; under either transport *(since 0.18.0, cratestack#1267)*) or drop the extension |
 | ``subscription procedure `x` cannot declare `@stream` ``, or `@isolation`, `@no_idempotency`, `@status`, `@no_rate_limit`, `@mcp` *(since 0.18.0, cratestack#1268)* | a unary-call attribute on a subscription | drop it; the message names why it does not apply |
 | `must return a single item type` *(since 0.18.0, cratestack#1268)* | `subscription procedure x(..): T[]` | return `T`: each item of the stream is one value |
-| ``topic `X` needs a subscription backplane, and `db = None` has none yet`` *(cratestack#1268 only; gone since 0.18.0, cratestack PR #1280)* | a `topic` under `include_server_schema!(.., db = None)` on a `main` from between those PRs | update: `db = None` topics compile now, on an in-process backplane |
+| ``topic `X` needs a subscription backplane, and `db = None` has none yet`` *(never in a release: only on a `main` between cratestack#1268 and PR #1280, both in 0.18.0)* | a `topic` under `include_server_schema!(.., db = None)` on such a build | update: on 0.18.0 and later `db = None` topics compile, on an in-process backplane |
 | `the trait bound … Copy` / `use of moved value` on a `db = None` `Cratestack` *(since 0.18.0, cratestack PR #1280)* | the schema gained a `topic`, so `Cratestack` holds the backplane and is `Clone`, not `Copy` | `.clone()` it where it was copied |
 | `serves no subscriptions, so there is nothing for it to bind` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
-| `needs a 'decimal = RustDecimal' or 'decimal = BigDecimal' argument` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
+| ``needs a `decimal = RustDecimal` or `decimal = BigDecimal` argument`` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |
 | `composite primary key … not yet supported by codegen` | `@@id([a, b])` | use a single scalar `@id`; the DDL half works, codegen does not |
 | `@computed fields … include_embedded_schema! has no response boundary` | computed fields on the embedded path | remove them or use the server/client macro — without the guard the field would silently vanish |
 | ``declares `query` block(s) … which are Postgres-only raw SQL`` | a `query` under the embedded macro | remove it or move to a Postgres schema |
@@ -187,6 +187,24 @@ attribute with a trailing `//` comment now takes effect, and one written inside
 a field's comment no longer does. See `cratestack-schema`, "A trailing `//`
 comment".
 
+**`check` refusals added in 0.15.4–0.17.1.** Each was `schema OK` on the release before and failed
+later (at `migrate` apply time, or by doing nothing). Message fragments from
+`crates/cratestack-parser/src/validate/` and `crates/cratestack-core/src/schema/`:
+
+| Error text contains | Since | Cause | Fix |
+| --- | --- | --- | --- |
+| ``uses `@default(autoincrement())`; `autoincrement()` is not a function in Postgres or SQLite`` | 0.16.0 | no database has that function; `migrate diff` used to write it into `up.sql` | `@default(dbgenerated())`, and create the sequence or identity in hand-written migration SQL |
+| ``the marker is spelled exactly `dbgenerated()` `` / ``bare `dbgenerated()` `` | 0.16.0 | `dbgenerated()` with an argument, a different spelling, or text after it | the bare marker as the whole default |
+| ``is neither one of cratestack's default functions (`now()`, `uuid()`, `cuid()`) nor registered with the datasource`` | 0.17.0 | a function default such as `gen_random_uuid()` | `uuid()` / `cuid()` / `now()`, or `datasource db { functions = ["my_fn"] }` |
+| ``cratestack's default function is spelled exactly `uuid()` `` / ``takes no argument and must be the whole default expression`` / ``generates a single … value`` | 0.17.0 | `UUID()`, `uuid(4)`, `now() + 1`, `uuid()` on an `Int` | the exact builtin, on a field it fits |
+| ``write `@default(now())`. Without the parentheses it is a literal`` | 0.17.0 | `@default(now)` | add `()` |
+| ``a `String` default is a quoted string: write `@default("draft")` `` (and other ``uses `@default(…)`, but …`` literal refusals) | 0.17.0 | an unquoted word, `CURRENT_TIMESTAMP`, `null`, a literal on `Json` / `Bytes` / a list | quote strings; `now()` for timestamps; drop the rest |
+| `` `auth()` is not a database function `` | 0.17.0 | `lower(auth().email)` | exactly `@default(auth().field)` |
+| ``numbers some variants but not`` / ``must be an integer from 0 to 32767`` / ``is used by both`` / ``which `@@reserved` `` | 0.17.0 | a partly numbered ordinal enum, an ordinal out of range, a duplicate, a retired number reused | number every variant uniquely, never reuse a `@@reserved` number |
+| ``auth field `x` has the ordinal enum type`` | 0.17.0 | an `auth` field typed as an ordinal enum | a string enum or `String` there |
+| ``is a reserved claim of the principal contract and must be`` | 0.17.1 | an `auth` field named `roles`, `auth_time`, `amr`, … with another type | declare the stated type, or rename the field |
+| ``but no client input reaches`` | 0.15.4 | a validator on a `type` only procedures return | delete it: it could never run |
+
 **`cannot be represented as a Rust identifier`** — only `self`, `Self`, `super`
 and `crate` are unusable. Every other Rust keyword is fine, escaped as `r#type`.
 
@@ -226,7 +244,9 @@ release through 0.14.0 these compiled and the attribute did nothing.
 Message text is checked against the assertions in `crates/cratestack-parser/tests/multi_file_*.rs`
 and `src/tests_single_source_directives.rs`; paths are shown relative to the root file's
 directory unless noted. If the text differs from what `check` prints, source wins. Structural checks (M1-M16 and every file's syntax) stop at
-the first error; validation errors are then reported together, from several files. Errors
+the first error. Validation errors after them are collected from every file, but only the LSP
+shows them together: `cratestack check` and the macros report the first one
+(`load_schema` keeps the first of `load_schema_diagnostics`' errors). Errors
 involving two files name both in the text and carry a related location (`related` in `check
 --format json`, `relatedInformation` in the LSP).
 
@@ -412,8 +432,14 @@ failure is the same coarse, unsigned 401 on purpose, so the response will not sa
 which input differed. Check: the query (distinct keys may be reordered, one key's
 repeated values may not; an RPC call binds its query too, which generated RPC
 clients leave empty), the header values byte for byte (untrimmed), the audience,
-the mount-prefix values of a parameterised mount, and the schema digest (a
-comment-only `.cstack` edit changes it, cratestack#1065). A header sent **twice**
+the mount-prefix values of a parameterised mount, and the contract digest. *(since 0.15.2)*
+a signed request binds the called op's contract digest, which moves only when that op's wire
+shape does, and a server that no longer accepts the client's digest answers the unsigned
+`426 contract_unsupported` (`EnvelopeError::ContractUnsupported { op }`), not a 401; keep
+older clients working with a `contracts =` lock (`cratestack contract lock`, see
+`cratestack-cli`). On 0.15.1 and earlier the binding was the whole-schema digest, so any schema
+edit refused every older signed client with this 401, and on 0.14.x even a comment-only edit
+changed that digest (cratestack#1065, fixed in 0.15.0). A header sent **twice**
 is a 400, not a 401.
 
 **A device that enrolled (or was revoked) gets the 401 you did not expect.** *(since 0.15.4, cratestack#1149)* An unknown `kid` and a revoked one resolve to no keys and are the same

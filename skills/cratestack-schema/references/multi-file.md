@@ -1,8 +1,8 @@
 # Multi-file schemas: `part`, `part of`, `import`
 
-> **Verified against the CrateStack 0.19.0 implementation (cratestack#910); everything on this page is *(since 0.19.0)* unless marked *(since 0.19.1)*, which adds the `examples/shared-types-import` example and the LSP importer check.**
+> **Verified against CrateStack 0.19.1** (cratestack#910). Everything on this page is *(since 0.19.0)* unless marked *(since 0.19.1)*, which adds the `examples/shared-types-import` example and the LSP importer check.
 > Checked against the parser and macro tests, the `cratestack check` output, the language server
-> tests and the committed `examples/react-vite-swr` split on the implementation branch (design:
+> tests, the committed `examples/react-vite-swr` split and `examples/shared-types-import` at the `v0.19.1` tag (design:
 > `docs/design/multi-file-schemas.md`; ADR 0023 in `cratestack-docs/internals/`). On 0.18.x or
 > earlier a `part` or `import` line is refused and a schema is exactly one file. If a message
 > below does not match what `cratestack check` prints, source wins (`crates/cratestack-parser/`).

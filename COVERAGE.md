@@ -7,7 +7,7 @@ and a new feature that fits nowhere gets a row before it gets prose.
 `scripts/validate-skills.mjs` checks this file both ways — every skill directory
 must appear here, and every skill path mentioned here must exist.
 
-Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
+Verified against **CrateStack 0.19.1**. Feature-to-release history lives in
 [skills/cratestack/references/version-history.md](skills/cratestack/references/version-history.md).
 
 ## Skills
@@ -24,7 +24,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | [skills/cratestack-rpc/](skills/cratestack-rpc/) | `transport rpc`, the three endpoints, op IDs, frames, batch semantics, SSE subscriptions, `@stream` and cbor-seq, client batching links, and the transport-parity rule. |
 | [skills/cratestack-mcp/](skills/cratestack-mcp/) | The MCP operator *(since 0.13.0)*: the `mcp { }` block, `@mcp(tool ...)` and `@@mcp(resource ...)`, the `mcp` facade feature, `StdioServer` and `StreamableHttpServer`, the HTTP guard and audience checks, `cratestack://` resource URIs, errors and fail-closed behaviour. |
 | [skills/cratestack-migrations/](skills/cratestack-migrations/) | `migrate diff` and `migrate baseline`, the snapshot model, destructive classification, `up.pre.sql`, rename markers, the Postgres-only applier, SQLite differences. |
-| [skills/cratestack-cli/](skills/cratestack-cli/) | Every subcommand and flag, installation, exit codes, `--check` drift mode, JSON diagnostics, `diff` severities, CI recipes. |
+| [skills/cratestack-cli/](skills/cratestack-cli/) | Every subcommand and flag, installation, exit codes, `--check` drift mode, JSON diagnostics, `diff` severities, `contract` digests and the contract lock, CI recipes. |
 | [skills/cratestack-studio/](skills/cratestack-studio/) | `studio.toml`, `init` / `run` / `eject`, the read and write API, the tools, UI bundling, and the security posture of `rw` database targets. |
 | [skills/cratestack-editor-tooling/](skills/cratestack-editor-tooling/) | `cratestack-lsp` capabilities and editor wiring, the VS Code extension, the tree-sitter grammar and why VS Code does not use it. |
 | [skills/cratestack-troubleshooting/](skills/cratestack-troubleshooting/) | False greens, build failures, macro and `check` errors with what each means, and runtime behaviour that looks like a bug. |
@@ -47,8 +47,7 @@ Verified against **CrateStack 0.14.2**. Feature-to-release history lives in
 | `transport rpc`, `/rpc/batch`, subscriptions, `@stream` | `cratestack-rpc` |
 | MCP: `mcp { }`, `@mcp`, `@@mcp`, `cratestack-mcp`, `StdioServer`, `StreamableHttpServer` | `cratestack-mcp` |
 | Codecs, content negotiation | `cratestack-server` (server) + `cratestack-clients` (client) |
-| Prepared keyed unary mutations *(unreleased, cratestack#1297)*: freeze, persist before first send, validate and restore | `cratestack-clients` (runtime APIs and sealing) + `cratestack-data-integrity` (retry boundary) |
-
+| Prepared keyed unary mutations *(since 0.18.1, cratestack#1297)*: freeze, persist before first send, validate and restore | `cratestack-clients` (runtime APIs and sealing) + `cratestack-data-integrity` (retry boundary) |
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
 | COSE envelope layer *(since 0.14.0, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) + `cratestack-clients` (the Dart client: see the row below) |
 | Claim objects *(since 0.17.0, cratestack#1231)*: `cratestack_cose::claims`, `sign_claims` / `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError`, no freshness or replay check, domain separation from the envelope | `cratestack-server` (API, wire shape) + `cratestack-troubleshooting` (`ClaimsError`, "verified is not fresh") + `cratestack-clients` (not in Dart) |

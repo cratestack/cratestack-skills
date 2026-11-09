@@ -1,9 +1,11 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack `main` after 0.17.2** — everything here is
-> *(since 0.18.0, cratestack#1268)*. None of it exists in a published crate yet.
-> Source of truth: `docs/design/subscriptions-websocket.md` §3.2–3.4, §6, §8,
-> §11 ("S4 status", "S5 status", "S6 status, Rust").
+> **Verified against CrateStack 0.19.1.** Everything here is *(since 0.18.0)*:
+> cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
+> in the 0.18.0 release; nothing on this page changed in 0.18.1–0.19.1. None of it
+> exists on 0.17.x or earlier. Source of truth:
+> `docs/design/subscriptions-websocket.md` §3.2–3.4, §6, §8, §11 ("S4 status",
+> "S5 status", "S6 status, Rust").
 
 ## Subscription procedures and topics
 

@@ -5,7 +5,7 @@ description: CrateStack database migrations — cratestack migrate diff and base
 
 # Migrations
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -97,7 +97,8 @@ applied.
   not work. `@@rename(from = "OldModel")` checks as `schema OK`, matches no table,
   and the diff is a drop plus a create. `migrate diff` then refuses it as lossy,
   and with `--allow-destructive` it drops the rows. This holds on every release,
-  0.15.4 included. `check` validates only the marker's form, not that the table
+  0.19.1 included (`crates/cratestack-migrate/src/convert/renames.rs` uses the
+  `@@rename` value verbatim as the old table name). `check` validates only the marker's form, not that the table
   exists.
 - `@rename(from = "…")` takes the old **column** name. The migrator snake-cases
   it first, so `"old_field"` and `"oldField"` both work.
@@ -112,7 +113,8 @@ applied.
   migrations from a refused marker, look for a `DROP TABLE` or `DROP COLUMN` of
   the old name.
 
-Measured with `cratestack migrate diff` built from framework `main`: the
+Measured with `cratestack migrate diff` built from an earlier framework `main` (not
+re-run for 0.19.1; the rename reader and table diff are unchanged since 0.14.2): the
 `"old_models"` form emits `ALTER TABLE old_models RENAME TO new_models;` and
 `ALTER TABLE new_models RENAME COLUMN old_field TO new_field;`. The
 `"OldModel"` form is refused as destructive.
@@ -157,6 +159,21 @@ from these migrations; see `cratestack-embedded`.
 You also get a stderr warning listing every `@default(dbgenerated())` on a
 required column, because the emitter cannot verify the database actually has that
 default.
+
+**Sequences and identity columns.** cratestack emits neither. `@default(autoincrement())`
+(any spelling or case) is refused by `cratestack check` *(since 0.16.0, cratestack#1128)*;
+through 0.15.4 it passed and `migrate diff` wrote `DEFAULT autoincrement()`, which neither
+database accepts. Declare the column `@default(dbgenerated())` (it must be the whole
+default) and create the sequence or `GENERATED … AS IDENTITY` in hand-written migration
+SQL. An older snapshot holding `autoincrement()` is read back as `dbgenerated()`.
+
+**Framework tables are not in the snapshot.** `cratestack_migrations`,
+`cratestack_event_outbox` and the other bookkeeping tables the runtime creates for itself are
+not projected from the schema, so `migrate diff` never alters them. *(Since 0.18.0)* the outbox
+gains a nullable `payload_before JSONB` column; the runtime adds it to an older table on its
+own, but not for an app that only writes inside its own transactions, so the changelog advises
+adding it in a migration: `ALTER TABLE cratestack_event_outbox ADD COLUMN IF NOT EXISTS
+payload_before JSONB;` (`crates/cratestack-sqlx/src/descriptor/event_outbox.rs`).
 
 ## `migrate baseline` — adopting an existing database
 

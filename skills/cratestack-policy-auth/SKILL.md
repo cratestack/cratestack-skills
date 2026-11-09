@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.14.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -275,6 +275,10 @@ let ctx = CratestackContext::builder("user-42")         // sub
   `principal_actor_id()` now returns `Option<Cow<str>>` and answers the same.
 - An `auth` block that declares a reserved name with another type fails `cratestack check`
   (`roles String`, `auth_time String`). Declare `roles String[]`, `auth_time Int`.
+- *(since 0.17.0)* An `auth` field whose type is an **ordinal enum** (`Pending = 1`) is
+  refused by `check`: a claim's encoding is the provider's choice, so a comparison could
+  fail open. In policies, ordinal enum variants are written by name and compared as
+  numbers.
 
 Every generated handler authenticates, then calls
 `enrich_context_from_headers(ctx, &headers, trusted_proxy, peer)` before handing
@@ -387,8 +391,12 @@ policy is **fully cross-tenant readable**. Auth-defaulted columns are also
 excluded from upsert's `DO UPDATE` set, so the update branch keeps whatever was
 there — verifying that it belongs to the caller is the update policy's job.
 
-Auth-defaulted columns are limited to `String`/`Cuid`, `Int` and `Boolean`, and
-act as fallbacks: they fill the field only when the create input omits it.
+Auth-defaulted columns are limited to `String`/`Cuid`, `Int`, `BigInt` *(since
+0.15.4; the claim may be a JSON integer or the canonical decimal string)* and
+`Boolean` (`crates/cratestack-macros/src/model/descriptor/defaults.rs`), and act as
+fallbacks: they fill the field only when the create input omits it. An `auth()`
+default never reaches migration DDL *(since 0.17.0, cratestack#1209)*, and
+`lower(auth().email)` or any other expression around it is refused by `check`.
 
 ## `@authorize` on procedures
 
@@ -424,7 +432,9 @@ The rules:
 - The facts are the principal contract's `auth_time` / `amr` / `acr`. A missing one fails closed, so
   your provider must fill them (`CratestackContext::builder(..).auth_time(..).amr(..).acr(..)`).
 - Every path enforces it: REST, RPC unary, each batch frame on its own, MCP tools, and direct
-  `authorize`/`invoke` calls.
+  `authorize`/`invoke` calls. A `subscription procedure` *(since 0.18.0)* also takes
+  `@authn` (and `@allow` / `@deny` / `@authorize`), evaluated once, when the subscription
+  opens (see `cratestack-rpc`, `references/subscriptions.md`).
 - *(since 0.17.2, cratestack#1261)* The step-up refusal is **not recorded** under an `Idempotency-Key`
   (nor MCP's `_meta` key), and neither is the provider's or `@allow`/`@deny`'s: they come before
   the body, so the layer releases the key and the retry after the re-proof runs once under the same
