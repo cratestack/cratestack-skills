@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -418,7 +418,7 @@ let store = Arc::new(InMemoryRateLimitStore::default());
 let router = router.layer(RateLimitLayer::new(store, RateLimitConfig::new(100, 1.0)));
 ```
 
-Three things bite:
+Four things bite:
 
 1. **The default principal fingerprint hashes `Authorization`, falling back to
    `ConnectInfo<SocketAddr>`. With neither, the request is refused with 412.**
@@ -437,6 +437,14 @@ Three things bite:
    (Redis connection dropped) fails **open** with a warning under the default
    `StoreErrorPolicy::Allow` (`Deny` refuses it too); a store that is
    reachable and refusing (OOM) fails **closed** under every policy.
+
+4. **Subscriptions over WebSocket / WebTransport are not charged by the layer**
+   *(since 0.19.3)*. SSE opens are (the layer wraps the generated router);
+   WS/WT opens are unlimited unless you pass
+   `WebSocketConfig::new().rate_limit(layer.for_subscriptions())` /
+   `WebTransportConfig::new(..).rate_limit(layer.for_subscriptions())`. A throttle
+   is an `err` frame, `resource_exhausted` + `details.retry_after_secs`; see
+   `cratestack-data-integrity`.
 
 Replay semantics: same key and same body hash replays the stored response; same
 key with a different body is a **422** `VALIDATION_ERROR` whose message starts

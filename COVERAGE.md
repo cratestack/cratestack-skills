@@ -7,7 +7,7 @@ and a new feature that fits nowhere gets a row before it gets prose.
 `scripts/validate-skills.mjs` checks this file both ways — every skill directory
 must appear here, and every skill path mentioned here must exist.
 
-Verified against **CrateStack 0.19.1**. Feature-to-release history lives in
+Verified against **CrateStack 0.19.3**. Feature-to-release history lives in
 [skills/cratestack/references/version-history.md](skills/cratestack/references/version-history.md).
 
 ## Skills
@@ -50,6 +50,8 @@ Verified against **CrateStack 0.19.1**. Feature-to-release history lives in
 | Prepared keyed unary mutations *(since 0.18.1, cratestack#1297)*: freeze, persist before first send, validate and restore | `cratestack-clients` (runtime APIs and sealing) + `cratestack-data-integrity` (retry boundary) |
 | CBOR decode nesting-depth limit *(since 0.19.4, cratestack#1315)*: `DEFAULT_MAX_DECODE_DEPTH` (128), `CborCodec::with_max_depth`, `CborCodecWithDepth`, `decode_with_max_depth`, `check_depth`, `createCborCodec({ maxDepth })`, `RangeError` "nesting too deep"; not configurable on `CodecSet`, cbor-seq, outbox, Dart | `cratestack-server` (server limit, Rust API) + `cratestack-clients` (JS, Dart, Rust client) + `cratestack-troubleshooting` (the error) |
 | Idempotency, rate limiting, `cratestack-exec`, `cratestack-redis` | `cratestack-data-integrity` |
+| Subscription rate limiting *(since 0.19.3)*: `RateLimitLayer::for_subscriptions()`, `SubscriptionRateLimiter`, `WebSocketConfig::rate_limit` / `WebTransportConfig::rate_limit`, the `resource_exhausted` + `details.retry_after_secs` refusal | `cratestack-data-integrity` (semantics) + `cratestack-rpc` (`references/subscriptions.md`) + `cratestack-server` (wiring) + `cratestack-troubleshooting` (throttle vs cap, anonymous `failed_precondition`) |
+| WireMock procedure `@status` *(since 0.19.3)*; Dart `cratestack_builder` annotations ceiling `<0.20.0` *(since 0.19.3)* | `cratestack-clients` |
 | COSE envelope layer *(since 0.14.0, cratestack#1006)*: `envelope` / `cose` facade features, `EnvelopeLayer`, generated `envelope_layer(..)`, `ServerEnvelope`, `EnvelopePolicy`, `BindingResolver`, `PrincipalMapper`, `ResponseSealPolicy` | `cratestack-server` (wiring, modes, traps) + `cratestack-data-integrity` (idempotency principal, bound `Idempotency-Key` / `If-Match`, rate-limit key) + `cratestack-troubleshooting` (500 / 401 / 415 / 406) + `cratestack-clients` (the Dart client: see the row below) |
 | Claim objects *(since 0.17.0, cratestack#1231)*: `cratestack_cose::claims`, `sign_claims` / `open_claims`, `CwtClaims`, `OpenedClaims`, `ClaimsError`, no freshness or replay check, domain separation from the envelope | `cratestack-server` (API, wire shape) + `cratestack-troubleshooting` (`ClaimsError`, "verified is not fresh") + `cratestack-clients` (not in Dart) |
 | `RegistryVerifierResolver` *(since 0.15.4, cratestack#1149)*: runtime `register` / `revoke` / `revoke_key` / `with_max_keys` for COSE verification keys | `cratestack-server` (signed transport) + `cratestack-troubleshooting` (envelope 401) |

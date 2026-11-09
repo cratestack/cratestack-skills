@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -294,6 +294,24 @@ input is malformed or hostile and the refusal is correct.
 clause, so a denied `find_unique` returns `Ok(None)` and the handler renders 404.
 A denied list read returns fewer rows with no error at all. Distinguishing denial
 from absence would be an existence oracle. See `cratestack-policy-auth`.
+
+**A subscription open fails with `resource_exhausted`.** Read `details`.
+`details.retry_after_secs` present means the rate limiter throttled the open
+(`.rate_limit(layer.for_subscriptions())` on the WS/WT config, *since 0.19.3*): wait that long and
+reopen; the socket stays open, so other subscriptions on it are unaffected, and generated clients do
+not fall back to another binding. The same code **without** `details` is the per-socket subscription
+cap (`WebSocketLimits`, 64 by default): cancel one first. Before 0.19.3 the Rust client showed either
+as `internal`.
+
+**An anonymous WebSocket subscription open fails with `failed_precondition`.** The subscription rate
+limiter (*since 0.19.3*, opt-in) has no principal and no peer address to key on. Serve with
+`into_make_service_with_connect_info::<SocketAddr>()`, or authenticate the socket. A WebSocket router
+merged *under* `.layer(RateLimitLayer)` also gets the layer's 412 on the browser upgrade; merge it
+outside the layer.
+
+**Cargo says two packages link to the native library `sqlite3`.** Your own `rusqlite` pin differs from
+CrateStack's: 0.19.3 moved to `rusqlite` 0.41.1 (it was 0.40). Move your dependency to 0.41, or remove it
+and use the facade's.
 
 **Every request 412s with `PreconditionFailed`.** The idempotency layer's default
 principal fingerprint hashes `Authorization`, falls back to the `ConnectInfo`
