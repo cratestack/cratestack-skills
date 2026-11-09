@@ -332,6 +332,18 @@ A CBOR request body must be exactly one item. Bytes after the item are a 400
 (`CODEC_ERROR` on REST, `invalid_argument` on `/rpc`), not ignored, *(since 0.16.0,
 cratestack#1153)*. JSON already refused trailing characters the same way.
 
+**Nesting depth limit** *(since 0.19.4, cratestack#1315, security)*. Every CBOR decode refuses input
+nested deeper than **128** levels (an array, map or tag, definite or indefinite; exactly 128 decode,
+129 fail) with `CratestackError::Codec` ("nesting too deep (maximum depth is N)"), a 400 on REST and
+`invalid_argument` on `/rpc`. Before it, about 8000 nested arrays crashed the process with an
+uncatchable stack overflow. The `CodecSet` path the generated router uses has **no knob**: it always
+uses `DEFAULT_MAX_DECODE_DEPTH` (128). To choose a limit in your own code:
+`CborCodec::with_max_depth(n)` (a `CborCodecWithDepth: CratestackCodec`),
+`cratestack_codec_cbor::decode_with_max_depth::<T>(bytes, n)`, or `check_depth(bytes, n)`. Not
+configurable in the cbor-seq decoders or the outbox. Raising it needs stack to match: at 256 a debug
+decode into `serde_json::Value` overflowed a 1 MB stack. Do not raise it to make a hostile-looking
+body pass.
+
 **The practical trap:** generated `transport rpc` TypeScript clients default to
 native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Mount
 `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`
