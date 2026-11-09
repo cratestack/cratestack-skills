@@ -68,7 +68,9 @@ each step's breaking changes assume the one before:
 11. [0.19.3](#0193-2026-11-09): opt-in WebSocket / WebTransport subscription rate limiting, real error
    codes on subscription `err` frames in the Rust client, WireMock `@status`. Nothing to migrate, but
    read the **Action** in its entry if you serve WS/WT subscriptions behind `RateLimitLayer`.
-12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: cursor (keyset) pagination, additive.
+12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: cursor (keyset) pagination
+   (additive), TypeScript COSE signing, the CBOR decode nesting-depth limit (deep input is now refused), and a
+   `415` now sends a compact op back to named bodies.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -77,10 +79,11 @@ each step's breaking changes assume the one before:
 ## Unreleased on `main`, after 0.19.3
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. At the `v0.19.1` tag the framework's
-`## Unreleased` changelog heading is empty, so the only entry below is the sync-engine prototype,
-which is in the tags' source but in no published crate. (The prepared-mutation work recorded
-here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
+security fix merged from a private fork with no PR number. The TypeScript COSE entry is marked
+*(since 0.19.4)* in the skills because 0.19.3 shipped without it. At the `v0.19.1` tag the framework's
+`## Unreleased` heading was empty bar the sync-engine prototype, which is in the tags' source but in no
+published crate. (The prepared-mutation work recorded here when 0.18.0 was current shipped in
+[0.18.1](#0181-2026-11-07).)
 
 - **Cursor (keyset) pagination** (cratestack#1304) *(since 0.19.4, on `main`, in no published release)*.
   `GET /<plural>?cursor=` and RPC `model.<M>.list` with `cursor` on `@@paged` models;
@@ -97,6 +100,19 @@ here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
+- **TypeScript clients can sign: `createCoseClient` in `@cratestack/cbor/cose`, sealed links for REST
+  and RPC, and a `415` falls back to named bodies** (cratestack#1010) *(unreleased on main; will be
+  since 0.19.4, additive)*. `@cratestack/cbor/cose` (backends `@cratestack/cbor-web/cose` and
+  `@cratestack/cbor-node/cose`) exports `createCoseClient` (signers `hmac`, `ed25519-seed`,
+  `p256-scalar`, `external`), `createSealedLink({ cose, contracts: OP_CONTRACTS })` for a generated RPC
+  runtime and `createSealedFetch({ cose, contracts, basePath })` for a REST one. A sealed success is
+  opened, an unsigned success is refused, errors are `CoseFailure` (`rejected` / `misuse`); `stream()`
+  is never sealed, and the chunk-fed `StreamOpener` / `StreamSealer` and trust-chain verification do
+  not exist yet (cratestack#1008, #1009). The web build loads a second WASM module only for signing.
+  **Behaviour change:** a `415` to a compact request now switches that op back to named bodies for later
+  calls, on REST and RPC, sealed or not. Through 0.19.3 a generated TypeScript client cannot sign.
+  Owners: `cratestack-clients` ("Signing requests from TypeScript", "Compact field keys"),
+  `cratestack-troubleshooting` ("TypeScript: sealing").
 
 - **CBOR decode nesting-depth limit** (cratestack#1315) *(unreleased, since 0.19.4)*. Security fix.
   Every CBOR decode refuses input nested deeper than 128 levels (array, map or tag); before it, about
