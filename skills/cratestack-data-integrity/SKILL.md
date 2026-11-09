@@ -5,7 +5,7 @@ description: CrateStack's data-integrity surface — idempotency keys, rate limi
 
 # Data integrity
 
-> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -169,6 +169,22 @@ Past the cap it **collapses into the fallback bucket, never refuses** — refusi
 would hand an attacker a deterministic global outage. IPv6 is aggregated to /64;
 IPv4 is not. Redis Cluster is not a supported deployment for this store (three
 un-hash-tagged keys give `CROSSSLOT`).
+
+**Subscriptions** *(since 0.19.3)*. SSE opens (`/rpc/subscribe/<op>`, `GET /<plural>/$subscribe`,
+`GET /$procs/<name>`) are charged once by `RateLimitLayer` when it wraps the generated router.
+**WebSocket and WebTransport are not covered by the layer and are unlimited by default**: opt in with
+`WebSocketConfig::new().rate_limit(layer.for_subscriptions())` and
+`WebTransportConfig::new(..).rate_limit(layer.for_subscriptions())` (or
+`SubscriptionRateLimiter::new(store, config)`). One token per WS `Request` frame / WT stream (upgrade and
+`Init` are free), charged after the per-socket cap and before policy; an unknown op is charged. Bucket
+`princ:<sha256 of the principal key>`, else `ip:<peer>` (IPv6 /64), shared by WS and WT, and with HTTP when the
+`VerifiedPrincipal` string equals the principal key (not for COSE's `cose:<thumbprint>`). An anonymous WS served
+without `into_make_service_with_connect_info::<SocketAddr>()` is refused `failed_precondition`. A throttle is an
+`err` frame on that request id before `Ready`: `code: "resource_exhausted"`, `details.retry_after_secs`; the
+socket stays open and generated clients do not fall back to another binding. Subscription ops still cannot be
+`@no_rate_limit`. Store failures follow `StoreErrorPolicy` and the store timeout. A WS router merged *under*
+`.layer(RateLimitLayer)` also pays a token for its upgrade GET: merge it outside the layer.
+(`docs/design/subscriptions-websocket.md` §6.7; `crates/cratestack-api/tests/websocket_rate_limit.rs`.)
 
 Honouring `@no_rate_limit` is opt-in: `RateLimitLayer` rate-limits everything
 until told which op a request is. Either install a predicate,

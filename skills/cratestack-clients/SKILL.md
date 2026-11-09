@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -432,6 +432,10 @@ also gets `src/subscriptions.ts` (WebTransport → WebSocket → SSE with `"auto
 `useSubscription` under `--swr` and `useSubscriptionQuery` under `--tanstack`; Dart
 gets SSE `Stream`s and, under `riverpod`/`fespalier`, a stream provider per op. See
 [cratestack-rpc's subscriptions reference](../cratestack-rpc/references/subscriptions.md).
+*(Since 0.19.3)* The Rust client surfaces a subscription `err` frame with the server's real code (a throttled
+open is `resource_exhausted`, status 429, not `internal` as before), and no binding falls back after it.
+Dart and TypeScript were not separately verified. The Dart builder's `cratestack_annotations`
+ceiling is `<0.20.0` since 0.19.3 (it was `<0.10.0`, resolving stale 0.9.x).
 
 `--rtk` *(since 0.12.0)*: its interesting part is that a **procedure's
 invalidation tags are derived from the schema** — the generator walks the procedure's own args and return type
@@ -595,6 +599,10 @@ matched the unversioned path, the same wrong path the clients called.
 
 *(Since 0.17.0)* An ordinal enum's example is its first variant's **number**, and a model field of
 one is a fixed example, never echoed from the request body.
+
+*(Since 0.19.3)* A REST procedure stub answers the procedure's declared `@status(<code>)`
+(`200` when absent; `transport rpc` procedures stay `200`, as `@status` is rejected there). Before
+0.19.3 every procedure stub answered `200`, so regenerate committed stubs.
 
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have
 **no per-record statefulness** — they always answer the same synthesised example

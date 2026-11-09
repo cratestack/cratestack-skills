@@ -1,8 +1,8 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.19.1.** Everything here is *(since 0.18.0)*:
+> **Verified against CrateStack 0.19.3.** Everything here is *(since 0.18.0)*:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
-> in the 0.18.0 release; nothing on this page changed in 0.18.1–0.19.1. None of it
+> in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below are the only changes since, in 0.19.3. None of it
 > exists on 0.17.x or earlier. Source of truth:
 > `docs/design/subscriptions-websocket.md` §3.2–3.4, §6, §8, §11 ("S4 status",
 > "S5 status", "S6 status, Rust").
@@ -139,7 +139,11 @@ cratestack = { package = "cratestack-pg", version = "…", features = ["websocke
 
 ```rust
 let app = cratestack_schema::axum::rpc_router(db.clone(), registry.clone(), (), CborCodec, auth.clone(), limit)
-    .merge(db.subscriptions(registry).websocket(WebSocketConfig::new(), auth));
+    .merge(db.subscriptions(registry).websocket(
+        // optional (since 0.19.3); without `.rate_limit(..)` WS opens are unlimited
+        WebSocketConfig::new().rate_limit(rate_limit_layer.for_subscriptions()),
+        auth,
+    ));
 ```
 
 (`crates/cratestack-pg/tests/websocket_subscriptions.rs`; without
@@ -179,6 +183,18 @@ subscription procedures it is `db.subscriptions().websocket(..)`.)
   | Outbound queue | 1024 frames | close 1013 |
   | Ping | every 15 s | close 1001 after 30 s with no pong |
 
+- **Rate limit** *(since 0.19.3, opt-in)*: `WebSocketConfig::rate_limit(layer.for_subscriptions())`
+  (`WebTransportConfig::rate_limit` is the same). One token per `Request` frame
+  (per stream on WebTransport), after the per-socket cap and before policy;
+  unknown ops are charged; upgrade and `Init` are free. Bucket `princ:<sha256>`
+  else `ip:<peer>`, shared by WS and WT. A throttle is `{id, err: {code:
+  "resource_exhausted", details: {retry_after_secs}}}` before `Ready`; the socket
+  stays up, there is no close code, and `Auto` does not fall back. The per-socket
+  cap above is also `resource_exhausted` but carries no `details`. An anonymous
+  socket without `into_make_service_with_connect_info::<SocketAddr>()` gets
+  `failed_precondition`. **SSE** needs nothing extra: `RateLimitLayer` over the
+  generated router charges the open. Subscription ops cannot be `@no_rate_limit`.
+  See `cratestack-data-integrity`.
 - **Unary calls over WebSocket**: gated (decision O5). Any op other than a
   subscription is `not_found`.
 
@@ -199,6 +215,11 @@ let mut lines = client.procedures().lines(&args).await?;                  // Lin
 while let Some(item) = lines.recv().await { let line = item?; }
 ```
 
+- **Refusal codes** *(since 0.19.3)*: an `err` frame surfaces with the code the
+  server sent. A throttled open is `resource_exhausted` with status 429 and
+  `details` intact (before 0.19.3 the Rust client reported `internal`). Verified
+  for the Rust client in the framework change; the Dart and TypeScript clients
+  were not separately verified.
 - **The call** resolves at `Ready` to a `ClientSubscription<Item>`, a bounded
   `mpsc::Receiver<Result<Item, ClientError>>`. A refusal is the call's `Err`,
   never an item. Dropping the receiver cancels the subscription.
