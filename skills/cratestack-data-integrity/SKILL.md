@@ -560,7 +560,34 @@ the cap, not to unbounded.
 and policy scope — a divergence there would let a caller learn the size of a
 result set policy does not let them read.
 
-**Cursor pagination is not implemented.** No cursor type, no `after`/`before`.
+### Cursor (keyset) pagination *(since 0.19.4, cratestack#1304)*
+
+Offset paging skips or repeats rows when inserts land between page fetches. For **append-only or live
+tables** (ledgers, feeds, history, infinite scroll) use a cursor; keep offset when the UI needs "page N".
+Additive: `limit`/`offset`, `Page<T>`, `PageInput` are unchanged.
+
+```
+GET /transactions?cursor=&limit=20&sort=-postedAt          first page
+GET /transactions?cursor=<pageInfo.nextCursor>&limit=20&sort=-postedAt
+```
+
+- `@@paged` models only (REST `?cursor=`; RPC `model.<M>.list` with `cursor` in the input). An empty
+  `cursor=` is the first page. `pageInfo.nextCursor` appears only when more rows remain, and
+  `hasNextPage` mirrors it. `totalCount` is the full filtered count.
+- Use a **stable `sort`**. The primary key is appended as a tiebreaker; no `sort` means order by id.
+  `NULLS LAST`.
+- `nextCursor` is opaque, unsigned, at most 2048 chars, valid only for the same effective sort, and
+  **not** bound to filters. The keyset bound is `AND`ed with the filters and the read policy, so a forged
+  cursor cannot expose hidden rows.
+- 400 (`invalid_argument` on RPC): any bad cursor; `cursor` with `offset`; `cursor` on a non-`@@paged`
+  model; a relation-path sort; a repeated sort field; a Boolean, enum or JSON sort column.
+- `cursor` is now a **reserved query key**. Subscription feeds reject it. MCP does not expose it.
+- Procedures: `CursorPageInput` (arg) and `CursorPage<T>` (return). `args.page.resolve(max)` gives
+  `(limit, Option<&str>)`; fetch `limit + 1` rows, then
+  `CursorPage::from_rows(rows, limit, |last| encode_cursor(&order, &[Some(..), ..]))`;
+  `decode_cursor(raw, &order, n)` reads one back. Test: `crates/cratestack-pg/tests/cursor_page_procedure.rs`.
+- Small source break: `RpcListInput` has a new `cursor` field, so exhaustive struct literals need
+  `cursor: None`.
 
 ## Size bounds
 

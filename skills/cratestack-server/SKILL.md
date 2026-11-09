@@ -270,6 +270,13 @@ A `@@paged` model returns
 where `totalCount` is a real `COUNT(*)` reusing the page query's exact WHERE and
 policy scope.
 
+`?cursor=` *(since 0.19.4, cratestack#1304)* switches a `@@paged` list to keyset paging: `cursor=` (empty) is the first page, and
+`pageInfo.nextCursor` (present only when more rows remain) continues. Pair it with a stable `sort`; the
+primary key is the tiebreaker. It is opaque, unsigned and bound to the sort, not the filters, and is
+`AND`ed with filters and the read policy. 400s: any bad cursor, `cursor` + `offset`, a non-`@@paged`
+model, relation-path or repeated sort fields, Boolean/enum/JSON sort columns. `cursor` is a reserved
+query key. Full rules and when to choose it over offset: [cratestack-data-integrity](../cratestack-data-integrity/SKILL.md).
+
 ## Errors
 
 ```json

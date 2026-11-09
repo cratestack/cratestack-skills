@@ -61,7 +61,7 @@ rejected with a migration message; gRPC was removed in 0.8.5.
 
 ```
 String  Cuid  Int  BigInt  Float  Boolean  DateTime  Decimal  Json  Bytes  Uuid
-Page  PageInput  FindMany  Vector  Geography  Geometry
+Page  PageInput  CursorPage  CursorPageInput  FindMany  Vector  Geography  Geometry
 ```
 
 **`BigInt` is a `.cstack` type** *(since 0.15.4, ADR 0019)*, valid wherever `Int` is: a
@@ -123,7 +123,8 @@ does, and adding a variant to an enum responses carry is breaking too (see
 is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are
-argument-position only; `Vector(n)` and the spatial types *(PostGIS since 0.10.0)* are field-position
+argument-position only; `CursorPage<T>` *(since 0.19.4, cratestack#1304)* is return-only and `CursorPageInput` argument-only,
+the keyset siblings of `Page<T>` / `PageInput` (`procedure feed(page: CursorPageInput): CursorPage<Post>`); `Vector(n)` and the spatial types *(PostGIS since 0.10.0)* are field-position
 only and each requires its `extension` block to be declared.
 
 ## A schema that exercises the common shapes

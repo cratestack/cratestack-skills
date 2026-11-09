@@ -496,6 +496,17 @@ corrupted a numeric-looking `"00123"` into `Decimal("123")`.
 
 Use `revivePagedWireFields` for `@@paged` responses.
 
+### Cursor pagination in generated clients *(since 0.19.4, cratestack#1304)*
+
+- Rust: the `("cursor", "")` query pair on `list`, and `PageInfo::next_cursor`.
+- Dart (default and riverpod): `CratestackListQuery(cursor: ...)` and `toListQuery(cursor: ...)`,
+  `PageInfo.nextCursor`, and the procedure types `CursorPageInput` and `CursorPage<T>`. For RPC list pass
+  `{'cursor': ''}` in the input map.
+- TypeScript (default, `--swr`, tanstack/rtk): `cursor?: string` on `CratestackFetchQuery` and
+  `CratestackRpcListQuery`, `PageInfo.nextCursor?`, `CursorPageInput`, `CursorPage<T>`.
+- `""` starts at the first page; loop until `nextCursor` is absent. `cursor` and `offset` together are a 400.
+  `cratestack-mock-wiremock` stubs `CursorPage<T>`. Regenerate committed clients after upgrading.
+
 ### `BigInt` is a string on the wire *(since 0.15.4, ADR 0019 D2, D3)*
 
 A schema `BigInt` field never travels as a number: it is a canonical decimal string (`0`, or

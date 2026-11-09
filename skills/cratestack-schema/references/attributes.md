@@ -140,7 +140,7 @@ accepted: after upgrading it gets `422`.
 | `@@id([a, b])` | ≥2 fields | Real scalar fields, no repeats. Mutually exclusive with field-level `@id`. Listed fields must not carry `@readonly` / `@server_only` / `@version`. **Parses, then hard-rejected by every entry macro.** |
 | `@@unique([a, b], where: "…")` | ≥1 field; ≥2 unless `where:` present | Only key accepted is `where`, at most once, value must be a quoted string. Duplicate field lists rejected. |
 | `@@index([a], using: gist, opclass: "…", where: "…")` | ≥1 field | `using:` is a **bare identifier**; `opclass:` is a **quoted string**; `where:` is quoted SQL passed through verbatim. Duplicate `(fields, using)` pairs rejected — same fields with a different `using` is legal. |
-| `@@paged` | **bare only** | Changes the list return type to `Page<Model>`. |
+| `@@paged` | **bare only** | Changes the list return type to `Page<Model>`. There is no `mode:` argument: cursor paging *(since 0.19.4, cratestack#1304)* is the `?cursor=` query key on the same model, and requires `@@paged`. |
 | `@@audit` | **bare only** | |
 | `@@soft_delete` | **bare only** | |
 | `@@retain(days: N)` | `days:` + non-negative integer | |
