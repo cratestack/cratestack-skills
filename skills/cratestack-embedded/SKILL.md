@@ -136,6 +136,12 @@ and `.preview_sql()`; the `batch_*` builders have only `.run()`.
 `find_many()` chains `where_`, `where_expr`, `where_optional`, `order_by`,
 `limit`, `offset`, `include`, `select`, then `.run()` / `.paginate(PageInput)`.
 
+Keyset paging *(since 0.19.4, cratestack#1304)*: embedded has no route, so no `?cursor=`. `cratestack-sqlite` re-exports
+`parse_keyset_sort`, `keyset_order_spec`, `keyset_after`, `CursorPage`, `encode_cursor` and `decode_cursor`;
+`keyset_after` builds an ordinary `FilterExpr` for `find_many().where_expr(..)`, with the query fetching
+`limit + 1` rows ordered by the sort columns plus the primary key. Worked example (verbatim shape):
+`crates/cratestack-rusqlite/tests/cursor_pagination.rs`. No policy enforcement, as everywhere in embedded.
+
 Two guardrails worth knowing: `update_many()` and `delete_many()` **refuse to
 run with zero filters** (they return `RusqliteError::Validation`), and
 `.for_update()` exists but is a **silent no-op** — it is there so the same source

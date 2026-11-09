@@ -380,6 +380,12 @@ query string by `synthesize_list_query` / `synthesize_get_query`, and handed to
 the **same** `parse_model_list_query` / `parse_model_fetch_query` REST uses. One
 validator, one error vocabulary, identical statuses on both bindings.
 
+Worked case *(since 0.19.4, cratestack#1304)*: cursor pagination put `cursor: Option<String>` on `RpcListInput`;
+`synthesize_list_query` pushes `cursor=`, so `{"cursor": ""}` in a `model.<M>.list` frame behaves exactly like
+`?cursor=` (`@@paged` models only; bad cursors are `invalid_argument`). Exhaustive `RpcListInput` struct
+literals need `cursor: None`. Subscription feeds reject `cursor`. MCP is exempt from parity by decision
+(ADR 0002 D5).
+
 The same holds for what the parser **refuses**: a relation filter or sort in an
 RPC `list` frame applies the related model's read policy and `@@soft_delete`, and
 a `@server_only` field is refused as a filter or sort key, exactly as on REST

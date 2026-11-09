@@ -420,6 +420,15 @@ sort key, over REST, RPC or `FindMany` (GHSA-ch54-jqw2-vpp5). The generated
 code that set one stops compiling. Filter server-side with the typed builder,
 `<model>::<field>().eq(..)`, which reads no request.
 
+**A list route answers 400 (RPC `invalid_argument`) once `cursor` is involved** *(since 0.19.4, cratestack#1304)*. Each
+of these is refused, not ignored: `cursor` together with `offset` (pick one); `cursor` on a model without
+`@@paged` (add `@@paged`, which changes the list return to `Page<T>`); a relation-path `sort` such as
+`author.name`; the same `sort` field twice; a Boolean, enum or JSON `sort` column (no total order); and any bad
+cursor: malformed, over 2048 chars, or minted for a different effective `sort` (the sort changed between
+pages, so restart from `cursor=`). A cursor is not bound to filters, so changing `where` mid-walk repositions
+the new result by the old key rather than failing. Also: `cursor` is a reserved query key, and a subscription
+feed rejects it.
+
 **`@@retain(days: N)` deletes nothing.** It is descriptor metadata and nothing
 reads it. Run your own job.
 
