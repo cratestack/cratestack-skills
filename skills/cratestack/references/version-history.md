@@ -90,6 +90,15 @@ here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
+- **CBOR decode nesting-depth limit** (cratestack#1315) *(unreleased, since 0.19.4)*. Security fix.
+  Every CBOR decode refuses input nested deeper than 128 levels (array, map or tag); before it, about
+  8000 levels overflowed the stack, an uncatchable crash on servers, clients, `@cratestack/cbor-node`
+  and `-web`. A normal `CratestackError::Codec` ("nesting too deep") in Rust, a `RangeError` in JS.
+  Configurable via `CborCodec::with_max_depth` / `decode_with_max_depth` / `check_depth` and
+  `createCborCodec({ maxDepth })`; not on the `CodecSet` path, cbor-seq, the outbox or Dart.
+  0.19.3 does not have it. Owners: `cratestack-server`, `cratestack-clients`,
+  `cratestack-troubleshooting`.
+
 ## 0.19.3 (2026-11-09)
 
 - **Subscription opens over WebSocket and WebTransport can be rate limited** *(since 0.19.3, opt-in,
