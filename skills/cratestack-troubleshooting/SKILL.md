@@ -280,6 +280,16 @@ Add the `part` line to the root; that edit is also what triggers the rebuild.
 
 ## Runtime behaviour that looks like a bug and is not
 
+**A decode fails with "nesting too deep (maximum depth is 128)", or a JS `RangeError` with that
+message** *(since 0.19.4, cratestack#1315)*. The CBOR input nests more than 128 levels (arrays, maps
+and tags, definite or indefinite). On 0.19.3 and earlier there is no limit and a hostile body
+(about 8000 levels) crashes the process with an uncatchable stack overflow: upgrade. If the data is
+legitimate, raise the limit: Rust `CborCodec::with_max_depth(n)` or `decode_with_max_depth::<T>(bytes, n)`;
+JS `createCborCodec({ maxDepth: n })` (sync on `cbor-node`, async on `cbor-web` and `@cratestack/cbor`).
+You cannot raise it on the `CodecSet` server/client path, in the cbor-seq decoders, the outbox, or in
+Dart. A higher limit needs more stack (256 overflowed a 1 MB stack in a debug build). Otherwise the
+input is malformed or hostile and the refusal is correct.
+
 **A read returns 404 instead of 403.** Read policy compiles into the `WHERE`
 clause, so a denied `find_unique` returns `Ok(None)` and the handler renders 404.
 A denied list read returns fewer rows with no error at all. Distinguishing denial
