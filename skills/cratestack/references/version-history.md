@@ -101,13 +101,16 @@ here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
   already charged by `RateLimitLayer`. **Action:** without `.rate_limit(..)` WS/WT opens stay unlimited.
   Owners: `cratestack-data-integrity`, `cratestack-rpc`, `cratestack-server`, `cratestack-troubleshooting`.
 - **Subscription `err` frames report the real error code in the Rust client** *(since 0.19.3)*. A throttle
-  reads `resource_exhausted` with status 429 (it showed `internal`). Recorded from the framework change in
-  progress when this was written; Dart and TypeScript clients were not separately verified. Owner:
-  `cratestack-clients`.
+  reads `resource_exhausted` with status 429 (it showed `internal`). Only the Rust client was affected: the Dart and TypeScript templates pass
+  `err.code` through verbatim. Owner: `cratestack-clients`.
 - **WireMock REST procedure stubs honour `@status(<code>)`** *(since 0.19.3)*; they were always `200`.
   Regenerate committed stubs. Owner: `cratestack-clients`.
 - **Dart `cratestack_builder` allows `cratestack_annotations` up to `<0.20.0`** *(since 0.19.3)*; the
   ceiling was `<0.10.0`, so pub resolved stale 0.9.x annotations. Owner: `cratestack-clients`.
+- **`rusqlite` 0.41.1** (`libsqlite3-sys` 0.39.1, bundled SQLite 3.54.1) *(since 0.19.3)*, for RUSTSEC-2026-0459
+  (SQLite before 3.54.0 could return uninitialized memory when a database is opened next to a `-wal`
+  file with a different page size). No source changes. **Action:** a crate that pins its own `rusqlite`
+  must move to 0.41, or Cargo resolves two `links = "sqlite3"` crates and fails. Owner: `cratestack-embedded`.
 - CI only: the quality scan honours `SCAN_TYPE`. No user-facing change.
 
 ## 0.19.2 (2026-11-09)

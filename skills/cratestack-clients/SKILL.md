@@ -432,9 +432,9 @@ also gets `src/subscriptions.ts` (WebTransport → WebSocket → SSE with `"auto
 `useSubscription` under `--swr` and `useSubscriptionQuery` under `--tanstack`; Dart
 gets SSE `Stream`s and, under `riverpod`/`fespalier`, a stream provider per op. See
 [cratestack-rpc's subscriptions reference](../cratestack-rpc/references/subscriptions.md).
-*(Since 0.19.3)* The Rust client surfaces a subscription `err` frame with the server's real code (a throttled
+*(Since 0.19.3)* The Rust client (fixed in 0.19.3) surfaces a subscription `err` frame with the server's real code (a throttled
 open is `resource_exhausted`, status 429, not `internal` as before), and no binding falls back after it.
-Dart and TypeScript were not separately verified. The Dart builder's `cratestack_annotations`
+Dart and TypeScript never had the bug: their templates (`subscriptions.dart.j2`, `subscriptions.ts.j2`, `subscription-sockets.ts.j2`) pass `err.code` through verbatim. The Dart builder's `cratestack_annotations`
 ceiling is `<0.20.0` since 0.19.3 (it was `<0.10.0`, resolving stale 0.9.x).
 
 `--rtk` *(since 0.12.0)*: its interesting part is that a **procedure's

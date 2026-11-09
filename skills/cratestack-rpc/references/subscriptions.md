@@ -217,9 +217,9 @@ while let Some(item) = lines.recv().await { let line = item?; }
 
 - **Refusal codes** *(since 0.19.3)*: an `err` frame surfaces with the code the
   server sent. A throttled open is `resource_exhausted` with status 429 and
-  `details` intact (before 0.19.3 the Rust client reported `internal`). Verified
-  for the Rust client in the framework change; the Dart and TypeScript clients
-  were not separately verified.
+  `details` intact (before 0.19.3 the Rust client reported `internal`). Only the
+  Rust client had the bug; the Dart and TypeScript clients pass `err.code`
+  through verbatim and always reported it correctly.
 - **The call** resolves at `Ready` to a `ClientSubscription<Item>`, a bounded
   `mpsc::Receiver<Result<Item, ClientError>>`. A refusal is the call's `Err`,
   never an item. Dropping the receiver cancels the subscription.

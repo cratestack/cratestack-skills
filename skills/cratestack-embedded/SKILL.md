@@ -309,5 +309,9 @@ and Cargo permits only one such crate per graph, which is the mechanical reason
 the server and embedded facades are kept disjoint. Server-plus-embedded means two
 crates. Embedded-plus-client in one crate is fine.
 
+*(Since 0.19.3)* CrateStack uses `rusqlite` 0.41.1 (`libsqlite3-sys` 0.39.1, bundled SQLite 3.54.1;
+RUSTSEC-2026-0459). A crate that depends on `rusqlite` itself must pin 0.41 too (it was 0.40), or Cargo
+resolves two `links = "sqlite3"` crates and refuses the build.
+
 **`cratestack-client-store-sqlite` is not this.** It is an offline request
 journal for the HTTP client runtime, not the embedded ORM.

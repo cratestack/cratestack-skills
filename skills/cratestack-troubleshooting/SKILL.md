@@ -299,6 +299,10 @@ limiter (*since 0.19.3*, opt-in) has no principal and no peer address to key on.
 merged *under* `.layer(RateLimitLayer)` also gets the layer's 412 on the browser upgrade; merge it
 outside the layer.
 
+**Cargo says two packages link to the native library `sqlite3`.** Your own `rusqlite` pin differs from
+CrateStack's: 0.19.3 moved to `rusqlite` 0.41.1 (it was 0.40). Move your dependency to 0.41, or remove it
+and use the facade's.
+
 **Every request 412s with `PreconditionFailed`.** The idempotency layer's default
 principal fingerprint hashes `Authorization`, falls back to the `ConnectInfo`
 peer, and refuses with 412 when it has neither. Serve via
