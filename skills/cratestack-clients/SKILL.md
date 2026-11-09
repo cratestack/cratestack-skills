@@ -1,6 +1,6 @@
 ---
 name: cratestack-clients
-description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (default, riverpod and fespalier presets; the HTTP transport seam, CratestackHttpAdapter, CratestackDioTransport, CratestackRestException / CratestackTransportException), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when generating an SDK, wiring a React/Flutter front end to a CrateStack service, upgrading from the removed CratestackDioAdapter classes, or debugging a Decimal or Bytes value that arrived as a string.
+description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (default, riverpod and fespalier presets; the HTTP transport seam, CratestackHttpAdapter, CratestackDioTransport, CratestackRestException / CratestackTransportException), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when signing requests from a TypeScript client (createCoseClient, createSealedLink, createSealedFetch), generating an SDK, wiring a React/Flutter front end to a CrateStack service, upgrading from the removed CratestackDioAdapter classes, or debugging a Decimal or Bytes value that arrived as a string.
 ---
 
 # Clients
@@ -18,7 +18,7 @@ Three generated languages, one wire contract.
 | --- | --- | --- |
 | Rust | `include_client_schema!` | typed model + procedure clients over a reqwest runtime |
 | Dart / Flutter | `cratestack generate-dart` | models, selection builders, API facades, an HTTP transport seam (*since 0.16.0*), `--preset riverpod` / `fespalier` layers |
-| TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers |
+| TypeScript | `cratestack generate-typescript` | fetch client, plus `--swr` / `--tanstack` / `--rtk` / `--refine` layers; signs via `@cratestack/cbor/cose` *(since 0.19.4)* |
 
 ## Durable prepared mutations *(since 0.18.1, cratestack#1297)*
 
@@ -405,8 +405,9 @@ final opened = await envelope.openResponse(
 - **Errors:** `CoseRejected` (no message, the same for every failed check),
   `CoseMisuse`, and the signer errors reserved for the keystore signer; see
   `cratestack-troubleshooting`.
-- **Codec-only builds.** `@cratestack/cbor-web` on npm is built without the
-  `cose` feature and stays codec-only, as do the default Rust builds. The
+- **Codec-only builds.** The main entry of `@cratestack/cbor-web` on npm is built without the
+  `cose` feature and stays codec-only (since 0.19.4 its signing code is a separate `./cose`
+  subpath and WASM module, see "Signing requests from TypeScript"), as do the default Rust builds. The
   vendored wasm of `cratestack_cbor` carries it, and every app pays about
   460 KB (Linux x86_64) or 270 KB (web `.wasm`) for it whether it signs or not.
 - **`cose_testing.dart`** pins `iat` and `cti` for the shared vectors. Never use
@@ -444,6 +445,58 @@ into that procedure's tag list. The two transports dispatch differently on
 purpose: RPC endpoints call the resolved base query from inside `queryFn` so the
 wire response still goes through revival, and REST endpoints use
 `fakeBaseQuery()` and call this same package's REST client methods.
+
+### Signing requests from TypeScript *(since 0.19.4, unreleased on main, cratestack#1010)*
+
+Through 0.19.3 a generated TypeScript client sends **unsigned** requests. From 0.19.4,
+`@cratestack/cbor/cose` exports `createCoseClient`, `createSealedLink` and `createSealedFetch`; the
+`./cose` subpaths of `@cratestack/cbor-web` (WASM) and `@cratestack/cbor-node` (napi) are the
+platform backends. Never write a TypeScript signer, hash, canonical query or AAD by hand: all of it
+is `cratestack-cose`, and TypeScript only carries bytes. The web build loads a **second** WASM module
+and only when `/cose` is imported; the codec bundle is unchanged. Source:
+`packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`,
+`docs/design/ts-cose-signed-mode.md`.
+
+```ts
+import { createCoseClient, createSealedLink, createSealedFetch } from "@cratestack/cbor/cose";
+import { CratestackRpcRuntime, OP_CONTRACTS } from "./runtime";
+
+const cose = await createCoseClient({
+  signer: { type: "ed25519-seed", seed },                       // 32 bytes
+  serverKeys: [{ alg: "ed25519", bytes: serverPublicKey }],     // static trust root, pinned at enrolment
+  audience: "payments",                                         // the server's audience, not its host
+});
+// RPC: a link
+new CratestackRpcRuntime(origin, { links: [createSealedLink({ cose, contracts: OP_CONTRACTS })] });
+// REST: the fetch option
+new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_CONTRACTS, basePath: "/api" }) });
+```
+
+- **Signers (`signer.type`):** `hmac` (`alg` `hmac256-64` / `hmac256-256`, COSE_Mac0, secret of at
+  least 32 bytes), `ed25519-seed`, `p256-scalar`, and `external`
+  (`{ alg: "ed25519" | "esp256", publicKey, sign }`). `sign(toBeSigned)` is async, receives the raw
+  to-be-signed bytes and **must not hash them**: `crypto.subtle.sign("Ed25519", key, tbs)` for
+  Ed25519, `crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, tbs)` for P-256 (raw
+  `r || s` or DER). Rust enforces strict low-S and verifies the signature under `publicKey` before
+  anything is sent. A throwing signer is `CoseFailure` `misuse` with a fixed message.
+- **Mode per call:** `cose` may be `({ route, method }) => CoseClient | undefined`: Sign1 before a
+  session, Mac0 (`hmac`) after it, `undefined` for anonymous calls (sent unsealed). A new session
+  key is a new `CoseClient`.
+- **Bound:** the method, route template and path parameters, the op's contract digest, the canonical
+  query, `Idempotency-Key`, `If-Match`, and the payload type and accept. The client sets
+  `Cratestack-Payload-Type`, `Cratestack-Payload-Accept` and `Cratestack-Contract`. A sealed
+  `/rpc/batch` is CBOR both ways (`misuse` otherwise).
+- **Responses:** bound to the digest of the sealed request, so a replayed response fails. A sealed
+  success is opened and its payload becomes the body. An **unsigned success is refused**
+  (`CoseFailure` `rejected`); an unsigned non-ok response (a gateway `401`, `415`, `426`) passes
+  through unchanged, a hint and never proof. Errors are `CoseFailure` with `code` `rejected` (empty
+  message, by design) or `misuse`. There is no response-expiry check, as in Rust.
+- **Not sealed / not available:** `stream()` is never sealed. The chunk-fed `StreamOpener` /
+  `StreamSealer` and trust-chain verification (founder list, intermediates, replica certificate) do
+  not exist yet; they wait on the Rust side (cratestack#1008, #1009). `serverKeys` is the whole trust
+  root. Prepared requests reject custom unary links, so a sealing link cannot be used with them.
+- **Do not** write a TypeScript `fetch` wrapper that signs, or send a plain request to a signed op
+  and expect it to work: the server's unsigned `401` is the answer.
 
 ## The wire contract
 
@@ -535,7 +588,10 @@ automatic in the generated router, and needs no schema change and no flag.
   that call is not retried (`crates/cratestack-api/tests/compact_client_sealed_rest.rs`).
 - **TypeScript:** `compactKeys: true` in the RPC or REST client options. It feature-detects
   `createCompactKeys` on `@cratestack/cbor` and stays named on a version without it. A REST
-  package lists `@cratestack/cbor` as an optional peer dependency.
+  package lists `@cratestack/cbor` as an optional peer dependency. *(Since 0.19.4, unreleased on
+  main)* a `415` to a compact request switches that op back to named bodies for later calls (and a
+  retry under the same `Idempotency-Key`), on REST and RPC, sealed or not; the refused call is not
+  retried (`noteFailure` in the generated compact layer).
 - **Dart:** pass `compact: CratestackCompactHooks(toCompact: keys.toCompact, fromCompact:
   keys.fromCompact, selector: keys.selector)` to the HTTP adapter, with `keys = await
   createCompactKeys(cratestackKeyTables)` from `cratestack_cbor`. Compact is CBOR format only.
@@ -577,9 +633,9 @@ files *(since 0.19.0)* has the same digest as its single-file equivalent.
 | `@cratestack/validator-zod` / `-yup` | an `RpcLink` validating input against per-op schemas |
 | `@cratestack/link-batch` | automatic batch scheduling as an `RpcLink` |
 | `@cratestack/link-logger` | reference logging link; never touches `response.body` |
-| `@cratestack/cbor` | umbrella codec; conditional exports pick node or web |
-| `@cratestack/cbor-node` | N-API codec wrapping the framework's own Rust CBOR crate |
-| `@cratestack/cbor-web` | wasm-bindgen codec for browsers |
+| `@cratestack/cbor` | umbrella codec; conditional exports pick node or web. `./cose` *(since 0.19.4)*: `createCoseClient`, `createSealedLink`, `createSealedFetch`, `CoseFailure` |
+| `@cratestack/cbor-node` | N-API codec wrapping the framework's own Rust CBOR crate; `./cose` backend *(since 0.19.4)* |
+| `@cratestack/cbor-web` | wasm-bindgen codec for browsers; `./cose` backend in a second WASM module *(since 0.19.4)* |
 
 `@cratestack/api` is a compat umbrella: its root re-exports only `ts-types`,
 `link-batch` and `link-logger`; the `runtime-*`, `validator-*` and `adapter-*`

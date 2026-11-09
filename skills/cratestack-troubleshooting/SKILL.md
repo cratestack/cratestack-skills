@@ -560,11 +560,26 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 | `CoseRejected` from `openResponse` (empty message, `toString()` is just `CoseRejected`) | The response did not verify. It is the same for every cause **on purpose**, so the exception cannot tell you which. Check, in order: `sealedRequest` is the exact bytes you sent (not a re-seal), the `CallBinding` (method, route, `pathParams`, query, `contractSha`, bound headers) and `status` are the ones of that call, the server key you pinned is the one the server signs with, and the reply is not stale or for another request. Do not look for a detail in it |
 | An HTTP `401` from your own HTTP client, no exception from the package | The server refused the request, unsigned. Nothing was passed to `openResponse`. Same causes as the layer's 401 above, and from Dart add: a bound `Idempotency-Key` or `If-Match` not sent byte for byte, mount parameters missing or not first in `pathParams`, a wrong `audience`, a resent sealed body (a replayed `cti`: reseal), or an envelope built with `ClientEnvelopeForVectors.forVectors` (pinned `cti`, tests only) |
 | An HTTP `426` with `contract_unsupported` | The server no longer accepts this wire shape for the op; the digest in `contractSha` is stale. Take a fresh `cratestackOpContracts` |
-| `CoseMisuse` (message says what) | Local: a key of the wrong length (an Ed25519 seed that is not 32 bytes surfaces here, at `create`), an empty audience, or a binding of the wrong shape. On the web, also a `cratestack-cbor-wasm` built without the `cose` feature (the message names it): use the wasm vendored by `cratestack_cbor`, not the npm `@cratestack/cbor-web` |
+| `CoseMisuse` (message says what) | Local: a key of the wrong length (an Ed25519 seed that is not 32 bytes surfaces here, at `create`), an empty audience, or a binding of the wrong shape. On the web, also a `cratestack-cbor-wasm` built without the `cose` feature (the message names it): use the wasm vendored by `cratestack_cbor`, not the main entry of the npm `@cratestack/cbor-web` |
 | `ArgumentError` from a constructor | `CallBinding` with a `contractSha` that is not 32 bytes, or `HmacSigner` / `CoseServerKey.hmac` with a non-HMAC `CoseAlg`. Thrown before any bridge call |
 | `StateError` from `ClientEnvelope.contractHeaderValue` | The backend has not started: call it after `ClientEnvelope.create` or `createCborCodec()` |
 | `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
 | `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
+
+### TypeScript: sealing with `@cratestack/cbor/cose` *(since 0.19.4, unreleased on main, cratestack#1010)*
+
+For a TypeScript app using `createSealedLink` / `createSealedFetch` (see `cratestack-clients`).
+Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`.
+
+| What the app sees | It means |
+| --- | --- |
+| `CoseFailure` `rejected` with an empty message on a call the server answered `200` | Either the response did not verify (same for every cause, on purpose: tampered, a response to another request, wrong audience, wrong `serverKeys`, a payload type the call did not accept), **or the success was unsigned**: an unsigned `2xx` is refused, never believed. The usual unsigned success is a proxy or mock that strips the seal, or a route the layer does not cover. Check that the op is in the server's `EnvelopeLayer` and that nothing between strips `application/cose` |
+| A plain `CratestackHttpError` / `CratestackRpcError` with status `401`, `415` or `426` | An unsigned non-ok answer passes through unchanged (a hint, not proof). Causes are those of the layer's 401/415/426 above |
+| The call goes out and the server says it was unsigned | `cose` returned `undefined` for it, or `OP_CONTRACTS` has no entry for the route (REST: the URL did not match a `"<METHOD> <template>"` key, check `basePath`). Such calls are sent **unsealed** |
+| `CoseFailure` `misuse` | Local: an HMAC secret under 32 bytes, a key of the wrong length, an empty audience, a sealed `/rpc/batch` that is not CBOR both ways, a body that is not a string or bytes, or a failing `external` signer (the message never carries the signer's error) |
+| `external` signer: a refusal after the callback ran (the `CoseFailure` code is not verified) | The signature did not verify under `publicKey`, which Rust refuses before anything is sent. Sign the raw to-be-signed bytes, **not a hash of them** (WebCrypto hashes for ECDSA), with the key that matches `publicKey` |
+| A first call after a `415` goes out named | Intended: a `415` to a compact request switches that op back to named for later calls, sealed or not; the refused call is not retried |
+| Streaming (`stream()`) call is unsigned | `stream()` is never sealed; there is no TypeScript `StreamOpener` (cratestack#1008, #1009) |
 
 ### Dart: the HTTP transport and its exceptions *(since 0.16.0, cratestack#1204)*
 
