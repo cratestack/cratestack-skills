@@ -13,16 +13,18 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.19.1** unless a marker says
+Everything in these skills is verified against **0.19.3** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.19.1** (tag `v0.19.1`, 2026-11-08). Every release from 0.15.0 to
-0.19.1 is recorded below, and its changes are marked *(since X.Y.Z)* where they are taught. The
-banners moved from 0.14.2 to 0.19.1 in one change, after every skill was re-checked against the
-`v0.19.1` tag, as AGENTS.md requires.
+The latest release is **0.19.3** (2026-11-09; cut right after the change that records it here merged, so
+the `v0.19.3` tag may not exist yet when you read an older copy). Every release from 0.15.0 to
+0.19.3 is recorded below, and its changes are marked *(since X.Y.Z)* where they are taught. The
+banners moved from 0.19.1 to 0.19.3 in one change: 0.19.2 and 0.19.3 carry only the items listed below
+(`git log v0.19.1..` was checked), each reflected in the skill that owns it. They were last re-checked
+in full against the `v0.19.1` tag.
 
 ## Reading order for an upgrade
 
@@ -63,13 +65,16 @@ each step's breaking changes assume the one before:
    `Idempotency-Key` on a compact call with a body is refused before send.
 10. [0.19.0](#0190-2026-11-08): multi-file schemas, additive; nothing to migrate. Then
    [0.19.1](#0191-2026-11-08): an LSP rename guard and an example, nothing to migrate.
-11. [Unreleased on `main`](#unreleased-on-main-after-0191) only if you build `main`.
+11. [0.19.3](#0193-2026-11-09): opt-in WebSocket / WebTransport subscription rate limiting, real error
+   codes on subscription `err` frames in the Rust client, WireMock `@status`. Nothing to migrate, but
+   read the **Action** in its entry if you serve WS/WT subscriptions behind `RateLimitLayer`.
+12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
-## Unreleased on `main`, after 0.19.1
+## Unreleased on `main`, after 0.19.3
 
 Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
 security fix merged from a private fork with no PR number. At the `v0.19.1` tag the framework's
@@ -84,6 +89,34 @@ here when 0.18.0 was current shipped in [0.18.1](#0181-2026-11-07).)
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
+
+## 0.19.3 (2026-11-09)
+
+- **Subscription opens over WebSocket and WebTransport can be rate limited** *(since 0.19.3, opt-in,
+  additive)*. `WebSocketConfig::rate_limit(..)` / `WebTransportConfig::rate_limit(..)` take
+  `layer.for_subscriptions()` (or `SubscriptionRateLimiter::new(store, config)`). One token per `Request`
+  frame / WT stream, after the per-socket cap and before policy; bucket `princ:<sha256>` else `ip:<peer>`
+  (IPv6 /64). Refusal: an `err` frame, `resource_exhausted` with `details.retry_after_secs`, before `Ready`;
+  the socket stays open. An anonymous WS without `ConnectInfo` gets `failed_precondition`. SSE opens were
+  already charged by `RateLimitLayer`. **Action:** without `.rate_limit(..)` WS/WT opens stay unlimited.
+  Owners: `cratestack-data-integrity`, `cratestack-rpc`, `cratestack-server`, `cratestack-troubleshooting`.
+- **Subscription `err` frames report the real error code in the Rust client** *(since 0.19.3)*. A throttle
+  reads `resource_exhausted` with status 429 (it showed `internal`). Only the Rust client was affected: the Dart and TypeScript templates pass
+  `err.code` through verbatim. Owner: `cratestack-clients`.
+- **WireMock REST procedure stubs honour `@status(<code>)`** *(since 0.19.3)*; they were always `200`.
+  Regenerate committed stubs. Owner: `cratestack-clients`.
+- **Dart `cratestack_builder` allows `cratestack_annotations` up to `<0.20.0`** *(since 0.19.3)*; the
+  ceiling was `<0.10.0`, so pub resolved stale 0.9.x annotations. Owner: `cratestack-clients`.
+- **`rusqlite` 0.41.1** (`libsqlite3-sys` 0.39.1, bundled SQLite 3.54.1) *(since 0.19.3)*, for RUSTSEC-2026-0459
+  (SQLite before 3.54.0 could return uninitialized memory when a database is opened next to a `-wal`
+  file with a different page size). No source changes. **Action:** a crate that pins its own `rusqlite`
+  must move to 0.41, or Cargo resolves two `links = "sqlite3"` crates and fails. Owner: `cratestack-embedded`.
+- CI only: the quality scan honours `SCAN_TYPE`. No user-facing change.
+
+## 0.19.2 (2026-11-09)
+
+Documentation and metadata only: CLI subcommand list, version pins in READMEs, facade claims, and doc
+comments in the framework repo. No behaviour change and nothing to migrate.
 
 ## 0.19.1 (2026-11-08)
 
