@@ -498,6 +498,18 @@ new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_C
 - **Do not** write a TypeScript `fetch` wrapper that signs, or send a plain request to a signed op
   and expect it to work: the server's unsigned `401` is the answer.
 
+### CBOR nesting depth limit *(since 0.19.4, cratestack#1315)*
+
+Every client-side CBOR decode refuses input nested deeper than **128** levels (array, map or tag;
+exactly 128 decode, 129 fail), instead of overflowing the stack as it did before. Rust client:
+`CratestackError::Codec` containing "nesting too deep (maximum depth is N)" (the default via
+`CodecSet`; use `CborCodec::with_max_depth(n)` or `decode_with_max_depth` in your own code). JS
+(`@cratestack/cbor-node`, `-web`, `@cratestack/cbor`): a `RangeError` with a `cause`; configure with
+`createCborCodec({ maxDepth })`, synchronous on `cbor-node`, **async** on `cbor-web` and the umbrella;
+a `maxDepth` that is not a non-negative integer throws `RangeError`; raw `decode(bytes, maxDepth?)`.
+The codec stays usable after a failed decode. Dart (`cratestack_cbor`, native and web): the default
+only, **not configurable**. The cbor-seq decoders and the outbox always use the default.
+
 ## The wire contract
 
 **Default codecs differ by target, and this catches people:**
