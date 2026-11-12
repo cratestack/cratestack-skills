@@ -465,6 +465,13 @@ layer underneath — you rarely name it directly.
 
 *(since 0.14.0, cratestack#1006)* `EnvelopeLayer` opens signed requests (COSE_Sign1 /
 COSE_Mac0 bodies) and seals every response of a generated REST or RPC router (ADR 0006).
+**Do not use `HmacEnvelope` / `SealedEnvelope`** (`cratestack_core`, the old HS256 envelope):
+deprecated *(unreleased on main; will be since 0.19.6, cratestack#1018)* and removed in the next
+minor release. For a shared-secret service-to-service seal, use this layer with
+`cratestack_cose::CoseEnvelope` in `CoseMode::Mac0`; `KeyProviderMacKeys::load(&provider, alg,
+key_ids).await?` turns an existing `KeyProvider`'s secrets into Mac0 keys (each at least 32 random
+bytes; the old type accepted any length). The wire is different, so client and server move together.
+
 It is off unless you enable a facade feature:
 
 - `envelope` — `cratestack::envelope_layer` (the layer, its traits) and a
