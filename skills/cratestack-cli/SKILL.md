@@ -200,6 +200,14 @@ present**, or you get false positives. It returns empty (old behaviour) when git
 is unavailable, when `--out` is not in a work tree, or when `--out` is itself
 ignored.
 
+*(After 0.19.5, cratestack#1235.)* The walk never follows symlinks (a pnpm-style
+symlinked dir in a gitignored `node_modules/` is one filtered entry, not
+descended into), and if the batch `git check-ignore` call fails inside a work
+tree it falls back to per-path checks, so one unanswerable path cannot switch
+the ignore filter off. On 0.19.5 and earlier, a symlinked dir under the output
+reports gitignored files as `unexpected`; there, `--check` a copy made with
+`tar --exclude=./node_modules`. On later releases, do not add that workaround.
+
 ## `diff`
 
 ```bash
