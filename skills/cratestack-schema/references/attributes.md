@@ -108,7 +108,7 @@ field position rejects them.
 | --- | --- | --- | --- |
 | `@length(min: N, max: N)` | both optional, non-negative | `String`, `Bytes` | `min <= max` enforced. |
 | `@range(min: N, max: N)` | both optional, signed | `Int`, `Decimal`, and `BigInt` *(since 0.15.4; bounds parse as `i64`)* | `min <= max` enforced. |
-| `@regex("pattern")` | one quoted string | `String` | **Compiled at parse time** — an invalid regex fails `cratestack check`. |
+| `@regex("pattern")` | one quoted string | `String` | **Compiled at parse time** — an invalid regex fails `cratestack check`. The argument is a `.cstack` string literal, so escape backslashes: `@regex("^\\+[0-9]+$")` is the regex `^\+[0-9]+$`. A bare `"\d"` is a schema error (write `"\\d"`); `[+]` needs no escaping. *(Unescaping since the cratestack#1314 fix; older releases passed the text through raw.)* |
 | `@email` | bare | `String` | |
 | `@uri` | bare | `String` | |
 | `@iso4217` | bare | `String` | |
