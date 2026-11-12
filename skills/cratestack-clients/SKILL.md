@@ -683,6 +683,14 @@ one is a fixed example, never echoed from the request body.
 (`200` when absent; `transport rpc` procedures stay `200`, as `@status` is rejected there). Before
 0.19.3 every procedure stub answered `200`, so regenerate committed stubs.
 
+*(Since 0.19.6, unreleased on main)* Placeholders satisfy the field's own validators: `@range` gets
+zero clamped into the range (`BigInt @range(min: 1)` -> `"1"`), `@iso4217` `"EUR"`, `@length` a string
+padded to the minimum (`Bytes`: that many zero bytes), `@email`/`@uri` `user@example.com` /
+`https://example.com`, `@regex` a sample built from the pattern. When no placeholder satisfies the
+combination (e.g. `@email` with `@length(max: 4)`), generation fails naming the field instead of emitting
+an invalid value (`crates/cratestack-mock-wiremock/src/field_value.rs`). Before 0.19.6 these came out
+as `"0"`, `"string"` and `[]`, so regenerate committed stubs.
+
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have
 **no per-record statefulness** — they always answer the same synthesised example
 regardless of what was previously created, updated or deleted through them.
