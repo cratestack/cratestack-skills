@@ -687,8 +687,10 @@ one is a fixed example, never echoed from the request body.
 zero clamped into the range (`BigInt @range(min: 1)` -> `"1"`), `@iso4217` `"EUR"`, `@length` a string
 padded to the minimum (`Bytes`: that many zero bytes), `@email`/`@uri` `user@example.com` /
 `https://example.com`, `@regex` a sample built from the pattern. When no placeholder satisfies the
-combination (e.g. `@email` with `@length(max: 4)`), generation fails naming the field instead of emitting
-an invalid value (`crates/cratestack-mock-wiremock/src/field_value.rs`). Before 0.19.6 these came out
+combination (e.g. `@email` with `@length(max: 4)`), the stub still generates with the best candidate and
+lists the field under `metadata.cratestackUnsatisfiedValidators` as `{ "path": "line.note", "validators": [...] }`
+(dotted path from the body root); it is not a generation error
+(`crates/cratestack-mock-wiremock/src/field_value.rs`, `gaps.rs`). Before 0.19.6 these came out
 as `"0"`, `"string"` and `[]`, so regenerate committed stubs.
 
 **Scope limit, by design:** `transport rpc` model CRUD and every procedure have
