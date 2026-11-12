@@ -369,7 +369,7 @@ the handler is the right primitive.
 seam; Dio is `CratestackDioTransport(dio)`, one transport among several, and the four
 `*DioAdapter` classes are gone. An error answer is `CratestackRpcException` (`status` plus
 the `RpcErrorBody` `code`), no answer is the sealed `CratestackTransportException`.
-`CratestackRpcCallOptions` has `headers`, `idempotencyKey` (unary `call` only) and `abort`.
+`CratestackRpcCallOptions` has `headers`, `idempotencyKey` (unary `call` only), `abort`, and `extra` (per-call transport attributes, never on the wire).
 `stream()` yields `application/cbor-seq` items as they arrive instead of buffering, and a
 trailing `Tag(48900, RpcErrorBody)` item becomes a `CratestackRpcException`; because it is an
 `async*` generator, every failure is the stream's error. A rejected field is `422
