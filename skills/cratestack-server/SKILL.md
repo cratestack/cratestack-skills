@@ -558,6 +558,12 @@ rate limiting, so put an IP-level limiter **outside** the envelope layer.
   `Cratestack-Payload-Accept` names others); an unsigned one runs, sealed only with a valid
   `Cratestack-Nonce` and an `Accept` naming `application/cose`. That seal binds
   the nonce and payload, **not the caller**.
+- `UnsignedRequestSealedReply` *(after 0.19.5, cratestack#1313)* — a signed request as under
+  `Optional`; an unsigned one runs only if its reply can be sealed (exactly one valid
+  `Cratestack-Nonce`, an `Accept` naming `application/cose`, not a subscription), else the
+  unsigned `406` **before the handler runs**. Use it for enrollment/bootstrap ops where an
+  unsigned reply must never be sent; `Optional` would run the handler and answer plain. Replies
+  sealed strictly, unresolved routes fail closed, batches take the strictest frame mode.
 - `Off` — plain traffic untouched.
 - In every mode an `application/cose` body is opened or refused (`415`), never
   forwarded. A bodiless `OPTIONS` passes. `/rpc/batch` runs under the strictest
