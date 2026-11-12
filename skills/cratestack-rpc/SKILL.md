@@ -118,9 +118,14 @@ level; it does not make the batch atomic.
 read by the batch handler. The header is rejected in its favour, but nothing
 consumes it. Do not rely on per-frame idempotency until that changes.
 
-Batch success outputs must be representable as JSON — a future op returning
-CBOR-only types (raw byte strings with no JSON representation) would surface as
-an `internal` frame.
+A frame's `input` and `output` are `RpcFrameValue` (a `serde_json::Value` plus a
+byte-string arm), so a CBOR `Uuid` (16-byte string) or `Bytes` (byte string) rides a
+batch in its CBOR form, as on a unary call *(since the release after 0.19.5,
+unreleased on main, cratestack#1352; before it a CBOR batch carrying either was
+refused, and `.queue(&mut batch)` of a `Uuid` failed `invalid_argument`)*. In Rust build
+a frame with `serde_json::json!(..).into()` or `RpcFrameValue::encode_with(&codec, &v)`
+and read one with `serde_json::Value::from(..)` or `.decode_with(&codec)`. Still
+refused: non-string map keys and CBOR tags other than bignums.
 
 ## Subscriptions
 
@@ -419,7 +424,7 @@ its half *in 0.8.12*, before which a `fields` key on an RPC get frame was
 `where_expr`), `or`, `filters`, and `computedParams`. `computedParams` is a
 **raw JSON string, not a nested value** — three reasons, all real: a nested value
 corrupts CBOR `Option::None` on round trip, `/rpc/batch` re-encodes `input`
-through a JSON value and a string survives that verbatim, and carrying the same
+through a frame value and a string survives that verbatim, and carrying the same
 bytes REST puts on the query string means the same validator runs unmodified.
 
 ## REST-only and RPC-only
