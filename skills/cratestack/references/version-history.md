@@ -114,6 +114,15 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   Owners: `cratestack-clients` ("Signing requests from TypeScript", "Compact field keys"),
   `cratestack-troubleshooting` ("TypeScript: sealing").
 
+- **`HmacEnvelope` and `SealedEnvelope` deprecated; COSE_Mac0 replaces them** (cratestack#1018)
+  *(unreleased on main; will be since 0.19.6, not breaking)*. `cratestack_core::HmacEnvelope` and
+  `SealedEnvelope` (the HS256 envelope that MACs a JSON re-serialization of a CBOR body, 147 B per
+  message against Mac0's 41 B) carry `#[deprecated(since = "0.19.6")]` and are removed in the next minor
+  release, so naming one is a warning (an error under `-D warnings`). Use `cratestack_cose::CoseEnvelope`
+  in `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load` (at least 32 random bytes), served
+  by the envelope layer and sealed by `with_envelope`. `KeyProvider` and `NonceStore` are not deprecated.
+  Agents must not write new `HmacEnvelope` code. Owner: `cratestack-server` ("Signed transport").
+
 - **CBOR decode nesting-depth limit** (cratestack#1315) *(unreleased, since 0.19.4)*. Security fix.
   Every CBOR decode refuses input nested deeper than 128 levels (array, map or tag); before it, about
   8000 levels overflowed the stack, an uncatchable crash on servers, clients, `@cratestack/cbor-node`
