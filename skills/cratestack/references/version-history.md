@@ -86,6 +86,24 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
+## Unreleased (after 0.19.6, on `main`)
+
+Everything here is *(since 0.19.7, unreleased on main)*: it is in no published release, so a project pinned
+to 0.19.6 or earlier does not have it. Move each item under its release heading when that release is cut.
+
+- **`@device_auth` procedure marker; `generate-dart --preset fespalier` emits a `DeviceAuthServer`**
+  (cratestack#1303) *(since 0.19.7, unreleased on main, additive)*. `@device_auth(role: "...")` on the
+  enrolment, renewal and revocation procedures (roles `beginEnrolment`, `confirmEnrolment`, `beginRenewal`,
+  `confirmRenewal`, `revoke`, optional `sendEnrolmentCode`; `proof:` on `confirmEnrolment`) makes the fespalier
+  preset write `lib/src/device_auth_server.dart`, `<Prefix>DeviceAuthServer implements DeviceAuthServer`,
+  REST and RPC. The five required roles are all-or-nothing, legs are exactly `@allow(true)`, `revoke` must not
+  be public; the parser refuses bad shapes at the marker. Other presets, TypeScript, WireMock, the Rust client
+  and the macros ignore it. A marked package also depends on `fespalier_auth`, `fespalier_keypair` and
+  `fespalier_sign_keypair` (git, same `--fespalier-ref`, default still `v0.21.0`) with a Dart `>=3.12` /
+  Flutter `>=3.44` floor. The generated calls run in a `TransportZone` that works around a suspected,
+  unconfirmed `fespalier_auth` issue. Owners: `cratestack-schema`, `cratestack-clients`,
+  `cratestack-policy-auth`, `cratestack-troubleshooting`.
+
 ## 0.19.6 (2026-11-14)
 
 - **Dart call options carry per-call transport attributes** (cratestack#1207) *(since 0.19.6, additive)*.

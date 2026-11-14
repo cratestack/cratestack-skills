@@ -149,6 +149,19 @@ through fespalier's `HttpTransport` with no Dio. Which to pick:
 | `riverpod` | a Riverpod app; Dio or your own transport |
 | `fespalier` *(since 0.16.0, cratestack#1204)* | the app's HTTP stack is a `fespalier_transport` chain (session, signing, portal check, spans), so a second client under it is wrong |
 
+**Device enrolment under `fespalier`: do not hand-write a `DeviceAuthServer`.** *(since 0.19.7, unreleased on main, cratestack#1303)* If the app uses
+`fespalier_sign_keypair`, mark the schema's enrolment, renewal and revocation procedures with
+`@device_auth(role: "...")` (see `cratestack-schema`) and `generate-dart --preset fespalier` emits
+`lib/src/device_auth_server.dart`: `<Prefix>DeviceAuthServer implements DeviceAuthServer` over the generated
+client, REST and RPC. Constructor `(transport, {required baseUri, basePath = '/api' (REST only), fieldErrors,
+userOf})`: `transport` is `AuthConfig.transport` (no session on it), `fieldErrors` is
+`errors.fieldErrorsOf`, `userOf` overrides the default `AuthUser`, and
+`<Prefix>DeviceAuthServer.unsignedPaths(baseUri)` feeds `DeviceAuthBackend(unsignedPaths:)`. A `403` on
+`beginRenewal`, `confirmRenewal` and `confirmEnrolment` is an `AuthRejected`. A marked schema also adds
+`fespalier_auth`, `fespalier_keypair` and `fespalier_sign_keypair` (git, same `--fespalier-ref`) and raises
+the floor to Dart `>=3.12` / Flutter `>=3.44`. Roles, shapes and the one-time-code placement (`proof:` or
+`sendEnrolmentCode`) are in [references/dart-transport.md](references/dart-transport.md#device-ceremonies-device_auth).
+
 Choose by the HTTP stack the app already owns. `fespalier` changes the transport
 and its providers, not the call sites.
 

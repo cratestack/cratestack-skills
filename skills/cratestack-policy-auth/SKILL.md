@@ -465,6 +465,15 @@ gets the stored `401` replayed, and the procedure never runs. `retry_after_step_
 renewing an expired credential. A call without a key is unaffected. Do not tell a user the
 same-key retry works on 0.17.1.
 
+## `@device_auth` legs: public means exactly `@allow(true)`
+
+*(since 0.19.7, unreleased on main, cratestack#1303)* A procedure marked `@device_auth(role: "...")` (see `cratestack-schema`) is called by a device that
+has no session yet, so every leg except `revoke` (the four required ones and the optional
+`sendEnrolmentCode`) must carry exactly one `@allow(true)` (whitespace-insensitive) and no `@deny`, `@authn`
+or `@authorize`; anything else is a parse error at the marker. `revoke` is the reverse: the device signs it,
+and `@allow(true)` is refused ("`revoke` must not be public: anyone could revoke any device by its id"). Give
+it a policy that needs the signed session, such as `@allow(auth() != null)`.
+
 ## `cratestack-auth`
 
 Optional, and broad. The pieces you are most likely to want:

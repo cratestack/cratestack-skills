@@ -342,6 +342,60 @@ What `CratestackFespalierTransport` does:
 - **Any other error a decorator throws (for example `AuthRejected`) reaches the
   caller unchanged.** Do not assume every failure is a `CratestackException` type.
 
+### Device ceremonies (`@device_auth`)
+
+*(since 0.19.7, unreleased on main, cratestack#1303)* Only `--preset fespalier` reads the marker; `default`, `riverpod`, TypeScript, WireMock, the Rust
+client and the macros ignore it (output is byte-identical with and without it). A schema with markers gets
+`lib/src/device_auth_server.dart`, exported from the library: `<Prefix>DeviceAuthServer implements
+DeviceAuthServer` (`package:fespalier_sign_keypair`). **Do not hand-write that class when the schema can
+carry the marker.** Reference schema: `crates/cratestack-parser/tests/fixtures/device_auth.cstack`; generated
+output: `crates/cratestack-client-dart/tests/snapshots/fespalier_device_auth_{rest,rpc}/lib/src/device_auth_server.dart`.
+
+| `role` | interface method | required | policy |
+| --- | --- | --- | --- |
+| `beginEnrolment` | `beginEnrolment(EnrolmentStart)` | yes | exactly `@allow(true)` |
+| `confirmEnrolment` | `confirmEnrolment(challenge, signatures, proof)` | yes | exactly `@allow(true)` |
+| `beginRenewal` | `beginRenewal(deviceId, role)` | yes | exactly `@allow(true)` |
+| `confirmRenewal` | `confirmRenewal(challenge, signature)` | yes | exactly `@allow(true)` |
+| `revoke` | `revoke(credential, signer)` | yes | must **not** be public (`@allow(true)` is a parse error) |
+| `sendEnrolmentCode` | extra method on the class, not in the interface | no | exactly `@allow(true)` |
+
+Shapes (matched by field name; each leg takes one `type` and returns one `type`):
+
+- `beginEnrolment`: input `ambient` (JWK `type`: `kty`, `crv`, `x`, `y`, all `String`), optional `userPresent`
+  (`Jwk?`); every other field is `String` / `String?`, read from `EnrolmentStart.fields[name]`. Return:
+  `ambient` (`String`), `userPresent` (`String?`, iff the input has it), other `String` fields go to
+  `EnrolmentChallenge.data`.
+- `confirmEnrolment`: input `ambient`, `userPresent` (`String?`, iff above), optional `proof:` field, and
+  only fields `beginEnrolment` returned (same name and type). Return `deviceId`, `userId`, `ambient`,
+  `userPresent`, optional `name` / `email`; other `String` fields go to `AuthUser.claims`.
+- `beginRenewal`: input exactly `deviceId`, `role` (`String`); return `challenge` (+ extra `String` fields to
+  `RoleChallenge.data`). `confirmRenewal`: `signature` + fields echoing that return; return `attestation`.
+  `revoke`: input exactly `deviceId`; any return.
+
+Behaviour of the generated class:
+
+- Constructor `(transport, {required baseUri, basePath = '/api' (REST only), fieldErrors, userOf})`.
+  `transport` is `AuthConfig.transport` (no session). `fieldErrors` (`Object? Function(Object)?`, pass
+  `errors.fieldErrorsOf`) keeps the package free of `fespalier` and `fespalier_cratestack`. `userOf` replaces
+  the default user (`userId` is the id, `name` / `email`, the rest in `claims`).
+- `static unsignedPaths(baseUri[, basePath])` lists the unsigned legs' paths for
+  `DeviceAuthBackend(unsignedPaths:)`: the four required legs, plus `sendEnrolmentCode` when marked. REST
+  `<basePath>/$procs/<name>`, RPC `/rpc/procedure.<name>`.
+- `403` is an `AuthRejected` on `beginRenewal`, `confirmRenewal` and `confirmEnrolment` (not on
+  `beginEnrolment`, not on `revoke`); other failures are thrown as is. `revoke` is signed by the device through
+  a private signing transport using the `DeviceSigner` it is handed.
+- **Caveat:** every leg runs in a `TransportZone` with an abort trigger that never fires, a workaround for a
+  *suspected, unconfirmed* `fespalier_auth` issue (a page leaving might abort a renewal shared by every
+  waiting request). Do not describe it as a confirmed bug.
+- **One-time code, two placements.** With leg one: an ordinary `String` field of the `beginEnrolment`
+  argument (`fields['otp']`), plus an optional `sendEnrolmentCode` procedure that asks the server to send the
+  code first (what Authkestra does). With leg two: `@device_auth(role: "confirmEnrolment", proof: "otp")`
+  names the `String` / `String?` field that receives it; without `proof:` the proof is ignored.
+- Pubspec: also depends on `fespalier_auth`, `fespalier_keypair`, `fespalier_sign_keypair` by git at the same
+  `--fespalier-ref` (default `v0.21.0`; the interface is byte-identical v0.21.0 to v0.26.0); floor Dart
+  `>=3.12`, Flutter `>=3.44`. `--fespalier-ref` therefore pins four packages when markers are used.
+
 ### The reference example
 
 fespalier's `examples/cratestack`
