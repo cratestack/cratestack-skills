@@ -471,8 +471,7 @@ same-key retry works on 0.17.1.
 has no session yet, so every leg except `revoke` (the four required ones and the optional
 `sendEnrolmentCode`) must carry exactly one `@allow(true)` (whitespace-insensitive) and no `@deny`, `@authn`
 or `@authorize`; anything else is a parse error at the marker. `revoke` is the reverse: the device signs it,
-and `@allow(true)` is refused ("`revoke` must not be public: anyone could revoke any device by its id"). Give
-it a policy that needs the signed session, such as `@allow(auth() != null)`.
+and a `revoke` that admits a caller with no session is refused ("`revoke` must not be public: anyone could revoke any device by its id"). This is decided on the policy's meaning, not its text: `@allow(true)`, `@allow(true || auth() != null)` and `@allow(auth() == null)` are refused; `@allow(auth() != null)`, or `@allow(true)` with `@deny(auth() == null)`, is accepted. A `revoke` with no `@allow` is deny-by-default: accepted, but no device can be revoked.
 
 ## `cratestack-auth`
 

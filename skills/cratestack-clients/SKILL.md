@@ -158,7 +158,7 @@ userOf})`: `transport` is `AuthConfig.transport` (no session on it), `fieldError
 `errors.fieldErrorsOf`, `userOf` overrides the default `AuthUser`, and
 `<Prefix>DeviceAuthServer.unsignedPaths(baseUri)` feeds `DeviceAuthBackend(unsignedPaths:)`. A `403` on
 `beginRenewal`, `confirmRenewal` and `confirmEnrolment` is an `AuthRejected`. A marked schema also adds
-`fespalier_auth`, `fespalier_keypair` and `fespalier_sign_keypair` (git, same `--fespalier-ref`) and raises
+`fespalier_auth`, `fespalier_keypair` and `fespalier_sign_keypair` (git, same `--fespalier-ref`, which must be a `vX.Y.Z` release tag when markers are used) and raises
 the floor to Dart `>=3.12` / Flutter `>=3.44`. Roles, shapes and the one-time-code placement (`proof:` or
 `sendEnrolmentCode`) are in [references/dart-transport.md](references/dart-transport.md#device-ceremonies-device_auth).
 

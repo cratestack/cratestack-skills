@@ -97,9 +97,9 @@ to 0.19.6 or earlier does not have it. Move each item under its release heading 
   `confirmRenewal`, `revoke`, optional `sendEnrolmentCode`; `proof:` on `confirmEnrolment`) makes the fespalier
   preset write `lib/src/device_auth_server.dart`, `<Prefix>DeviceAuthServer implements DeviceAuthServer`,
   REST and RPC. The five required roles are all-or-nothing, legs are exactly `@allow(true)`, `revoke` must not
-  be public; the parser refuses bad shapes at the marker. Other presets, TypeScript, WireMock, the Rust client
+  admit a caller with no session (decided on the policy's meaning); `proof:` must be `String` / `String?`; the parser refuses bad shapes at the marker. Other presets, TypeScript, WireMock, the Rust client
   and the macros ignore it. A marked package also depends on `fespalier_auth`, `fespalier_keypair` and
-  `fespalier_sign_keypair` (git, same `--fespalier-ref`, default still `v0.21.0`) with a Dart `>=3.12` /
+  `fespalier_sign_keypair` (git, same `--fespalier-ref`, default still `v0.21.0`; with markers it must be a `vX.Y.Z` tag) with a Dart `>=3.12` /
   Flutter `>=3.44` floor. The generated calls run in a `TransportZone` that works around a suspected,
   unconfirmed `fespalier_auth` issue. Owners: `cratestack-schema`, `cratestack-clients`,
   `cratestack-policy-auth`, `cratestack-troubleshooting`.

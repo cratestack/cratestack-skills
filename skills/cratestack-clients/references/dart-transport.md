@@ -357,7 +357,7 @@ output: `crates/cratestack-client-dart/tests/snapshots/fespalier_device_auth_{re
 | `confirmEnrolment` | `confirmEnrolment(challenge, signatures, proof)` | yes | exactly `@allow(true)` |
 | `beginRenewal` | `beginRenewal(deviceId, role)` | yes | exactly `@allow(true)` |
 | `confirmRenewal` | `confirmRenewal(challenge, signature)` | yes | exactly `@allow(true)` |
-| `revoke` | `revoke(credential, signer)` | yes | must **not** be public (`@allow(true)` is a parse error) |
+| `revoke` | `revoke(credential, signer)` | yes | must **not** admit a caller with no session (`@allow(true)` is a parse error; `@allow(auth() != null)` is fine) |
 | `sendEnrolmentCode` | extra method on the class, not in the interface | no | exactly `@allow(true)` |
 
 Shapes (matched by field name; each leg takes one `type` and returns one `type`):
@@ -391,10 +391,11 @@ Behaviour of the generated class:
 - **One-time code, two placements.** With leg one: an ordinary `String` field of the `beginEnrolment`
   argument (`fields['otp']`), plus an optional `sendEnrolmentCode` procedure that asks the server to send the
   code first (what Authkestra does). With leg two: `@device_auth(role: "confirmEnrolment", proof: "otp")`
-  names the `String` / `String?` field that receives it; without `proof:` the proof is ignored.
+  names the field that receives it, which must be `String` / `String?` (the parser refuses any other type); without `proof:` the proof is ignored.
 - Pubspec: also depends on `fespalier_auth`, `fespalier_keypair`, `fespalier_sign_keypair` by git at the same
   `--fespalier-ref` (default `v0.21.0`; the interface is byte-identical v0.21.0 to v0.26.0); floor Dart
-  `>=3.12`, Flutter `>=3.44`. `--fespalier-ref` therefore pins four packages when markers are used.
+  `>=3.12`, Flutter `>=3.44`. `--fespalier-ref` therefore pins four packages when markers are used, and with markers it must be a release tag `vMAJOR.MINOR.PATCH`: a branch or commit fails generation with `FespalierRefNotATag` ("is not a release tag"). Without markers any ref is accepted.
+- The generated file imports every fespalier library under a prefix (`fsign`, `fauth`, `fkey`, `ftransport`; `dart:async` as `async`), so `userOf` is typed `fauth.AuthUser Function(<Answer>)` and a schema `type` may be named `RoleChallenge`, `AuthUser`, `Attestation`.
 
 ### The reference example
 
