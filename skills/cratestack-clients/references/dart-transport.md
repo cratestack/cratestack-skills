@@ -190,6 +190,7 @@ generated field-error type. Do not branch on the message text.
 | `headers` | yes; win over the adapter's own | yes |
 | `idempotencyKey` | yes, sent as `Idempotency-Key` | yes, sent as `Idempotency-Key` (unary `call` only) |
 | `abort` | yes | yes |
+| `extra` | yes; merged into `CratestackHttpRequest.extra` after adapter entries (never on wire; not kept by `prepare`) | yes; merged into `CratestackHttpRequest.extra` (never on wire; not kept by `prepareCall`) |
 
 `abort` is a `Future<void>?`. Completing it cancels the send at any stage,
 including while the response body is streaming, and the call throws
@@ -209,13 +210,14 @@ cancel.complete();   // the call throws CratestackTransportAborted
 `RpcRequest`). The framework mints nothing: the app generates the key once per
 logical operation and reuses it on retry. See `cratestack-data-integrity`.
 
-**Limit: call options cannot carry transport attributes (cratestack#1207, open).**
-`CratestackHttpRequest.extra` exists and fespalier forwards it as
-`TransportRequest.attributes`, but neither options type can fill it, so a call
-cannot tell the transport chain "sign with the user-present key". The example's
-workaround: the call sets a header (`x-fespalier-confirm: <caption>`) and a
-decorator **above** the session turns it into the attributes and strips it before
-the wire. Do not invent an `extra:` parameter on the options.
+**Per-call transport attributes (`extra`, cratestack#1207).**
+`CratestackCallOptions.extra` and `CratestackRpcCallOptions.extra` (`Map<String, Object?>`,
+default `const {}`) merge into `CratestackHttpRequest.extra` after the adapter's own
+entries (so `options.extra` wins on key collision, and `CratestackFespalierTransport`
+forwards it as `TransportRequest.attributes`). It is never sent on the wire and is not
+persisted by `prepare` / `prepareCall`. On `0.19.5` and earlier, neither options type
+had `extra`, so a call had to set a header (`x-fespalier-confirm: <caption>`) that a
+decorator **above** the session turned into attributes and stripped before the wire.
 
 ## Streaming
 
@@ -355,9 +357,10 @@ inventing one. It also demonstrates the two limits below.
 
 ### Known gaps, with their workarounds
 
-- **cratestack#1207, call options cannot carry transport attributes** (above).
-  Workaround: a header that a decorator above the session turns into attributes and
-  strips.
+- **cratestack#1207, call options carry transport attributes** *(fixed: `options.extra`;
+  workaround below is only for `0.19.5` and earlier)*.
+  Workaround on older releases: a header that a decorator above the session turns into
+  attributes and strips.
 - **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body** *(fixed
   since 0.17.1: `AuthRefusal`, see `cratestack-policy-auth`; the workaround below is for 0.17.0
   and earlier)*.
@@ -370,7 +373,7 @@ inventing one. It also demonstrates the two limits below.
   `AuthProvider` and expect the client to tell "renew" from "wipe". See
   `cratestack-policy-auth`.
 
-#1207 is open. #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
+#1207 is fixed (`options.extra`; keep the header-and-strip workaround only on `0.19.5` and earlier). #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
 
 ## Prepared retries *(since 0.18.1, cratestack#1297)*
 
