@@ -88,7 +88,7 @@ each step's breaking changes assume the one before:
 
 ## Unreleased (after 0.19.6, on `main`)
 
-Everything here is *(since 0.19.7, unreleased on main)*: it is in no published release, so a project pinned
+Everything here is in no published release (0.19.7 items are marked *(since 0.19.7, unreleased on main)*, 0.19.8 items *(since 0.19.8, unreleased on main)*), so a project pinned
 to 0.19.6 or earlier does not have it. Move each item under its release heading when that release is cut.
 
 - **`@device_auth` procedure marker; `generate-dart --preset fespalier` emits a `DeviceAuthServer`**
@@ -103,6 +103,14 @@ to 0.19.6 or earlier does not have it. Move each item under its release heading 
   Flutter `>=3.44` floor. The generated calls run in a `TransportZone` that works around a suspected,
   unconfirmed `fespalier_auth` issue. Owners: `cratestack-schema`, `cratestack-clients`,
   `cratestack-policy-auth`, `cratestack-troubleshooting`.
+- **Dart keystore callback signer** (cratestack#1151) *(since 0.19.8, unreleased on main, additive)*.
+  `package:cratestack_cbor/cose.dart` gains `ExternalSigner.esp256(publicKey:, sign:, timeout:)` and
+  `SignOutcome`, so a P-256 key in the Android Keystore, the Secure Enclave or WebCrypto can sign a
+  `COSE_Sign1` request; `timeout` is required, `publicKey` is a SEC1 point or a P-256 SPKI, and
+  `CoseSignerCancelled`, `CoseSignerTimedOut` and `CoseSignerFailed` are now produced. `CoseSigner` is sealed
+  and gains a subtype (an exhaustive `switch` needs a new arm). Rust: `CoseVerifyKey::p256_spki` /
+  `p256_public`. TypeScript does not expose the new codes yet. Owner: `cratestack-clients`
+  (+ `cratestack-troubleshooting`).
 
 ## 0.19.6 (2026-11-14)
 
