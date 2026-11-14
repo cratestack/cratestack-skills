@@ -69,7 +69,8 @@ each step's breaking changes assume the one before:
    codes on subscription `err` frames in the Rust client, WireMock `@status`. Nothing to migrate, but
    read the **Action** in its entry if you serve WS/WT subscriptions behind `RateLimitLayer`.
 12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: cursor (keyset) pagination
-   (additive), TypeScript COSE signing, the CBOR decode nesting-depth limit (deep input is now refused), and a
+   (additive), subscription frames in CBOR form (breaking on the CBOR sockets and for hand-written
+   dispatchers), TypeScript COSE signing, the CBOR decode nesting-depth limit (deep input is now refused), and a
    `415` now sends a compact op back to named bodies.
 
 0.15.3 changed nothing over 0.15.2.
@@ -122,6 +123,19 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   in `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load` (at least 32 random bytes), served
   by the envelope layer and sealed by `with_envelope`. `KeyProvider` and `NonceStore` are not deprecated.
   Agents must not write new `HmacEnvelope` code. Owner: `cratestack-server` ("Signed transport").
+
+- **Subscription frames carry `Uuid` and `Bytes` in their CBOR forms** (cratestack#1360)
+  *(unreleased on main; will be since 0.19.6, breaking)*. Over the CBOR WebSocket and WebTransport
+  bindings an item is encoded with the binding's codec instead of `serde_json::to_value`, so a
+  `Uuid` (every model event's `eventId` too) is a 16-byte string and `Value::Bytes` in a `Json` field
+  a byte string, as on a unary CBOR call; through 0.19.5 they were text and base64. JSON text frames,
+  SSE, and the TypeScript and Dart clients (JSON frames) are unchanged. **Wire:** a Rust client from
+  before the fix fails on a newer server's first model event over WS/WT (pin
+  `SubscriptionTransport::Sse` or upgrade both); a newer client reads an older server. **Rust API:**
+  `SubscriptionDispatcher::open(request, codec)` and the generated `open_query(.., codec)` take the
+  codec and yield `SubscriptionStream<RpcFrameValue>`; `ServerFrame.next` / `ClientFrame.input` are
+  `RpcFrameValue`; `cratestack_webtransport::Subscription::next` yields `RpcFrameValue`;
+  hand-written dispatchers add `<C: CratestackCodec>(.., _codec: C)`. Owner: `cratestack-rpc`.
 
 - **CBOR decode nesting-depth limit** (cratestack#1315) *(unreleased, since 0.19.4)*. Security fix.
   Every CBOR decode refuses input nested deeper than 128 levels (array, map or tag); before it, about

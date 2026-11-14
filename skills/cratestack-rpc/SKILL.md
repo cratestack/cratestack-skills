@@ -127,6 +127,17 @@ a frame with `serde_json::json!(..).into()` or `RpcFrameValue::encode_with(&code
 and read one with `serde_json::Value::from(..)` or `.decode_with(&codec)`. Still
 refused: non-string map keys and CBOR tags other than bignums.
 
+Subscription frames carry the same type *(unreleased on main; will be since 0.19.6,
+cratestack#1360)*: `ServerFrame.next`, `ClientFrame.input` and `ClientMessage::Request.input`
+are `RpcFrameValue`, and the frame constructors take `impl Into<RpcFrameValue>`. Over the CBOR
+WebSocket and WebTransport bindings an item keeps its CBOR form, so a `Uuid` is a 16-byte string
+(every model event's `eventId` included) and `Value::Bytes` in a `Json` field a byte string;
+through 0.19.5 the server ran each item through `serde_json::to_value`, so they arrived as text
+and base64. JSON text frames and SSE are unchanged. A schema `Bytes` field is an integer array on
+every wire and was never affected. **Breaking on the CBOR sockets:** a Rust client from before
+the fix cannot read a newer server's model events there (pin `SubscriptionTransport::Sse`, or
+upgrade both); a newer client still reads an older server.
+
 ## Subscriptions
 
 `@@subscribe` on a model requires `@@emit(...)`. Until cratestack#1267 it also
@@ -224,11 +235,14 @@ The schema macro generates a `subscriptions` module for a `db = Postgres`
 server schema with a `@@subscribe` model: `SubscriptionDispatch` implements
 `cratestack::SubscriptionDispatcher`, and `db.subscriptions()` returns one. The
 SSE endpoint above opens through it, on the same wire as before. A binding gets
-the subscription by calling `open(SubscriptionOpen { op_id, input, ctx })` with
-`op_id = "model.<Model>.subscribe"`, and the read policy comes with it. The input is
+the subscription by calling `open(SubscriptionOpen { op_id, input, ctx }, codec)` with
+`op_id = "model.<Model>.subscribe"` and its own codec (`CborCodec` / `JsonCodec`; SSE passes
+the JSON one), and the read policy comes with it. The stream's items are `RpcFrameValue`,
+each encoded with that codec *(unreleased on main; will be since 0.19.6, cratestack#1360;
+through 0.19.5 `open` took no codec and yielded `serde_json::Value`)*. The input is
 the feed input above *(since 0.18.0, cratestack#1267)*; in 0.17.x a model feed took
 no input, and anything but `null` or `{}` was refused with `invalid_argument`.
-The generated `db.subscriptions().open_query(op_id, Some(query_string), ctx)`
+The generated `db.subscriptions().open_query(op_id, Some(query_string), ctx, codec)`
 takes the query-string form directly. Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/dispatcher.rs`.
 
 ### Subscription procedures, topics, WebSocket, the Rust client *(since 0.18.0, cratestack#1268)*
