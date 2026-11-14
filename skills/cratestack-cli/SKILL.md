@@ -5,7 +5,7 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -200,7 +200,7 @@ present**, or you get false positives. It returns empty (old behaviour) when git
 is unavailable, when `--out` is not in a work tree, or when `--out` is itself
 ignored.
 
-*(After 0.19.5, cratestack#1235.)* The walk never follows symlinks (a pnpm-style
+*(Since 0.19.6, cratestack#1235.)* The walk never follows symlinks (a pnpm-style
 symlinked dir in a gitignored `node_modules/` is one filtered entry, not
 descended into), and if the batch `git check-ignore` call fails inside a work
 tree it falls back to per-path checks, so one unanswerable path cannot switch

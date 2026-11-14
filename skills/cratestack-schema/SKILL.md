@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -120,7 +120,7 @@ validation. For a closed set, use an `enum` rather than a `String`. Renaming or 
 breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(since 0.17.0)* it
 does, and adding a variant to an enum responses carry is breaking too (see
 [cratestack-cli](../cratestack-cli/SKILL.md)). `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
-is 16 binary bytes on CBOR; servers also accept text on requests *(since 0.19.6, unreleased on main)*. Size levers, ranked: the docs site's "Reducing payload size" guide.
+is 16 binary bytes on CBOR; servers also accept text on requests *(since 0.19.6)*. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are
 argument-position only; `CursorPage<T>` *(since 0.19.4, cratestack#1304)* is return-only and `CursorPageInput` argument-only,

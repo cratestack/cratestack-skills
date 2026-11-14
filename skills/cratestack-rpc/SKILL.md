@@ -5,7 +5,7 @@ description: CrateStack's RPC transport — transport rpc, POST /rpc/{op_id}, PO
 
 # RPC transport
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -120,14 +120,13 @@ consumes it. Do not rely on per-frame idempotency until that changes.
 
 A frame's `input` and `output` are `RpcFrameValue` (a `serde_json::Value` plus a
 byte-string arm), so a CBOR `Uuid` (16-byte string) or `Bytes` (byte string) rides a
-batch in its CBOR form, as on a unary call *(since the release after 0.19.5,
-unreleased on main, cratestack#1352; before it a CBOR batch carrying either was
+batch in its CBOR form, as on a unary call *(since 0.19.6, cratestack#1352; before it a CBOR batch carrying either was
 refused, and `.queue(&mut batch)` of a `Uuid` failed `invalid_argument`)*. In Rust build
 a frame with `serde_json::json!(..).into()` or `RpcFrameValue::encode_with(&codec, &v)`
 and read one with `serde_json::Value::from(..)` or `.decode_with(&codec)`. Still
 refused: non-string map keys and CBOR tags other than bignums.
 
-Subscription frames carry the same type *(unreleased on main; will be since 0.19.6,
+Subscription frames carry the same type *(since 0.19.6,
 cratestack#1360)*: `ServerFrame.next`, `ClientFrame.input` and `ClientMessage::Request.input`
 are `RpcFrameValue`, and the frame constructors take `impl Into<RpcFrameValue>`. Over the CBOR
 WebSocket and WebTransport bindings an item keeps its CBOR form, so a `Uuid` is a 16-byte string
@@ -238,7 +237,7 @@ SSE endpoint above opens through it, on the same wire as before. A binding gets
 the subscription by calling `open(SubscriptionOpen { op_id, input, ctx }, codec)` with
 `op_id = "model.<Model>.subscribe"` and its own codec (`CborCodec` / `JsonCodec`; SSE passes
 the JSON one), and the read policy comes with it. The stream's items are `RpcFrameValue`,
-each encoded with that codec *(unreleased on main; will be since 0.19.6, cratestack#1360;
+each encoded with that codec *(since 0.19.6, cratestack#1360;
 through 0.19.5 `open` took no codec and yielded `serde_json::Value`)*. The input is
 the feed input above *(since 0.18.0, cratestack#1267)*; in 0.17.x a model feed took
 no input, and anything but `null` or `{}` was refused with `invalid_argument`.
@@ -369,7 +368,7 @@ the handler is the right primitive.
 seam; Dio is `CratestackDioTransport(dio)`, one transport among several, and the four
 `*DioAdapter` classes are gone. An error answer is `CratestackRpcException` (`status` plus
 the `RpcErrorBody` `code`), no answer is the sealed `CratestackTransportException`.
-`CratestackRpcCallOptions` has `headers`, `idempotencyKey` (unary `call` only), `abort`, and `extra` (per-call transport attributes, never on the wire; *since 0.19.6, unreleased on main*).
+`CratestackRpcCallOptions` has `headers`, `idempotencyKey` (unary `call` only), `abort`, and `extra` (per-call transport attributes, never on the wire; *since 0.19.6*).
 `stream()` yields `application/cbor-seq` items as they arrive instead of buffering, and a
 trailing `Tag(48900, RpcErrorBody)` item becomes a `CratestackRpcException`; because it is an
 `async*` generator, every failure is the stream's error. A rejected field is `422

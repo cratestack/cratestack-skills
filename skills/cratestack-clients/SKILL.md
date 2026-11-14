@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -167,7 +167,7 @@ a transport:
 | Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:, compact:, preparedBasePath:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:, compact:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
 | HTTP error answer | `CratestackRestException` (`status`, `body`; *(since 0.17.1)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(since 0.17.1)* `extra`, `challenges`, `headers`) |
-| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` *(`extra` since 0.19.6, unreleased on main)* |
+| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` *(`extra` since 0.19.6)* |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
 decoded by its own `Content-Type` either way. `baseUri` replaces
@@ -447,7 +447,7 @@ purpose: RPC endpoints call the resolved base query from inside `queryFn` so the
 wire response still goes through revival, and REST endpoints use
 `fakeBaseQuery()` and call this same package's REST client methods.
 
-### Signing requests from TypeScript *(since 0.19.4, unreleased on main, cratestack#1010)*
+### Signing requests from TypeScript *(since 0.19.4, cratestack#1010)*
 
 Through 0.19.3 a generated TypeScript client sends **unsigned** requests. From 0.19.4,
 `@cratestack/cbor/cose` exports `createCoseClient`, `createSealedLink` and `createSealedFetch`; the
@@ -561,7 +561,7 @@ Use `revivePagedWireFields` for `@@paged` responses.
 - `""` starts at the first page; loop until `nextCursor` is absent. `cursor` and `offset` together are a 400.
   `cratestack-mock-wiremock` stubs `CursorPage<T>`. Regenerate committed clients after upgrading.
 
-### `Uuid` on CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+### `Uuid` on CBOR *(since 0.19.6, cratestack#1359)*
 
 A server writes a `Uuid` as a 16-byte CBOR string; JSON stays text. Clients hold it as a plain string, so
 they revive on the way in and still **send text**, which servers accept in every request position (model
@@ -629,8 +629,7 @@ automatic in the generated router, and needs no schema change and no flag.
   that call is not retried (`crates/cratestack-api/tests/compact_client_sealed_rest.rs`).
 - **TypeScript:** `compactKeys: true` in the RPC or REST client options. It feature-detects
   `createCompactKeys` on `@cratestack/cbor` and stays named on a version without it. A REST
-  package lists `@cratestack/cbor` as an optional peer dependency. *(Since 0.19.4, unreleased on
-  main)* a `415` to a compact request switches that op back to named bodies for later calls (and a
+  package lists `@cratestack/cbor` as an optional peer dependency. *(Since 0.19.4)* a `415` to a compact request switches that op back to named bodies for later calls (and a
   retry under the same `Idempotency-Key`), on REST and RPC, sealed or not; the refused call is not
   retried (`noteFailure` in the generated compact layer).
 - **Dart:** pass `compact: CratestackCompactHooks(toCompact: keys.toCompact, fromCompact:
@@ -701,7 +700,7 @@ one is a fixed example, never echoed from the request body.
 (`200` when absent; `transport rpc` procedures stay `200`, as `@status` is rejected there). Before
 0.19.3 every procedure stub answered `200`, so regenerate committed stubs.
 
-*(Since 0.19.6, unreleased on main)* Placeholders satisfy the field's own validators: `@range` gets
+*(Since 0.19.6)* Placeholders satisfy the field's own validators: `@range` gets
 zero clamped into the range (`BigInt @range(min: 1)` -> `"1"`), `@iso4217` `"EUR"`, `@length` a string
 padded to the minimum (`Bytes`: that many zero bytes), `@email`/`@uri` `user@example.com` /
 `https://example.com`, `@regex` a sample built from the pattern. When no placeholder satisfies the

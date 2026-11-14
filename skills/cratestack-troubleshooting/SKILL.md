@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -585,7 +585,7 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 | `UnsupportedError` | No backend for the platform (Linux arm64), as for the codec; there is no pure-Dart fallback for COSE |
 | `CoseSignerCancelled`, `CoseSignerTimedOut`, `CoseSignerFailed` | Reserved for the keystore signer of a later release. The in-memory signers never throw them, so seeing one means a signer from outside this package |
 
-### TypeScript: sealing with `@cratestack/cbor/cose` *(since 0.19.4, unreleased on main, cratestack#1010)*
+### TypeScript: sealing with `@cratestack/cbor/cose` *(since 0.19.4, cratestack#1010)*
 
 For a TypeScript app using `createSealedLink` / `createSealedFetch` (see `cratestack-clients`).
 Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`.
@@ -600,7 +600,7 @@ Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/
 | A first call after a `415` goes out named | Intended: a `415` to a compact request switches that op back to named for later calls, sealed or not; the refused call is not retried |
 | Streaming (`stream()`) call is unsigned | `stream()` is never sealed; there is no TypeScript `StreamOpener` (cratestack#1008, #1009) |
 
-### `Uuid` over CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+### `Uuid` over CBOR *(since 0.19.6, cratestack#1359)*
 
 | What you see | It means |
 | --- | --- |

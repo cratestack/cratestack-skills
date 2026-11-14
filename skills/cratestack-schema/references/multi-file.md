@@ -1,6 +1,6 @@
 # Multi-file schemas: `part`, `part of`, `import`
 
-> **Verified against CrateStack 0.19.3** (cratestack#910). Everything on this page is *(since 0.19.0)* unless marked *(since 0.19.1)*, which adds the `examples/shared-types-import` example and the LSP importer check.
+> **Verified against CrateStack 0.19.6** (cratestack#910). Everything on this page is *(since 0.19.0)* unless marked *(since 0.19.1)*, which adds the `examples/shared-types-import` example and the LSP importer check.
 > Checked against the parser and macro tests, the `cratestack check` output, the language server
 > tests, the committed `examples/react-vite-swr` split and `examples/shared-types-import` at the `v0.19.1` tag (design:
 > `docs/design/multi-file-schemas.md`; ADR 0023 in `cratestack-docs/internals/`). On 0.18.x or
