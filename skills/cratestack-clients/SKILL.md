@@ -413,12 +413,12 @@ final opened = await envelope.openResponse(
   Android Keystore, the Secure Enclave or WebCrypto, and `sign` gets the complete to-be-signed bytes and
   returns a `SignOutcome` (`signature(bytes)`, `cancelled()`, `timedOut()`, `failed(message)`). Sign the bytes as
   given, never a digest (Android `SHA256withECDSA`, iOS `.ecdsaSignatureMessageX962SHA256`, web
-  `subtle.sign({name:'ECDSA', hash:'SHA-256'})`); DER or raw `r||s` are both fine. `publicKey` is the 65-byte
-  SEC1 point or an SPKI (Android `getEncoded()`); the `kid` is derived, never passed. `timeout` is **required**
+  `subtle.sign({name:'ECDSA', hash:'SHA-256'})`); DER or raw `r||s` are both fine. `publicKey` is a SEC1 point (65-byte
+  uncompressed or 33-byte compressed) or a P-256 SPKI (Android `getEncoded()`); the `kid` is derived, never passed. `timeout` is **required**
   (no default, must be positive) and does not cancel the platform prompt. Return an outcome; do not throw. **Do not do the DER,
   low-`s` or verification in app code**: Rust does all of it, and a bad signature is `CoseMisuse`. There is still
   no in-memory ESP256 signer in Dart. `CoseSigner` is sealed, so an exhaustive `switch` needs an
-  `ExternalSigner()` arm. `CoseServerKey.p256Sec1` pins an ESP256 *server*. It works on native and web;
+  `ExternalSigner()` arm. `CoseServerKey.p256Sec1` pins an ESP256 *server* and, unlike the signer key, is SEC1 only (no SPKI). Keep a `failed(message)` fixed and free of secrets (e.g. `SignOutcome.failed('keystore unavailable')`), never exception text: it is logged. It works on native and web;
   TypeScript does not expose the new signer codes yet.
 - **Required only,** like the Rust client: every request is sealed and only a
   response to a sealed request opens. There is no `Optional` mode.
