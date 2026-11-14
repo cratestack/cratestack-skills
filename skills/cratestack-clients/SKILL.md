@@ -167,7 +167,7 @@ a transport:
 | Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:, compact:, preparedBasePath:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:, compact:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
 | HTTP error answer | `CratestackRestException` (`status`, `body`; *(since 0.17.1)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(since 0.17.1)* `extra`, `challenges`, `headers`) |
-| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` *(`extra` since 0.19.6, unreleased on main)* |
+| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` *(`extra` since 0.19.6)* |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
 decoded by its own `Content-Type` either way. `baseUri` replaces
@@ -561,7 +561,7 @@ Use `revivePagedWireFields` for `@@paged` responses.
 - `""` starts at the first page; loop until `nextCursor` is absent. `cursor` and `offset` together are a 400.
   `cratestack-mock-wiremock` stubs `CursorPage<T>`. Regenerate committed clients after upgrading.
 
-### `Uuid` on CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+### `Uuid` on CBOR *(since 0.19.6, cratestack#1359)*
 
 A server writes a `Uuid` as a 16-byte CBOR string; JSON stays text. Clients hold it as a plain string, so
 they revive on the way in and still **send text**, which servers accept in every request position (model
@@ -701,7 +701,7 @@ one is a fixed example, never echoed from the request body.
 (`200` when absent; `transport rpc` procedures stay `200`, as `@status` is rejected there). Before
 0.19.3 every procedure stub answered `200`, so regenerate committed stubs.
 
-*(Since 0.19.6, unreleased on main)* Placeholders satisfy the field's own validators: `@range` gets
+*(Since 0.19.6)* Placeholders satisfy the field's own validators: `@range` gets
 zero clamped into the range (`BigInt @range(min: 1)` -> `"1"`), `@iso4217` `"EUR"`, `@length` a string
 padded to the minimum (`Bytes`: that many zero bytes), `@email`/`@uri` `user@example.com` /
 `https://example.com`, `@regex` a sample built from the pattern. When no placeholder satisfies the

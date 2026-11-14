@@ -351,7 +351,7 @@ configurable in the cbor-seq decoders or the outbox. Raising it needs stack to m
 decode into `serde_json::Value` overflowed a 1 MB stack. Do not raise it to make a hostile-looking
 body pass.
 
-**`Uuid` is accepted as text or 16 bytes under CBOR** *(since 0.19.6, unreleased on main, cratestack#1359)*,
+**`Uuid` is accepted as text or 16 bytes under CBOR** *(since 0.19.6, cratestack#1359)*,
 in every request position (model fields, `type` fields, procedure arguments, RPC `{ id }` frames,
 `<Model>Where` operands, `/rpc/batch` frames), the same leniency `Bytes` has. The generated structs use
 `cratestack_core::LenientUuid` and `deserialize_uuid` (and its optional, list and patch variants). Responses
@@ -473,7 +473,7 @@ layer underneath — you rarely name it directly.
 *(since 0.14.0, cratestack#1006)* `EnvelopeLayer` opens signed requests (COSE_Sign1 /
 COSE_Mac0 bodies) and seals every response of a generated REST or RPC router (ADR 0006).
 **Do not use `HmacEnvelope` / `SealedEnvelope`** (`cratestack_core`, the old HS256 envelope):
-deprecated *(unreleased on main; will be since 0.19.6, cratestack#1018)* and removed in the next
+deprecated *(since 0.19.6, cratestack#1018)* and removed in the next
 minor release. For a shared-secret service-to-service seal, use this layer with
 `cratestack_cose::CoseEnvelope` in `CoseMode::Mac0`; `KeyProviderMacKeys::load(&provider, alg,
 key_ids).await?` turns an existing `KeyProvider`'s secrets into Mac0 keys (each at least 32 random
@@ -572,7 +572,7 @@ rate limiting, so put an IP-level limiter **outside** the envelope layer.
   `Cratestack-Payload-Accept` names others); an unsigned one runs, sealed only with a valid
   `Cratestack-Nonce` and an `Accept` naming `application/cose`. That seal binds
   the nonce and payload, **not the caller**.
-- `UnsignedRequestSealedReply` *(after 0.19.5, cratestack#1313)* — a signed request as under
+- `UnsignedRequestSealedReply` *(since 0.19.6, cratestack#1313)* — a signed request as under
   `Optional`; an unsigned one runs only if its reply can be sealed (exactly one valid
   `Cratestack-Nonce`, an `Accept` naming `application/cose`, not a subscription), else the
   unsigned `406` **before the handler runs**. Use it for enrollment/bootstrap ops where an

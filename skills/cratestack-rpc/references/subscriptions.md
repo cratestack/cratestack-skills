@@ -160,7 +160,7 @@ subscription procedures it is `db.subscriptions().websocket(..)`.)
 - **Frames**: the same as WebTransport, plus cancel. A frame's `input` and `next` are
   `RpcFrameValue`s in the socket's codec form: on the CBOR subprotocol a `Uuid` is a 16-byte
   string and bytes in a `Json` field a byte string; on JSON, text and an integer array
-  *(CBOR form unreleased on main; will be since 0.19.6, cratestack#1360)*.
+  *(CBOR form since 0.19.6, cratestack#1360)*.
   - `Init { id: 0, init: { headers } }` must be the first frame, within 10 s.
     It is **always** required. A native client sends its headers on the upgrade
     and an empty `Init`; a browser puts its headers in `Init`.
@@ -234,7 +234,7 @@ while let Some(item) = lines.recv().await { let line = item?; }
   partial: read them into a struct of `Option<_>` fields, or over SSE as
   `runtime().subscribe::<ModelEvent<serde_json::Value>>(target)`. Over a WebSocket or
   WebTransport a `serde_json::Value` item fails on any `Uuid` field, which is a byte string
-  there *(unreleased on main; will be since 0.19.6, cratestack#1360)*; the Rust client decodes a
+  there *(since 0.19.6, cratestack#1360)*; the Rust client decodes a
   socket item as a unary CBOR call does and falls back to an older server's text `Uuid`.
 - **`SubscriptionTransport::Auto`** (the default) tries, in order, each binding
   the build has, moving on only when one cannot be opened, never on a refusal:
@@ -264,8 +264,7 @@ let config = ClientConfig::new(base)
 - **Without a generated client**, `cratestack-webtransport`'s `client` feature
   offers `WebTransportClient::connect(url, trust, headers)` and
   `subscribe(op, input)`; dropping a `Subscription` cancels it. `input` is anything
-  `Into<RpcFrameValue>` and `Subscription::next` yields `RpcFrameValue` *(unreleased on main;
-  will be since 0.19.6, cratestack#1360; through 0.19.5 both were `serde_json::Value`)*.
+  `Into<RpcFrameValue>` and `Subscription::next` yields `RpcFrameValue` *(since 0.19.6, cratestack#1360; through 0.19.5 both were `serde_json::Value`)*.
 
 ## The TypeScript client
 

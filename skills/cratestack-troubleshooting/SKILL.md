@@ -600,7 +600,7 @@ Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/
 | A first call after a `415` goes out named | Intended: a `415` to a compact request switches that op back to named for later calls, sealed or not; the refused call is not retried |
 | Streaming (`stream()`) call is unsigned | `stream()` is never sealed; there is no TypeScript `StreamOpener` (cratestack#1008, #1009) |
 
-### `Uuid` over CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+### `Uuid` over CBOR *(since 0.19.6, cratestack#1359)*
 
 | What you see | It means |
 | --- | --- |

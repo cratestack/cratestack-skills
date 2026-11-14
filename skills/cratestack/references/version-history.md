@@ -116,7 +116,7 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   `cratestack-troubleshooting` ("TypeScript: sealing").
 
 - **`HmacEnvelope` and `SealedEnvelope` deprecated; COSE_Mac0 replaces them** (cratestack#1018)
-  *(unreleased on main; will be since 0.19.6, not breaking)*. `cratestack_core::HmacEnvelope` and
+  *(since 0.19.6, not breaking)*. `cratestack_core::HmacEnvelope` and
   `SealedEnvelope` (the HS256 envelope that MACs a JSON re-serialization of a CBOR body, 147 B per
   message against Mac0's 41 B) carry `#[deprecated(since = "0.19.6")]` and are removed in the next minor
   release, so naming one is a warning (an error under `-D warnings`). Use `cratestack_cose::CoseEnvelope`
@@ -125,7 +125,7 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   Agents must not write new `HmacEnvelope` code. Owner: `cratestack-server` ("Signed transport").
 
 - **Generated TypeScript and Dart clients read and send `Uuid` over CBOR** (cratestack#1359)
-  *(unreleased on main; will be since 0.19.6)*. Servers accept a `Uuid` as CBOR text or 16 bytes in every
+  *(since 0.19.6)*. Servers accept a `Uuid` as CBOR text or 16 bytes in every
   request position (`LenientUuid`); responses still send 16 bytes, JSON is unchanged. TypeScript revives a
   16-byte `Uint8Array` via `wireShapes.uuidKeys` (strict: `TypeError` otherwise; raw `runtime.stream()`
   items are not revived); Dart decodes through `cratestackDecodeUuid` and needs a `cratestack_cbor` release
@@ -135,7 +135,7 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   ("codecs"), `cratestack-troubleshooting` ("`Uuid` over CBOR").
 
 - **Subscription frames carry `Uuid` and `Bytes` in their CBOR forms** (cratestack#1360)
-  *(unreleased on main; will be since 0.19.6, breaking)*. Over the CBOR WebSocket and WebTransport
+  *(since 0.19.6, breaking)*. Over the CBOR WebSocket and WebTransport
   bindings an item is encoded with the binding's codec instead of `serde_json::to_value`, so a
   `Uuid` (every model event's `eventId` too) is a 16-byte string and `Value::Bytes` in a `Json` field
   a byte string, as on a unary CBOR call; through 0.19.5 they were text and base64. JSON text frames,
