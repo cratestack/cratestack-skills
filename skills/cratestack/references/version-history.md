@@ -124,6 +124,16 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   by the envelope layer and sealed by `with_envelope`. `KeyProvider` and `NonceStore` are not deprecated.
   Agents must not write new `HmacEnvelope` code. Owner: `cratestack-server` ("Signed transport").
 
+- **Generated TypeScript and Dart clients read and send `Uuid` over CBOR** (cratestack#1359)
+  *(unreleased on main; will be since 0.19.6)*. Servers accept a `Uuid` as CBOR text or 16 bytes in every
+  request position (`LenientUuid`); responses still send 16 bytes, JSON is unchanged. TypeScript revives a
+  16-byte `Uint8Array` via `wireShapes.uuidKeys` (strict: `TypeError` otherwise; raw `runtime.stream()`
+  items are not revived); Dart decodes through `cratestackDecodeUuid` and needs a `cratestack_cbor` release
+  whose `decodeJson` writes byte strings as integer arrays. Clients still send text. **Skew:** a new client
+  against a server at 0.19.5 or older has its requests refused; a new server against an old client
+  mis-decodes responses (regenerate). Owners: `cratestack-clients` ("`Uuid` on CBOR"), `cratestack-server`
+  ("codecs"), `cratestack-troubleshooting` ("`Uuid` over CBOR").
+
 - **Subscription frames carry `Uuid` and `Bytes` in their CBOR forms** (cratestack#1360)
   *(unreleased on main; will be since 0.19.6, breaking)*. Over the CBOR WebSocket and WebTransport
   bindings an item is encoded with the binding's codec instead of `serde_json::to_value`, so a
