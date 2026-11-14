@@ -167,7 +167,7 @@ a transport:
 | Adapter | `CratestackHttpAdapter(transport, baseUri:, format:, useRustTransport:, compact:, preparedBasePath:)` | `CratestackRpcHttpAdapter(transport, baseUri:, format:, cborSeqDecoder:, compact:)` |
 | Dio | `CratestackDioTransport(dio)` | `CratestackDioTransport(dio)` |
 | HTTP error answer | `CratestackRestException` (`status`, `body`; *(since 0.17.1)* `code`, `message`, `details`, `extra`, `challenges`, `headers`) | `CratestackRpcException` (`status`, `code`, `message`, `details`; *(since 0.17.1)* `extra`, `challenges`, `headers`) |
-| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` |
+| Call options | `CratestackCallOptions(headers, idempotencyKey, abort, extra)` | `CratestackRpcCallOptions(headers, idempotencyKey, abort, extra)` *(`extra` since 0.19.6, unreleased on main)* |
 
 `format` is `CratestackWireFormat.cbor` (the default) or `.json`; the answer is
 decoded by its own `Content-Type` either way. `baseUri` replaces
@@ -216,7 +216,7 @@ ProviderScope(overrides: [
 - **`stream()` streams** *(RPC)*: items are yielded as the `cbor-seq` body arrives.
 - **A `null` in a query map is omitted**, not sent as a bare `key`. The generated
   query builders never emit one, so this only affects hand-built `queryParameters`.
-- **Known gaps:** on `0.19.4` and earlier, call options could not carry transport attributes
+- **Known gaps:** on `0.19.5` and earlier, call options could not carry transport attributes
   (cratestack#1207 — fixed by `options.extra`; keep the header-and-strip workaround only on
   older releases), and, on 0.17.0 and earlier, an `AuthProvider` refusal cannot shape its body
   (cratestack#1208, shipped in 0.17.1 as `AuthRefusal`: extra top-level members such as

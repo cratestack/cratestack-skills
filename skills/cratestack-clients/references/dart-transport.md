@@ -215,7 +215,7 @@ logical operation and reuses it on retry. See `cratestack-data-integrity`.
 default `const {}`) merge into `CratestackHttpRequest.extra` after the adapter's own
 entries (so `options.extra` wins on key collision, and `CratestackFespalierTransport`
 forwards it as `TransportRequest.attributes`). It is never sent on the wire and is not
-persisted by `prepare` / `prepareCall`. On `0.19.4` and earlier, neither options type
+persisted by `prepare` / `prepareCall`. On `0.19.5` and earlier, neither options type
 had `extra`, so a call had to set a header (`x-fespalier-confirm: <caption>`) that a
 decorator **above** the session turned into attributes and stripped before the wire.
 
@@ -358,7 +358,7 @@ inventing one. It also demonstrates the two limits below.
 ### Known gaps, with their workarounds
 
 - **cratestack#1207, call options carry transport attributes** *(fixed: `options.extra`;
-  workaround below is only for `0.19.4` and earlier)*.
+  workaround below is only for `0.19.5` and earlier)*.
   Workaround on older releases: a header that a decorator above the session turns into
   attributes and strips.
 - **cratestack#1208, an `AuthProvider` refusal cannot shape its status or body** *(fixed
@@ -373,7 +373,7 @@ inventing one. It also demonstrates the two limits below.
   `AuthProvider` and expect the client to tell "renew" from "wipe". See
   `cratestack-policy-auth`.
 
-#1207 is fixed (`options.extra`; keep the header-and-strip workaround only on `0.19.4` and earlier). #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
+#1207 is fixed (`options.extra`; keep the header-and-strip workaround only on `0.19.5` and earlier). #1208 shipped in 0.17.1 (its issue may still read open): on 0.17.1 use `AuthRefusal`, and keep the layer only on 0.17.0 and earlier.
 
 ## Prepared retries *(since 0.18.1, cratestack#1297)*
 
