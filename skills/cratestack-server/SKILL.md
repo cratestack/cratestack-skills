@@ -351,6 +351,13 @@ configurable in the cbor-seq decoders or the outbox. Raising it needs stack to m
 decode into `serde_json::Value` overflowed a 1 MB stack. Do not raise it to make a hostile-looking
 body pass.
 
+**`Uuid` is accepted as text or 16 bytes under CBOR** *(since 0.19.6, unreleased on main, cratestack#1359)*,
+in every request position (model fields, `type` fields, procedure arguments, RPC `{ id }` frames,
+`<Model>Where` operands, `/rpc/batch` frames), the same leniency `Bytes` has. The generated structs use
+`cratestack_core::LenientUuid` and `deserialize_uuid` (and its optional, list and patch variants). Responses
+still send 16 bytes, and JSON is unchanged, error text included. Servers at 0.19.5 or older refuse a text
+`Uuid` over CBOR (`unexpected type string ... expected bytes`).
+
 **The practical trap:** generated `transport rpc` TypeScript clients default to
 native CBOR. A router mounted with `JsonCodec` alone answers those 406/415. Mount
 `CodecSet::new(CborCodec, JsonCodec)`, or construct the client with `codec: jsonRpcCodec`

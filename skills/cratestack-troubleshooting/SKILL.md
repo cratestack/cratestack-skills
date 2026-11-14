@@ -600,6 +600,16 @@ Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/
 | A first call after a `415` goes out named | Intended: a `415` to a compact request switches that op back to named for later calls, sealed or not; the refused call is not retried |
 | Streaming (`stream()`) call is unsigned | `stream()` is never sealed; there is no TypeScript `StreamOpener` (cratestack#1008, #1009) |
 
+### `Uuid` over CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+
+| What you see | It means |
+| --- | --- |
+| (TypeScript) a `Uuid` field that is a `Uint8Array`, or a raw `runtime.stream()` item with one | The client predates the fix (regenerate), or the value came from `runtime.stream()`, which is never revived |
+| (TypeScript) `TypeError: Uuid field Type.field: expected a UUID string or 16 bytes, got ...` | Deliberate strictness: the wire value is neither a string nor exactly 16 bytes. Look at the server or a custom codec |
+| (Dart) `CratestackCborCodecError: ... invalid type: byte array` (native) or `type '_Map...' is not a subtype of 'String'` (web) | `cratestack_cbor` predates the `decodeJson` byte-string fix: upgrade it |
+| (Dart) `FormatException: ... expected a Uuid as a string or 16 bytes` | The wire value was neither; the message names `Model.field` |
+| (server) `UUID parsing failed` or `unexpected type string ... expected bytes` on a CBOR request | The server is 0.19.5 or older and refuses a text `Uuid`: upgrade it (and regenerate the client) |
+
 ### Dart: the HTTP transport and its exceptions *(since 0.16.0, cratestack#1204)*
 
 For an app using a generated Dart client. The package: `skills/cratestack-clients/references/dart-transport.md`.

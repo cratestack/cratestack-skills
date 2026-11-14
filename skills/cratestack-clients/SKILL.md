@@ -1,6 +1,6 @@
 ---
 name: cratestack-clients
-description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (default, riverpod and fespalier presets; the HTTP transport seam, CratestackHttpAdapter, CratestackDioTransport, CratestackRestException / CratestackTransportException), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when signing requests from a TypeScript client (createCoseClient, createSealedLink, createSealedFetch), generating an SDK, wiring a React/Flutter front end to a CrateStack service, upgrading from the removed CratestackDioAdapter classes, or debugging a Decimal or Bytes value that arrived as a string.
+description: Generating and consuming CrateStack clients — include_client_schema! for Rust, cratestack generate-dart (default, riverpod and fespalier presets; the HTTP transport seam, CratestackHttpAdapter, CratestackDioTransport, CratestackRestException / CratestackTransportException), cratestack generate-typescript (with swr/tanstack/rtk/refine layers), the @cratestack npm family, cratestack_cbor for Dart, the CBOR wire contract and reviveWireFields, WireMock stubs, and client state stores. Load when signing requests from a TypeScript client (createCoseClient, createSealedLink, createSealedFetch), generating an SDK, wiring a React/Flutter front end to a CrateStack service, upgrading from the removed CratestackDioAdapter classes, debugging a Decimal or Bytes value that arrived as a string, or a Uuid that arrived as a Uint8Array.
 ---
 
 # Clients
@@ -560,6 +560,23 @@ Use `revivePagedWireFields` for `@@paged` responses.
   `CratestackRpcListQuery`, `PageInfo.nextCursor?`, `CursorPageInput`, `CursorPage<T>`.
 - `""` starts at the first page; loop until `nextCursor` is absent. `cursor` and `offset` together are a 400.
   `cratestack-mock-wiremock` stubs `CursorPage<T>`. Regenerate committed clients after upgrading.
+
+### `Uuid` on CBOR *(since 0.19.6, unreleased on main, cratestack#1359)*
+
+A server writes a `Uuid` as a 16-byte CBOR string; JSON stays text. Clients hold it as a plain string, so
+they revive on the way in and still **send text**, which servers accept in every request position (model
+fields, procedure arguments, RPC `{ id }` frames, `<Model>Where` operands, `/rpc/batch` frames). A wrong-form
+string or wrong-length byte string is still a `400 invalid_argument`.
+
+| Client | Type | Notes |
+| --- | --- | --- |
+| Rust | `cratestack::uuid::Uuid` | Lenient on decode too (the client shares the struct emitters) |
+| TypeScript | `string` | `wireShapes.uuidKeys` revives a 16-byte `Uint8Array` into the canonical lowercase hyphenated string, in the default and `--swr` runtimes (each has its own copy), including a bare `Uuid` procedure return (`reviveWireScalar(.., "uuid")`). **Strict**: another length or type throws `TypeError: Uuid field Type.field: expected a UUID string or 16 bytes, got ...`. Items of a raw `runtime.stream()` are not revived. REST is JSON: no-op. |
+| Dart | `String` | Every generated decode goes through `cratestackDecodeUuid(value, 'Model.field')` (string or list of 16 ints, else `FormatException`). **Needs a `cratestack_cbor` release with the bridge fix**: `decodeJson` now writes a byte string as an integer array on both backends. |
+
+**Skew:** a new client against a server at 0.19.5 or older has its requests refused
+(`unexpected type string ... expected bytes`): upgrade the server first. A new server against an old
+client accepts requests but mis-decodes responses: regenerate.
 
 ### `BigInt` is a string on the wire *(since 0.15.4, ADR 0019 D2, D3)*
 

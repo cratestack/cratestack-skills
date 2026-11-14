@@ -120,7 +120,7 @@ validation. For a closed set, use an `enum` rather than a `String`. Renaming or 
 breaks the wire. On 0.16.0 and earlier `cratestack diff` does not report it; *(since 0.17.0)* it
 does, and adding a variant to an enum responses carry is breaking too (see
 [cratestack-cli](../cratestack-cli/SKILL.md)). `DateTime` is `TIMESTAMPTZ` in Postgres but RFC 3339 **text** on both codecs; `Uuid`
-is 16 binary bytes on CBOR. Size levers, ranked: the docs site's "Reducing payload size" guide.
+is 16 binary bytes on CBOR; servers also accept text on requests *(since 0.19.6, unreleased on main)*. Size levers, ranked: the docs site's "Reducing payload size" guide.
 
 `Page<T>` is return-position only; `PageInput` and `FindMany<T>` are
 argument-position only; `CursorPage<T>` *(since 0.19.4, cratestack#1304)* is return-only and `CursorPageInput` argument-only,
