@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -447,7 +447,7 @@ purpose: RPC endpoints call the resolved base query from inside `queryFn` so the
 wire response still goes through revival, and REST endpoints use
 `fakeBaseQuery()` and call this same package's REST client methods.
 
-### Signing requests from TypeScript *(since 0.19.4, unreleased on main, cratestack#1010)*
+### Signing requests from TypeScript *(since 0.19.4, cratestack#1010)*
 
 Through 0.19.3 a generated TypeScript client sends **unsigned** requests. From 0.19.4,
 `@cratestack/cbor/cose` exports `createCoseClient`, `createSealedLink` and `createSealedFetch`; the
@@ -629,8 +629,7 @@ automatic in the generated router, and needs no schema change and no flag.
   that call is not retried (`crates/cratestack-api/tests/compact_client_sealed_rest.rs`).
 - **TypeScript:** `compactKeys: true` in the RPC or REST client options. It feature-detects
   `createCompactKeys` on `@cratestack/cbor` and stays named on a version without it. A REST
-  package lists `@cratestack/cbor` as an optional peer dependency. *(Since 0.19.4, unreleased on
-  main)* a `415` to a compact request switches that op back to named bodies for later calls (and a
+  package lists `@cratestack/cbor` as an optional peer dependency. *(Since 0.19.4)* a `415` to a compact request switches that op back to named bodies for later calls (and a
   retry under the same `Idempotency-Key`), on REST and RPC, sealed or not; the refused call is not
   retried (`noteFailure` in the generated compact layer).
 - **Dart:** pass `compact: CratestackCompactHooks(toCompact: keys.toCompact, fromCompact:

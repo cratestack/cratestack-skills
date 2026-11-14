@@ -1,8 +1,8 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.19.3.** Everything here is *(since 0.18.0)*:
+> **Verified against CrateStack 0.19.6.** Everything here is *(since 0.18.0)*:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
-> in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below are the only changes since, in 0.19.3. None of it
+> in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
 > `docs/design/subscriptions-websocket.md` §3.2–3.4, §6, §8, §11 ("S4 status",
 > "S5 status", "S6 status, Rust").

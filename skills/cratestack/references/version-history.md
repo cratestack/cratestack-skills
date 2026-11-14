@@ -13,18 +13,15 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.19.3** unless a marker says
+Everything in these skills is verified against **0.19.6** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.19.3** (2026-11-09; cut right after the change that records it here merged, so
-the `v0.19.3` tag may not exist yet when you read an older copy). Every release from 0.15.0 to
-0.19.3 is recorded below, and its changes are marked *(since X.Y.Z)* where they are taught. The
-banners moved from 0.19.1 to 0.19.3 in one change: 0.19.2 and 0.19.3 carry only the items listed below
-(`git log v0.19.1..` was checked), each reflected in the skill that owns it. They were last re-checked
-in full against the `v0.19.1` tag.
+The latest release is **0.19.6** (2026-11-14). Every release from 0.15.0 to 0.19.6 is recorded below,
+and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
+listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
 ## Reading order for an upgrade
 
@@ -68,53 +65,33 @@ each step's breaking changes assume the one before:
 11. [0.19.3](#0193-2026-11-09): opt-in WebSocket / WebTransport subscription rate limiting, real error
    codes on subscription `err` frames in the Rust client, WireMock `@status`. Nothing to migrate, but
    read the **Action** in its entry if you serve WS/WT subscriptions behind `RateLimitLayer`.
-12. [Unreleased on `main`](#unreleased-on-main-after-0193) only if you build `main`: cursor (keyset) pagination
-   (additive), subscription frames in CBOR form (breaking on the CBOR sockets and for hand-written
-   dispatchers), TypeScript COSE signing, the CBOR decode nesting-depth limit (deep input is now refused), and a
-   `415` now sends a compact op back to named bodies.
+12. [0.19.4](#0194-2026-11-11): cursor (keyset) pagination (additive), TypeScript COSE signing (a `415` now
+   sends a compact op back to named bodies), and the CBOR decode nesting-depth limit (deep input is now
+   refused). Then [0.19.5](#0195-2026-11-12): a riverpod preset pin fix, nothing to migrate.
+13. [0.19.6](#0196-2026-11-14): subscription frames in CBOR form (**breaking** on the CBOR sockets and for
+   hand-written dispatchers), `Uuid` over CBOR, `@regex` unescaping (breaking for existing patterns),
+   and `HmacEnvelope` / `SealedEnvelope` deprecated for COSE_Mac0.
 
 0.15.3 changed nothing over 0.15.2.
 
 ---
 
-## Unreleased on `main`, after 0.19.3
+## Prototype in the tags, in no published crate
 
-Skills mark these *(unreleased, cratestack#NNN)*, or *(unreleased, GHSA-…)* for a
-security fix merged from a private fork with no PR number. The TypeScript COSE entry is marked
-*(since 0.19.4)* in the skills because 0.19.3 shipped without it. At the `v0.19.1` tag the framework's
-`## Unreleased` heading was empty bar the sync-engine prototype, which is in the tags' source but in no
-published crate. (The prepared-mutation work recorded here when 0.18.0 was current shipped in
-[0.18.1](#0181-2026-11-07).)
-
-- **Cursor (keyset) pagination** (cratestack#1304) *(since 0.19.4, on `main`, in no published release)*.
-  `GET /<plural>?cursor=` and RPC `model.<M>.list` with `cursor` on `@@paged` models;
-  `pageInfo.nextCursor`; built-in `CursorPageInput` / `CursorPage<T>` for procedures; embedded
-  `parse_keyset_sort` / `keyset_after`; Rust, Dart and TypeScript client support. New 400s: `cursor` with
-  `offset`, a non-`@@paged` model, relation/repeated/Boolean/enum/JSON sorts, bad cursors. `cursor` is now
-  a reserved query key; `RpcListInput` gains a field, so exhaustive literals need `cursor: None`.
-  Additive otherwise. Owners: `cratestack-data-integrity`, `cratestack-server`, `cratestack-schema`,
-  `cratestack-clients`, `cratestack-rpc`, `cratestack-embedded`, `cratestack-troubleshooting`.
-- **Offline sync engine: prototype only** (cratestack PR #1205) *(unreleased, unpublished)*. The
+- **Offline sync engine: prototype only** (cratestack PR #1205) *(in the tags since 0.16.0, in no published crate)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.1`)
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.6`)
   and the 0.16.0 changelog lists it as a prototype, but `publish = false` keeps it off crates.io,
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
-- **TypeScript clients can sign: `createCoseClient` in `@cratestack/cbor/cose`, sealed links for REST
-  and RPC, and a `415` falls back to named bodies** (cratestack#1010) *(unreleased on main; will be
-  since 0.19.4, additive)*. `@cratestack/cbor/cose` (backends `@cratestack/cbor-web/cose` and
-  `@cratestack/cbor-node/cose`) exports `createCoseClient` (signers `hmac`, `ed25519-seed`,
-  `p256-scalar`, `external`), `createSealedLink({ cose, contracts: OP_CONTRACTS })` for a generated RPC
-  runtime and `createSealedFetch({ cose, contracts, basePath })` for a REST one. A sealed success is
-  opened, an unsigned success is refused, errors are `CoseFailure` (`rejected` / `misuse`); `stream()`
-  is never sealed, and the chunk-fed `StreamOpener` / `StreamSealer` and trust-chain verification do
-  not exist yet (cratestack#1008, #1009). The web build loads a second WASM module only for signing.
-  **Behaviour change:** a `415` to a compact request now switches that op back to named bodies for later
-  calls, on REST and RPC, sealed or not. Through 0.19.3 a generated TypeScript client cannot sign.
-  Owners: `cratestack-clients` ("Signing requests from TypeScript", "Compact field keys"),
-  `cratestack-troubleshooting` ("TypeScript: sealing").
 
+## 0.19.6 (2026-11-14)
+
+- **Dart call options carry per-call transport attributes** (cratestack#1207) *(since 0.19.6, additive)*.
+  `CratestackCallOptions.extra` and `CratestackRpcCallOptions.extra` (`Map<String, Object?>`) merge into
+  `CratestackHttpRequest.extra`, win on a key collision, and are never sent on the wire. On 0.19.5 and
+  earlier keep the header-and-strip workaround. Owner: `cratestack-clients`.
 - **`HmacEnvelope` and `SealedEnvelope` deprecated; COSE_Mac0 replaces them** (cratestack#1018)
   *(since 0.19.6, not breaking)*. `cratestack_core::HmacEnvelope` and
   `SealedEnvelope` (the HS256 envelope that MACs a JSON re-serialization of a CBOR body, 147 B per
@@ -123,7 +100,6 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   in `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load` (at least 32 random bytes), served
   by the envelope layer and sealed by `with_envelope`. `KeyProvider` and `NonceStore` are not deprecated.
   Agents must not write new `HmacEnvelope` code. Owner: `cratestack-server` ("Signed transport").
-
 - **Generated TypeScript and Dart clients read and send `Uuid` over CBOR** (cratestack#1359)
   *(since 0.19.6)*. Servers accept a `Uuid` as CBOR text or 16 bytes in every
   request position (`LenientUuid`); responses still send 16 bytes, JSON is unchanged. TypeScript revives a
@@ -133,7 +109,6 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   against a server at 0.19.5 or older has its requests refused; a new server against an old client
   mis-decodes responses (regenerate). Owners: `cratestack-clients` ("`Uuid` on CBOR"), `cratestack-server`
   ("codecs"), `cratestack-troubleshooting` ("`Uuid` over CBOR").
-
 - **Subscription frames carry `Uuid` and `Bytes` in their CBOR forms** (cratestack#1360)
   *(since 0.19.6, breaking)*. Over the CBOR WebSocket and WebTransport
   bindings an item is encoded with the binding's codec instead of `serde_json::to_value`, so a
@@ -146,8 +121,57 @@ published crate. (The prepared-mutation work recorded here when 0.18.0 was curre
   codec and yield `SubscriptionStream<RpcFrameValue>`; `ServerFrame.next` / `ClientFrame.input` are
   `RpcFrameValue`; `cratestack_webtransport::Subscription::next` yields `RpcFrameValue`;
   hand-written dispatchers add `<C: CratestackCodec>(.., _codec: C)`. Owner: `cratestack-rpc`.
+- **Batch frames and typed Rust RPC calls carry `Uuid` and `Bytes` in their CBOR forms** (cratestack#1352,
+  #1312) *(since 0.19.6)*. `/rpc/batch` frames are `RpcFrameValue`s, and the generated Rust client sends
+  both types in their CBOR forms on typed RPC calls; before, a CBOR batch carrying either was refused.
+  Owner: `cratestack-rpc`.
+- **`@regex("...")` patterns are unescaped like every other string literal** (cratestack#1314)
+  *(since 0.19.6, breaking for existing patterns)*. The pattern used to reach the regex engine with only
+  its quotes stripped. Now a single backslash (`"^\d+$"`) is a schema error, write `"^\\d+$"`; a doubled
+  backslash that used to match a literal one now matches the escaped character. Recognised escapes are
+  `\\`, `\"`, `\'`, `\n`, `\r`, `\t`. Owner: `cratestack-schema`.
+- **`EnvelopeMode::UnsignedRequestSealedReply`** (cratestack#1313) *(since 0.19.6)*. An unsigned request runs
+  only if its reply can be sealed, else it is refused before the handler. Owner: `cratestack-server`.
+- **`generate-* --check` no longer reports gitignored files as drift** when `--out` contains a symlinked
+  directory (cratestack#1235) *(since 0.19.6)*. Owner: `cratestack-cli`.
+- **`generate-wiremock` placeholders satisfy the field's own validators** (cratestack#1307) *(since 0.19.6)*.
+  Owner: `cratestack-clients`.
+- **Generated code no longer infers over `From` impls of `CratestackError`** (cratestack#1097) *(since
+  0.19.6)*: a crate adding its own `impl From<X> for CratestackError` no longer breaks generated code with
+  E0282/E0283. The generated TypeScript runtimes trim trailing slashes with a linear scan, not a regex
+  (cratestack#1236). The react-nextjs-daisyui example lints with Biome (cratestack#1061). No action needed.
 
-- **CBOR decode nesting-depth limit** (cratestack#1315) *(unreleased, since 0.19.4)*. Security fix.
+## 0.19.5 (2026-11-12)
+
+- **The riverpod Dart preset resolves again on Flutter 3.50** *(since 0.19.5)*. The preset's pubspec pins
+  `riverpod_annotation: 4.0.7`, `riverpod_generator: 4.0.9`, `build_runner: ">=2.15.2 <2.16.2"` and
+  `dart_mappable_builder: 4.9.1` (analyzer 13.x), which need Flutter 3.50 rather than 3.44.x; the
+  `default` preset is unchanged. A project on an older Flutter keeps its already generated pubspec.
+  Owner: `cratestack-clients`.
+
+## 0.19.4 (2026-11-11)
+
+- **Cursor (keyset) pagination** (cratestack#1304) *(since 0.19.4)*.
+  `GET /<plural>?cursor=` and RPC `model.<M>.list` with `cursor` on `@@paged` models;
+  `pageInfo.nextCursor`; built-in `CursorPageInput` / `CursorPage<T>` for procedures; embedded
+  `parse_keyset_sort` / `keyset_after`; Rust, Dart and TypeScript client support. New 400s: `cursor` with
+  `offset`, a non-`@@paged` model, relation/repeated/Boolean/enum/JSON sorts, bad cursors. `cursor` is now
+  a reserved query key; `RpcListInput` gains a field, so exhaustive literals need `cursor: None`.
+  Additive otherwise. Owners: `cratestack-data-integrity`, `cratestack-server`, `cratestack-schema`,
+  `cratestack-clients`, `cratestack-rpc`, `cratestack-embedded`, `cratestack-troubleshooting`.
+- **TypeScript clients can sign: `createCoseClient` in `@cratestack/cbor/cose`, sealed links for REST
+  and RPC, and a `415` falls back to named bodies** (cratestack#1010) *(since 0.19.4, additive)*. `@cratestack/cbor/cose` (backends `@cratestack/cbor-web/cose` and
+  `@cratestack/cbor-node/cose`) exports `createCoseClient` (signers `hmac`, `ed25519-seed`,
+  `p256-scalar`, `external`), `createSealedLink({ cose, contracts: OP_CONTRACTS })` for a generated RPC
+  runtime and `createSealedFetch({ cose, contracts, basePath })` for a REST one. A sealed success is
+  opened, an unsigned success is refused, errors are `CoseFailure` (`rejected` / `misuse`); `stream()`
+  is never sealed, and the chunk-fed `StreamOpener` / `StreamSealer` and trust-chain verification do
+  not exist yet (cratestack#1008, #1009). The web build loads a second WASM module only for signing.
+  **Behaviour change:** a `415` to a compact request now switches that op back to named bodies for later
+  calls, on REST and RPC, sealed or not. Through 0.19.3 a generated TypeScript client cannot sign.
+  Owners: `cratestack-clients` ("Signing requests from TypeScript", "Compact field keys"),
+  `cratestack-troubleshooting` ("TypeScript: sealing").
+- **CBOR decode nesting-depth limit** (cratestack#1315) *(since 0.19.4)*. Security fix.
   Every CBOR decode refuses input nested deeper than 128 levels (array, map or tag); before it, about
   8000 levels overflowed the stack, an uncatchable crash on servers, clients, `@cratestack/cbor-node`
   and `-web`. A normal `CratestackError::Codec` ("nesting too deep") in Rust, a `RangeError` in JS.
