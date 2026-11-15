@@ -120,8 +120,9 @@ re-run for 0.19.1; the rename reader and table diff are unchanged since 0.14.2):
 `"OldModel"` form is refused as destructive.
 
 **Storage-name changes are renames** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*. A changed `@@map` / `@map` is never a silent drop and
-create: per the design, `migrate diff` refuses a changed table or column storage name
-(`storage name changed; add @@rename(from = …)`, naming the exact marker) unless the model carries
+create: `migrate diff` refuses a changed table or column storage name
+(`MigrateError::TableStorageNameChanged` / `ColumnStorageNameChanged`; the message names the exact
+`@@rename(from = "…")` / `@rename(from = "…")` to add) unless the model carries
 `@@rename(from = "<old_table>")` or the field `@rename(from = "<old_column>")`; adding `@@map` to a
 model that already has a table is such a change. With the marker it is one `RENAME`. Routes, op ids
 and clients do not change either way. Not verified here against the final error text: check
