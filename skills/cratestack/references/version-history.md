@@ -108,6 +108,13 @@ to 0.19.8 or earlier does not have it. Move each item under its release heading 
   `with_envelope`. `KeyProvider`, `NonceStore`, `InMemoryNonceStore` and `StaticKeyProvider` stay;
   `cratestack-core` no longer depends on `hmac` or `subtle`. Owner: `cratestack-server` ("Signed transport")
   (+ `cratestack-troubleshooting`).
+- **`cratestack --require-version` / `CRATESTACK_REQUIRE_VERSION`** (cratestack#1372) *(since 0.20.0, unreleased on main, additive)*.
+  The CLI checks its own version against a Cargo `VersionReq` before any subcommand and exits 1 with an
+  `Error:` naming the running version, the requirement and the executable path on a mismatch or an
+  unparsable requirement. A bare version means exactly `=`, not caret; the flag wins over the env var; an
+  empty value counts as unset; `--version` / `--help` are unaffected. Use the env var in CI and justfiles to
+  catch an older `cratestack` shadowing the pinned one on `PATH`. Owner: `cratestack-cli`
+  (+ `cratestack-troubleshooting`).
 
 ## 0.19.8 (2026-11-15)
 
