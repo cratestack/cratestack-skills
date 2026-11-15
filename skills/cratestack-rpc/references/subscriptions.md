@@ -359,7 +359,7 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   `CratestackSubscriptionOptions(maxEventBytes: n)`, default 1 MiB (UTF-8 bytes after `\r\n` -> `\n`, so up to
   one more byte per line than Rust counts). Over it, the SSE stream throws `CratestackEventTooLargeException` (a
   `CratestackSubscriptionException`, code `event_too_large`, `.limit`) and cancels the request. In `--preset riverpod` the generated subscription stream providers pass
-  `retry: cratestackSubscriptionRetry`: Riverpod 3 would otherwise retry a failed provider (up to 10 times, with
+  `retry: cratestackSubscriptionRetry` (it defers to `ProviderContainer.defaultRetry`, except for the oversize error): Riverpod 3 would otherwise retry a failed provider (up to 10 times, with
   backoff, unless the error is an `Error` or `ProviderException`), reconnecting after an oversized event. The
   function skips `CratestackEventTooLargeException` (it reaches the provider as an `AsyncError` at once;
   `ref.invalidate` retries by hand) and keeps the default for other errors.
