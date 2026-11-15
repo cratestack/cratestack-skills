@@ -5,7 +5,7 @@ description: Authoring and debugging .cstack schema files for CrateStack — mod
 
 # Authoring `.cstack`
 
-> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -217,7 +217,7 @@ takes only what its kind lists, each in its one exact spelling:
 
 | Declaration | Accepts |
 | --- | --- |
-| `model` | `@id` `@unique` `@default(…)` `@relation(…)` `@computed` `@readonly` `@server_only` `@version` `@pii` `@sensitive` `@db_enforce` `@email` `@uri` `@iso4217` `@length(…)` `@range(…)` `@regex(…)` `@rename(from = "…")` `@map("…")` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* |
+| `model` | `@id` `@unique` `@default(…)` `@relation(…)` `@computed` `@readonly` `@server_only` `@version` `@pii` `@sensitive` `@db_enforce` `@email` `@uri` `@iso4217` `@length(…)` `@range(…)` `@regex(…)` `@rename(from = "…")` `@map("…")` *(since 0.20.1, cratestack#1375)* |
 | `view` | `@id` `@server_only` `@from(Model.field)` |
 | `mixin` | a model's list without `@id` and `@computed` |
 | `type` | `@computed` `@length(…)` `@range(…)` `@regex(…)` `@email` `@uri` `@iso4217` |
@@ -302,7 +302,7 @@ shows `using: "gist"` with quotes — that is wrong and will be rejected.
 validates composite primary keys, and all three entry macros reject them
 outright. Treat composite PKs as not yet usable, whatever `check` says.
 
-## Storage names: `@@map` and `@map` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*
+## Storage names: `@@map` and `@map` *(since 0.20.1, cratestack#1375)*
 
 `@@map("<table>")` on a model and `@map("<column>")` on a stored scalar field set the **SQL name
 only**. Use them to adopt an existing database whose tables are named differently (`bank`, not
@@ -340,14 +340,14 @@ model Bank {
 - Hand-written SQL (view `@@server_sql` / `@@sql`, `query` blocks, `up.pre.sql`) must use the
   mapped names.
 - Changing a mapping later is a rename for `cratestack migrate`; see `cratestack-migrations`.
-- In a release before this ships both are refused (`unsupported attribute`).
+- In a release before 0.20.1 both are refused (`unsupported attribute`).
 
 **An unrecognised `@@` attribute** was silently inert on 0.14.0 and earlier: the
 near-miss check only ran on field attributes, so `@@check(…)` or
 `@@sofT_delete` reported `schema OK` and did nothing. It is refused *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*: a model takes only `@@allow` `@@deny` `@@emit` `@@paged`
 `@@audit` `@@soft_delete` `@@retain` `@@subscribe` `@@id` `@@unique` `@@index`
-`@@internal` `@@rename` `@@map` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* (and `@@mcp`); a view only `@@allow` `@@deny`
+`@@internal` `@@rename` `@@map` *(since 0.20.1, cratestack#1375)* (and `@@mcp`); a view only `@@allow` `@@deny`
 `@@server_sql` `@@embedded_sql` `@@sql` `@@materialized` `@@no_unique`.
 
 ## Views and `query` blocks

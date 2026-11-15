@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.20.0** unless a marker says
+Everything in these skills is verified against **0.20.1** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.20.0** (2026-11-15). Every release from 0.15.0 to 0.20.0 is recorded below,
+The latest release is **0.20.1** (2026-11-15). Every release from 0.15.0 to 0.20.1 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -77,6 +77,7 @@ each step's breaking changes assume the one before:
    keys in `cratestack-cose`, additive; nothing to migrate.
 16. [0.20.0](#0200-2026-11-15): **breaking**: `HmacEnvelope` / `SealedEnvelope` removed (move to COSE_Mac0);
    additive: TypeScript `requireSealed`, and the CLI `--require-version` / `CRATESTACK_REQUIRE_VERSION`.
+17. [0.20.1](#0201-2026-11-15): additive: `@@map` / `@map` storage names; nothing to migrate unless you adopt them.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -92,12 +93,15 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.20.0, on main)
+## Unreleased (after 0.20.1, on main)
 
-Nothing here is in a published release. Items are marked *(unreleased on main)*, so a project
-pinned to 0.20.0 or earlier does not have them. When the release is cut, move each item under its release heading.
+Nothing is recorded here: every item verified so far is in a published release. When something lands on `main`
+and not in a release, mark it *(unreleased on main)* and list it here; when the release is cut, move each item
+under its release heading.
 
-- **`@@map("table")` / `@map("column")` storage names** (cratestack#1375) *(unreleased on main, additive)*.
+## 0.20.1 (2026-11-15)
+
+- **`@@map("table")` / `@map("column")` storage names** (cratestack#1375) *(since 0.20.1, additive)*.
   Set the SQL table or column name only: REST paths, RPC op ids, clients, contract and digests do not
   change (`cratestack diff`: Internal). Grammar `^[a-z_][a-z0-9_]*$`, at most 63 bytes, no reserved word,
   no `cratestack_` / `sqlite_` / `pg_` table prefix; not on relation, `@computed`, view, `type` or `auth`
@@ -108,7 +112,7 @@ pinned to 0.20.0 or earlier does not have them. When the release is cut, move ea
   compares stored fields only; on `@@soft_delete` `deletedAt` may not be `@map`ped and nothing maps to
   `deleted_at`; `migrate baseline` records the mapping (later change refused) and
   `TableStorageNameUnrecorded` / `ColumnStorageNameUnrecorded` cover snapshots without identity;
-  embedded has no migrate step (new empty table on `@@map`, error on `@map` of an existing column). In a release before this ships `@@map` / `@map` are refused. Owner:
+  embedded has no migrate step (new empty table on `@@map`, error on `@map` of an existing column). In a release before 0.20.1 `@@map` / `@map` are refused. Owner:
   `cratestack-schema` (+ `cratestack-migrations`, `cratestack-troubleshooting`, `cratestack-server`).
 
 ## 0.20.0 (2026-11-15)
