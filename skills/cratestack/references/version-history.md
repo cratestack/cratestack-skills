@@ -95,6 +95,14 @@ each step's breaking changes assume the one before:
 Everything here is in no published release (items are marked *(removed in 0.20.0, unreleased on main)* or *(since 0.20.0, unreleased on main)*), so a project pinned
 to 0.19.8 or earlier does not have it. Move each item under its release heading when that release is cut.
 
+- **`@@map("table")` / `@map("column")` storage names** (cratestack#1375) *(unreleased on main, additive)*.
+  Set the SQL table or column name only: REST paths, RPC op ids, clients, contract and digests do not
+  change (`cratestack diff`: Internal). Grammar `^[a-z_][a-z0-9_]*$`, at most 63 bytes, no reserved word,
+  no `cratestack_` / `sqlite_` / `pg_` table prefix; not on relation, `@computed`, view, `type` or `auth`
+  fields. A changed mapping is refused by `migrate diff` unless `@@rename` / `@rename` is present; adopt an
+  existing database with `@@map` plus `migrate baseline`. Raw SQL uses mapped names. Also fixes audit
+  redaction of mapped `@pii` / `@sensitive` columns. In a release before this ships `@@map` / `@map` are refused. Owner:
+  `cratestack-schema` (+ `cratestack-migrations`, `cratestack-troubleshooting`, `cratestack-server`).
 - **`requireSealed` makes the TypeScript sealed link fail closed** (cratestack#1371) *(since 0.20.0, unreleased on main)*.
   `@cratestack/cbor/cose`'s `createSealedLink` (RPC unary and batch) and `createSealedFetch` (REST) take an
   opt-in `requireSealed: true`. The default is unchanged: a call with no `OP_CONTRACTS` entry, or that `cose`

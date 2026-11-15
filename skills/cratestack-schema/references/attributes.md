@@ -147,15 +147,17 @@ accepted: after upgrading it gets `422`.
 | `@@emit(created, updated, deleted)` | ≥1 of exactly those three | At most one per model; duplicates deduped. |
 | `@@subscribe` | **bare only** | Requires `@@emit(...)`. Required `transport rpc` too until cratestack#1267 (0.18.0). |
 | `@@rename(from = "<old_table>")` | exactly `from = "…"`, double quotes | Migration marker, read only by `cratestack migrate`. The value is the **old SQL table name** (`"old_models"`), not the old model name. *(since 0.14.1, GHSA-69g4-xvcm-vm2j)*: any other argument form, and a second `@@rename`, are refused; on 0.14.0 they checked as `schema OK` and the next migration dropped and re-created the table. A well-formed marker naming a table that does not exist is still accepted by `check` and silently ignored by the migrator. |
+| `@@map("<table>")` | exactly one double-quoted name, `^[a-z_][a-z0-9_]*$`, at most 63 bytes | *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* Storage-only: the SQL table name. Routes, op ids, clients, contract and digests do not change. Not a reserved word, no `.`, no `cratestack_` / `sqlite_` / `pg_` prefix, one per model, unique across models and views. Refused on a view. |
 | `@@internal("action")` | **exactly one quoted action per declaration** | Vocabulary: `list`, `detail`, `read`, `create`, `update`, `delete`, `all`. Suppresses the REST route, the RPC dispatch arm and the client stub. Does **not** suppress policy evaluation, and does not exempt handler-name collisions. |
 | `@use(MixinA, MixinB)` | comma list | Written inside the model body. Expanded at parse time; the model's own field wins on a name clash. |
 | `@@mcp(resource: "segment", max_page_size: N)` | see `cratestack-mcp` | *(since 0.13.0)* Exposes the model as a read-only MCP resource. Needs an `mcp { }` block exposing `resources`, and a read `@@allow`. Must sit on its own line. |
 
-`@@map` does not exist. Table names are always `pluralize(snake_case(Name))`.
+`@@map("<table>")` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* sets the model's SQL table name; without it the table is
+`pluralize(snake_case(Name))`. In a release before this ships `@@map` is refused. See "Storage names" in `cratestack-schema`.
 
 **On 0.14.0 and earlier, an unrecognised `@@` attribute is silently inert.** The
 near-miss typo check runs on field attributes only, so `@@sofT_delete` or
-`@@map("docs")` enforces nothing and reports `schema OK`.
+`@@check("docs")` enforces nothing and reports `schema OK`.
 
 **Since 0.14.1 the table above is a closed list** *(GHSA-69g4-xvcm-vm2j)*,
 plus `@@mcp`, which the parser moves out before

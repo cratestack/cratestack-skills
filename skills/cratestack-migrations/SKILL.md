@@ -119,6 +119,14 @@ re-run for 0.19.1; the rename reader and table diff are unchanged since 0.14.2):
 `ALTER TABLE new_models RENAME COLUMN old_field TO new_field;`. The
 `"OldModel"` form is refused as destructive.
 
+**Storage-name changes are renames** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*. A changed `@@map` / `@map` is never a silent drop and
+create: per the design, `migrate diff` refuses a changed table or column storage name
+(`storage name changed; add @@rename(from = …)`, naming the exact marker) unless the model carries
+`@@rename(from = "<old_table>")` or the field `@rename(from = "<old_column>")`; adding `@@map` to a
+model that already has a table is such a change. With the marker it is one `RENAME`. Routes, op ids
+and clients do not change either way. Not verified here against the final error text: check
+`crates/cratestack-migrate`.
+
 **Backfills.** `up.pre.sql` *(since 0.10.0)* is scaffolded for a blocking migration and you write
 the body. It runs immediately before `up.sql` **in the same transaction**. It is
 written create-new and never truncated: an existing `up.pre.sql` is kept and the
@@ -178,6 +186,11 @@ payload_before JSONB;` (`crates/cratestack-sqlx/src/descriptor/event_outbox.rs`)
 ## `migrate baseline` — adopting an existing database
 
 Postgres only, enforced at the type level. Sequence:
+
+**Tables with other names** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*: do not rename them. Write `@@map("<live_table>")` and
+`@map("<live_column>")` on the schema to match, then run `baseline`; the snapshot holds the mapped
+names and the next `diff` is empty. Index and FK names derive from the mapped names, so the first
+diff may drop and re-add a differently named live index; review it.
 
 1. **Refuses immediately** if `<out-dir>/postgres/schema.snapshot.json` already
    exists — before parsing, before connecting.
