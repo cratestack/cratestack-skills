@@ -90,6 +90,19 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
+## Unreleased (after 0.19.8, on `main`)
+
+Everything here is in no published release (items are marked *(removed in 0.20.0, unreleased on main)*), so a project pinned
+to 0.19.8 or earlier does not have it. Move each item under its release heading when that release is cut.
+
+- **Breaking: `HmacEnvelope` and `SealedEnvelope` removed** (cratestack#1357) *(removed in 0.20.0, unreleased on main)*.
+  `cratestack_core::HmacEnvelope` and `SealedEnvelope` (the HS256 envelope, deprecated since 0.19.6,
+  cratestack#1018) are gone; naming either no longer compiles. Use `cratestack_cose::CoseEnvelope` in
+  `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load`, served by `envelope_layer` and sealed by
+  `with_envelope`. `KeyProvider`, `NonceStore`, `InMemoryNonceStore` and `StaticKeyProvider` stay;
+  `cratestack-core` no longer depends on `hmac` or `subtle`. Owner: `cratestack-server` ("Signed transport")
+  (+ `cratestack-troubleshooting`).
+
 ## 0.19.8 (2026-11-15)
 
 - **Dart keystore callback signer** (cratestack#1151) *(since 0.19.8, additive)*.
@@ -99,13 +112,6 @@ each step's breaking changes assume the one before:
   `CoseSignerCancelled`, `CoseSignerTimedOut` and `CoseSignerFailed` are now produced. `CoseSigner` is sealed
   and gains a subtype (an exhaustive `switch` needs a new arm). Rust: `CoseVerifyKey::p256_spki` /
   `p256_public`. TypeScript does not expose the new codes yet. Owner: `cratestack-clients`
-  (+ `cratestack-troubleshooting`).
-- **Breaking: `HmacEnvelope` and `SealedEnvelope` removed** (cratestack#1357) *(removed in 0.20.0, unreleased on main)*.
-  `cratestack_core::HmacEnvelope` and `SealedEnvelope` (the HS256 envelope, deprecated since 0.19.6,
-  cratestack#1018) are gone; naming either no longer compiles. Use `cratestack_cose::CoseEnvelope` in
-  `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load`, served by `envelope_layer` and sealed by
-  `with_envelope`. `KeyProvider`, `NonceStore`, `InMemoryNonceStore` and `StaticKeyProvider` stay;
-  `cratestack-core` no longer depends on `hmac` or `subtle`. Owner: `cratestack-server` ("Signed transport")
   (+ `cratestack-troubleshooting`).
 
 ## 0.19.7 (2026-11-14)
