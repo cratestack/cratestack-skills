@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.7.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -149,7 +149,7 @@ through fespalier's `HttpTransport` with no Dio. Which to pick:
 | `riverpod` | a Riverpod app; Dio or your own transport |
 | `fespalier` *(since 0.16.0, cratestack#1204)* | the app's HTTP stack is a `fespalier_transport` chain (session, signing, portal check, spans), so a second client under it is wrong |
 
-**Device enrolment under `fespalier`: do not hand-write a `DeviceAuthServer`.** *(since 0.19.7, unreleased on main, cratestack#1303)* If the app uses
+**Device enrolment under `fespalier`: do not hand-write a `DeviceAuthServer`.** *(since 0.19.7, cratestack#1303)* If the app uses
 `fespalier_sign_keypair`, mark the schema's enrolment, renewal and revocation procedures with
 `@device_auth(role: "...")` (see `cratestack-schema`) and `generate-dart --preset fespalier` emits
 `lib/src/device_auth_server.dart`: `<Prefix>DeviceAuthServer implements DeviceAuthServer` over the generated

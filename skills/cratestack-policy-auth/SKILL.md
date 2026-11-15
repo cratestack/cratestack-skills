@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.19.6.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.7.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -467,7 +467,7 @@ same-key retry works on 0.17.1.
 
 ## `@device_auth` legs: public means exactly `@allow(true)`
 
-*(since 0.19.7, unreleased on main, cratestack#1303)* A procedure marked `@device_auth(role: "...")` (see `cratestack-schema`) is called by a device that
+*(since 0.19.7, cratestack#1303)* A procedure marked `@device_auth(role: "...")` (see `cratestack-schema`) is called by a device that
 has no session yet, so every leg except `revoke` (the four required ones and the optional
 `sendEnrolmentCode`) must carry exactly one `@allow(true)` (whitespace-insensitive) and no `@deny`, `@authn`
 or `@authorize`; anything else is a parse error at the marker. `revoke` is the reverse: the device signs it,
