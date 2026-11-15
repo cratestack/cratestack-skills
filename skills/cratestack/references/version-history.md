@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.19.7** unless a marker says
+Everything in these skills is verified against **0.19.8** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.19.7** (2026-11-14). Every release from 0.15.0 to 0.19.7 is recorded below,
+The latest release is **0.19.8** (2026-11-15). Every release from 0.15.0 to 0.19.8 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -73,6 +73,8 @@ each step's breaking changes assume the one before:
    and `HmacEnvelope` / `SealedEnvelope` deprecated for COSE_Mac0.
 14. [0.19.7](#0197-2026-11-14): the `@device_auth` procedure marker and the generated fespalier
    `DeviceAuthServer`, additive; nothing to migrate.
+15. [0.19.8](#0198-2026-11-15): the Dart keystore callback signer `ExternalSigner.esp256` and P-256 SPKI
+   keys in `cratestack-cose`, additive; nothing to migrate.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -82,18 +84,15 @@ each step's breaking changes assume the one before:
 
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(in the tags since 0.16.0, in no published crate)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.7`)
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.8`)
   and the 0.16.0 changelog lists it as a prototype, but `publish = false` keeps it off crates.io,
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.19.7, on `main`)
+## 0.19.8 (2026-11-15)
 
-Everything here is in no published release (items are marked *(since 0.19.8, unreleased on main)*), so a project pinned
-to 0.19.7 or earlier does not have it. Move each item under its release heading when that release is cut.
-
-- **Dart keystore callback signer** (cratestack#1151) *(since 0.19.8, unreleased on main, additive)*.
+- **Dart keystore callback signer** (cratestack#1151) *(since 0.19.8, additive)*.
   `package:cratestack_cbor/cose.dart` gains `ExternalSigner.esp256(publicKey:, sign:, timeout:)` and
   `SignOutcome`, so a P-256 key in the Android Keystore, the Secure Enclave or WebCrypto can sign a
   `COSE_Sign1` request; `timeout` is required, `publicKey` is a SEC1 point (uncompressed or compressed) or a P-256 SPKI (server keys stay SEC1 only), and
