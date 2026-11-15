@@ -347,7 +347,10 @@ cratestack contract ops --schema s.cstack --json
   term reader in `cratestack-policy`, with its quirks (set membership is read before comparison, so
   `label in ["== auth().id"]` is membership, maybe true, not a comparison with `auth()`). How string literals that
   hold quotes, escapes, operators or parentheses are read is the server's, unchanged, and is tracked in
-  cratestack#1392; do not write policies that depend on it.
+  cratestack#1392; do not write policies that depend on it. For a schema that compiles the verdict is the
+  server's behaviour; for a schema the macros refuse no server exists and the verdict is not meaningful (the
+  command parses and semantically checks but does not run the macros, so a term they would refuse can still get
+  a verdict). Run `cratestack check` first.
 - An op with **no `@allow`** is denied to everyone: `requires_principal: true` with an empty `allow`.
 - `unanalysed`: rules the analysis does not understand, and attributes the macros' own audit would refuse (a
   mis-spaced `@allow (x)`). Such an op reports `requires_principal: false` (treated as anonymous), so
