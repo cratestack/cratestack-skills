@@ -5,7 +5,7 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.19.8.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -58,7 +58,7 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 
 Pin `@main` to a tag or SHA for reproducibility.
 
-## Pin the binary version *(since 0.20.0, unreleased on main, cratestack#1372)*
+## Pin the binary version *(since 0.20.0, cratestack#1372)*
 
 A second `cratestack` earlier on `PATH` (typically an old one in `~/.cargo/bin`) runs every command
 without complaint and generates from the wrong version. **In CI and justfiles, set
@@ -341,7 +341,7 @@ versus "error".
 | `migrate baseline --strict` with drift, or snapshot already exists | 1 |
 | `contract check` not locked or broken; `contract lock` refused | 1 |
 | `contract …` tool error (unreadable schema or lock, bad date or flag) | 2 |
-| `--require-version` / `CRATESTACK_REQUIRE_VERSION` not satisfied, or unparsable *(since 0.20.0, unreleased on main)* | 1 |
+| `--require-version` / `CRATESTACK_REQUIRE_VERSION` not satisfied, or unparsable *(since 0.20.0)* | 1 |
 | a usage error caught by argument parsing (an unknown flag such as the removed `--no-native-cbor`, a missing required argument) | 2 (clap's usage-error code; `main` calls `Cli::parse()`) |
 
 ## CI recipes

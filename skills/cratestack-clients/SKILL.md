@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.8.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -502,7 +502,7 @@ new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_C
 - **Mode per call:** `cose` may be `({ route, method }) => CoseClient | undefined`: Sign1 before a
   session, Mac0 (`hmac`) after it, `undefined` for anonymous calls (sent unsealed). A new session
   key is a new `CoseClient`.
-- **Fail open by default; `requireSealed: true` fails closed** *(since 0.20.0, unreleased on main, cratestack#1371)*. Without it, a call whose op has
+- **Fail open by default; `requireSealed: true` fails closed** *(since 0.20.0, cratestack#1371)*. Without it, a call whose op has
   no `OP_CONTRACTS` entry, or that `cose` declines with `undefined`, goes out **unsealed**. For a client
   that must sign every call, pass it to `createSealedLink` (unary and batch) or `createSealedFetch`
   (REST): such a call is refused locally, before any `fetch`, with `SealRequired`, a `CoseFailure`
