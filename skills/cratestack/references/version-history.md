@@ -98,6 +98,14 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
+- **The `cratestack-*` crates pin each other exactly** (cratestack#1390) *(unreleased on main, cratestack#1390)*.
+  Each crate requires its siblings as `=x.y.z`, not a caret, so one build resolves one CrateStack version. Before,
+  pinning one facade at `=0.20.0` could still resolve `cratestack-core` / `cratestack-policy` at 0.20.1 beside
+  0.20.0 of the rest. Upgrading means moving every `cratestack-*` pin in the build to the same version in one
+  change, then `cargo update` (`cargo update -p <one sibling>` alone fails); an older facade pinned beside a newer
+  sibling is now a resolution error, not a silent mix.
+  Applies from the first release that contains it; releases up to 0.20.1 still use caret sibling requirements.
+  Owner: `cratestack` (router).
 - **One SSE event is capped in the generated clients** *(unreleased on main, cratestack#1379)*: 1 MiB by default,
   configurable (`ClientConfig::with_max_sse_event_bytes`, TypeScript `subscriptions.maxEventBytes`, Dart
   `CratestackSubscriptionOptions.maxEventBytes`); over it the stream ends with `ClientError::EventTooLarge { limit }` /
