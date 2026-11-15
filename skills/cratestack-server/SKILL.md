@@ -162,13 +162,14 @@ let db = cratestack_schema::Cratestack::builder(pool).build();
 - Session settings are startup `-c` options appended after the URL's `options=`, so they win.
   `DateStyle`, `client_encoding`, `TimeZone`, `extra_float_digits` and `application_name` are
   refused (`BadRequest`, any case): sqlx sets them at startup, after `-c` options. Use
-  `.application_name(&str)` for the last. Names match `[a-z_][a-z0-9_.]*`; a bad name or `max_connections(0)` is `BadRequest` from
+  `.application_name(&str)` for the last. The same five names in the URL's own `options=`
+  (`-c TimeZone=UTC`) are also refused by `from_url`, since sqlx's startup parameter overrides them. Names match `[a-z_][a-z0-9_.]*`; a bad name or `max_connections(0)` is `BadRequest` from
   `connect_lazy`/`connect`, not from the setter.
 - `verify_settings` compares as the server renders values (`30000` equals `30s`); run it at
   start-up, since a pooler in transaction mode silently drops startup options. Mismatch is
   `Unavailable`; an unknown name or an unchangeable one (`shared_buffers`) is `BadRequest`.
 - `connect().await` errors: `BadRequest` for a config fault (unknown database/role, bad setting,
-  TLS failure; never echoes the URL), `Unavailable` when the database cannot be reached.
+  TLS failure; never echoes the URL), `Unavailable` when the database cannot be reached or is going away (57P01/57P02/57P03, class 08).
 - URLs only: a libpq `host=.. dbname=..` DSN is `BadRequest`. There is no `connect_timeout`
   knob (sqlx has none); `acquire_timeout` bounds the wait and the connect.
 - Not in a release yet: on 0.20.1 and earlier there is no such type; use sqlx's `PgPoolOptions`.
