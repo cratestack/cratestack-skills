@@ -152,17 +152,23 @@ let config = cratestack::PgPoolConfig::from_url(&url)?        // BadRequest on a
     .acquire_timeout(std::time::Duration::from_secs(5))
     .test_before_acquire(true)
     .session_setting("statement_timeout", "30000")
-    .session_setting("lock_timeout", "10000");
+    .session_setting("lock_timeout", "10000")
+    .application_name("my-service");
 let pool = config.connect_lazy()?;      // Result<PgPool, _>; `.connect().await?` opens one connection
 config.verify_settings(&pool).await?;   // Unavailable naming the setting if the server did not apply it
 let db = cratestack_schema::Cratestack::builder(pool).build();
 ```
 
 - Session settings are startup `-c` options appended after the URL's `options=`, so they win.
-  Names match `[a-z_][a-z0-9_.]*`; a bad name or `max_connections(0)` is `BadRequest` from
+  `DateStyle`, `client_encoding`, `TimeZone`, `extra_float_digits` and `application_name` are
+  refused (`BadRequest`, any case): sqlx sets them at startup, after `-c` options. Use
+  `.application_name(&str)` for the last. Names match `[a-z_][a-z0-9_.]*`; a bad name or `max_connections(0)` is `BadRequest` from
   `connect_lazy`/`connect`, not from the setter.
 - `verify_settings` compares as the server renders values (`30000` equals `30s`); run it at
-  start-up, since a pooler in transaction mode silently drops startup options.
+  start-up, since a pooler in transaction mode silently drops startup options. Mismatch is
+  `Unavailable`; an unknown name or an unchangeable one (`shared_buffers`) is `BadRequest`.
+- `connect().await` errors: `BadRequest` for a config fault (unknown database/role, bad setting,
+  TLS failure; never echoes the URL), `Unavailable` when the database cannot be reached.
 - URLs only: a libpq `host=.. dbname=..` DSN is `BadRequest`. There is no `connect_timeout`
   knob (sqlx has none); `acquire_timeout` bounds the wait and the connect.
 - Not in a release yet: on 0.20.1 and earlier there is no such type; use sqlx's `PgPoolOptions`.
@@ -336,7 +342,7 @@ Encoded with the same negotiated codec as a success body. This is the REST shape
 | `TooManyRequests` | `TOO_MANY_REQUESTS` | 429 |
 | `AuthRefused` *(since 0.17.1)* | `UNAUTHORIZED` / `FORBIDDEN` | 401 / 403 — an `AuthRefusal`, see `cratestack-policy-auth` |
 | `Database`, `DatabaseTyped`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
-| `Unavailable` | `UNAVAILABLE` | 503 (also, *(unreleased on main, cratestack#1385)*, the sqlx errors `PoolTimedOut`, `PoolClosed`, `WorkerCrashed`, `Io`, `Tls`; protocol and decode errors stay `DATABASE_ERROR` 500) |
+| `Unavailable` | `UNAVAILABLE` | 503 (also, *(unreleased on main, cratestack#1385)*, the sqlx errors `PoolTimedOut`, `PoolClosed`, `WorkerCrashed`, `Io`; TLS, protocol and decode errors stay `DATABASE_ERROR` 500) |
 
 4xx messages (and `Unavailable`'s 503) are the caller-supplied string, except
 `Codec`, whose 400 always reads `invalid request payload`. **500 messages are
