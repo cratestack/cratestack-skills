@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.19.7.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.19.8.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -409,7 +409,7 @@ final opened = await envelope.openResponse(
 - **Signers.** `HmacSigner(alg, secret)` (`COSE_Mac0`, secret of at least 32 random bytes; pin with
   `CoseServerKey.hmac`) and `Ed25519Signer.fromSeed(seed)` (`COSE_Sign1`) hold the key in memory:
   services and tests, **never a user's device**. For a device key use
-  `ExternalSigner.esp256(publicKey:, sign:, timeout:)` *(since 0.19.8, unreleased on main, cratestack#1151)*: the key stays in the
+  `ExternalSigner.esp256(publicKey:, sign:, timeout:)` *(since 0.19.8, cratestack#1151)*: the key stays in the
   Android Keystore, the Secure Enclave or WebCrypto, and `sign` gets the complete to-be-signed bytes and
   returns a `SignOutcome` (`signature(bytes)`, `cancelled()`, `timedOut()`, `failed(message)`). Sign the bytes as
   given, never a digest (Android `SHA256withECDSA`, iOS `.ecdsaSignatureMessageX962SHA256`, web
