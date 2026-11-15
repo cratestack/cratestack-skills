@@ -88,6 +88,20 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
+## Unreleased (after 0.19.7, on `main`)
+
+Everything here is in no published release (items are marked *(since 0.19.8, unreleased on main)*), so a project pinned
+to 0.19.7 or earlier does not have it. Move each item under its release heading when that release is cut.
+
+- **Dart keystore callback signer** (cratestack#1151) *(since 0.19.8, unreleased on main, additive)*.
+  `package:cratestack_cbor/cose.dart` gains `ExternalSigner.esp256(publicKey:, sign:, timeout:)` and
+  `SignOutcome`, so a P-256 key in the Android Keystore, the Secure Enclave or WebCrypto can sign a
+  `COSE_Sign1` request; `timeout` is required, `publicKey` is a SEC1 point (uncompressed or compressed) or a P-256 SPKI (server keys stay SEC1 only), and
+  `CoseSignerCancelled`, `CoseSignerTimedOut` and `CoseSignerFailed` are now produced. `CoseSigner` is sealed
+  and gains a subtype (an exhaustive `switch` needs a new arm). Rust: `CoseVerifyKey::p256_spki` /
+  `p256_public`. TypeScript does not expose the new codes yet. Owner: `cratestack-clients`
+  (+ `cratestack-troubleshooting`).
+
 ## 0.19.7 (2026-11-14)
 
 - **`@device_auth` procedure marker; `generate-dart --preset fespalier` emits a `DeviceAuthServer`**

@@ -406,18 +406,24 @@ final opened = await envelope.openResponse(
 - **A bound `Idempotency-Key` or `If-Match` goes into `CallBinding` and onto the
   request, byte for byte**, or the server answers 401.
 - **Reseal on every retry.** A resent sealed body is a replayed `cti`.
-- **Signers in this release are in memory only:** `HmacSigner(alg, secret)`
-  (`COSE_Mac0`, secret of at least 32 random bytes; pin with
-  `CoseServerKey.hmac`) for services, and `Ed25519Signer.fromSeed(seed)`
-  (`COSE_Sign1`). **Neither is for a user's device.** There is no Android
-  Keystore or Secure Enclave signer yet; it is a later release (a Dart callback
-  into `ExternalSigner::esp256`), with no date. `CoseServerKey.p256Sec1`
-  verifies an ESP256 server, but nothing in Dart signs ESP256. Do not invent a
-  keystore signer in app code.
+- **Signers.** `HmacSigner(alg, secret)` (`COSE_Mac0`, secret of at least 32 random bytes; pin with
+  `CoseServerKey.hmac`) and `Ed25519Signer.fromSeed(seed)` (`COSE_Sign1`) hold the key in memory:
+  services and tests, **never a user's device**. For a device key use
+  `ExternalSigner.esp256(publicKey:, sign:, timeout:)` *(since 0.19.8, unreleased on main, cratestack#1151)*: the key stays in the
+  Android Keystore, the Secure Enclave or WebCrypto, and `sign` gets the complete to-be-signed bytes and
+  returns a `SignOutcome` (`signature(bytes)`, `cancelled()`, `timedOut()`, `failed(message)`). Sign the bytes as
+  given, never a digest (Android `SHA256withECDSA`, iOS `.ecdsaSignatureMessageX962SHA256`, web
+  `subtle.sign({name:'ECDSA', hash:'SHA-256'})`); DER or raw `r||s` are both fine. `publicKey` is a SEC1 point (65-byte
+  uncompressed or 33-byte compressed) or a P-256 SPKI (Android `getEncoded()`); the `kid` is derived, never passed. `timeout` is **required**
+  (no default, must be positive) and does not cancel the platform prompt. Return an outcome; do not throw. **Do not do the DER,
+  low-`s` or verification in app code**: Rust does all of it, and a bad signature is `CoseMisuse`. There is still
+  no in-memory ESP256 signer in Dart. `CoseSigner` is sealed, so an exhaustive `switch` needs an
+  `ExternalSigner()` arm. `CoseServerKey.p256Sec1` pins an ESP256 *server* and, unlike the signer key, is SEC1 only (no SPKI). Keep a `failed(message)` fixed and free of secrets (e.g. `SignOutcome.failed('keystore unavailable')`), never exception text: it is logged. It works on native and web;
+  TypeScript does not expose the new signer codes yet.
 - **Required only,** like the Rust client: every request is sealed and only a
   response to a sealed request opens. There is no `Optional` mode.
 - **Errors:** `CoseRejected` (no message, the same for every failed check),
-  `CoseMisuse`, and the signer errors reserved for the keystore signer; see
+  `CoseMisuse`, and the three signer errors `ExternalSigner` produces; see
   `cratestack-troubleshooting`.
 - **Codec-only builds.** The main entry of `@cratestack/cbor-web` on npm is built without the
   `cose` feature and stays codec-only (since 0.19.4 its signing code is a separate `./cose`
