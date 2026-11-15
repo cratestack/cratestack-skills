@@ -329,7 +329,7 @@ cratestack contract ops --schema s.cstack --json
 - `key` and `contract_digest` are what `contract digest` prints. `kind` is `procedure`, `subscription`
   or `model.<verb>`; a model op carries the `@@allow` / `@@deny` rules of that verb (`all` applies to every verb).
   JSON keys come out in the order shown above.
-- **Verb to rule slot** (one table, `cratestack_policy::model_verb_policy_slots`, shared by the macros and this
+- **Verb to rule slot** (one table, `cratestack_policy::model_verb_policy_slot`, shared by the macros and this
   command): `list` reads `"list"`, `"read"`; `get` and **`subscribe`** read `"detail"`, `"read"` (a feed decides
   each event like `get` decides a row, so `subscribe` is **not** the `list` slot); `create`, `update` and `delete`
   read their own name. `"all"` fills every slot.
@@ -343,6 +343,9 @@ cratestack contract ops --schema s.cstack --json
   quantifiers:** `some` and to-one hops keep an `auth()` comparison always false, but `none` and `every` make it
   maybe true (`NOT EXISTS (.. AND FALSE)` holds for every row, and `every` is vacuously true with no related
   rows), so `memberships.none.userId == auth().id` reports `requires_principal: false`. `@deny` is not consulted.
+- A string literal is a value: operators, `&&`, `||` and parentheses inside `"..."`/`'...'` are not structure,
+  and set membership is read before comparison. `label in ["== auth().id"]` is membership (maybe true), not a
+  comparison with `auth()`. The analysis and the macros share one term reader, so they cannot disagree on this.
 - An op with **no `@allow`** is denied to everyone: `requires_principal: true` with an empty `allow`.
 - `unanalysed`: rules the analysis does not understand, and attributes the macros' own audit would refuse (a
   mis-spaced `@allow (x)`). Such an op reports `requires_principal: false` (treated as anonymous), so
