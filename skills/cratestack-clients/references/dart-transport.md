@@ -344,7 +344,7 @@ What `CratestackFespalierTransport` does:
 
 ### Device ceremonies (`@device_auth`)
 
-*(since 0.19.7, unreleased on main, cratestack#1303)* Only `--preset fespalier` reads the marker; `default`, `riverpod`, TypeScript, WireMock, the Rust
+*(since 0.19.7, cratestack#1303)* Only `--preset fespalier` reads the marker; `default`, `riverpod`, TypeScript, WireMock, the Rust
 client and the macros ignore it (output is byte-identical with and without it). A schema with markers gets
 `lib/src/device_auth_server.dart`, exported from the library: `<Prefix>DeviceAuthServer implements
 DeviceAuthServer` (`package:fespalier_sign_keypair`). **Do not hand-write that class when the schema can
