@@ -18,12 +18,13 @@ for whatever the consuming crate is. No runtime reflection, no build script, no
 generated Rust files checked in. Change the schema and the compiler tells you
 what broke.
 
-Pre-1.0. The public crates version together (currently **0.20.0**, edition 2024,
+Pre-1.0. The public crates version together (currently **0.20.1**, edition 2024,
 MSRV **1.98.0**) and minor releases can break.
 
 **Versioning and upgrades.** Keep every `cratestack-*` dependency in a build at one version, and move them
 together. *(unreleased on main, cratestack#1390)* The crates require each other exactly (`=x.y.z`), so pinning
-one facade pulls its siblings to the same version and a conflicting second pin fails to resolve; in releases up to
+one facade pulls its siblings to the same version and an older facade pinned beside a newer sibling fails to
+resolve (move all pins, then `cargo update`; `cargo update -p <one sibling>` alone fails); in releases up to
 0.20.1 the sibling requirements are carets and a transitive crate can resolve a newer patch than its neighbours,
 so check `cargo tree` or `Cargo.lock` for a single version of every `cratestack-*`.
 
