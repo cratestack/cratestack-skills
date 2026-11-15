@@ -474,8 +474,8 @@ Through 0.19.3 a generated TypeScript client sends **unsigned** requests. From 0
 platform backends. Never write a TypeScript signer, hash, canonical query or AAD by hand: all of it
 is `cratestack-cose`, and TypeScript only carries bytes. The web build loads a **second** WASM module
 and only when `/cose` is imported; the codec bundle is unchanged. Source:
-`packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`,
-`docs/design/ts-cose-signed-mode.md`.
+`packages/cratestack-cbor/src/sealed.ts` (+ `sealed-rest.ts`, `sealed-required.ts` on main),
+`packages/cratestack-ts-types/src/cose.ts`, `docs/design/ts-cose-signed-mode.md`.
 
 ```ts
 import { createCoseClient, createSealedLink, createSealedFetch } from "@cratestack/cbor/cose";
@@ -502,6 +502,18 @@ new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_C
 - **Mode per call:** `cose` may be `({ route, method }) => CoseClient | undefined`: Sign1 before a
   session, Mac0 (`hmac`) after it, `undefined` for anonymous calls (sent unsealed). A new session
   key is a new `CoseClient`.
+- **Fail open by default; `requireSealed: true` fails closed** *(since 0.20.0, unreleased on main, cratestack#1371)*. Without it, a call whose op has
+  no `OP_CONTRACTS` entry, or that `cose` declines with `undefined`, goes out **unsealed**. For a client
+  that must sign every call, pass it to `createSealedLink` (unary and batch) or `createSealedFetch`
+  (REST): such a call is refused locally, before any `fetch`, with `SealRequired`, a `CoseFailure`
+  subclass (`code` `misuse`, `name` `"SealRequired"`, `route` = op id, `batch`, a REST template key, or
+  `"<METHOD> <path>"`). Catch it with `instanceof SealRequired`; `instanceof CoseFailure` also matches.
+  It conflicts with a `cose` function that returns `undefined` for anonymous calls. Do not use it for a
+  client that mixes signed and anonymous calls.
+  ```ts
+  import { createSealedLink, SealRequired } from "@cratestack/cbor/cose";
+  createSealedLink({ cose, contracts: OP_CONTRACTS, requireSealed: true });
+  ```
 - **Bound:** the method, route template and path parameters, the op's contract digest, the canonical
   query, `Idempotency-Key`, `If-Match`, and the payload type and accept. The client sets
   `Cratestack-Payload-Type`, `Cratestack-Payload-Accept` and `Cratestack-Contract`. A sealed
