@@ -598,13 +598,15 @@ For a Dart or Flutter app using `package:cratestack_cbor/cose.dart` (see
 ### TypeScript: sealing with `@cratestack/cbor/cose` *(since 0.19.4, cratestack#1010)*
 
 For a TypeScript app using `createSealedLink` / `createSealedFetch` (see `cratestack-clients`).
-Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`.
+Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/src/cose.ts`
+(`sealed-rest.ts` and `sealed-required.ts` on main).
 
 | What the app sees | It means |
 | --- | --- |
 | `CoseFailure` `rejected` with an empty message on a call the server answered `200` | Either the response did not verify (same for every cause, on purpose: tampered, a response to another request, wrong audience, wrong `serverKeys`, a payload type the call did not accept), **or the success was unsigned**: an unsigned `2xx` is refused, never believed. The usual unsigned success is a proxy or mock that strips the seal, or a route the layer does not cover. Check that the op is in the server's `EnvelopeLayer` and that nothing between strips `application/cose` |
 | A plain `CratestackHttpError` / `CratestackRpcError` with status `401`, `415` or `426` | An unsigned non-ok answer passes through unchanged (a hint, not proof). Causes are those of the layer's 401/415/426 above |
-| The call goes out and the server says it was unsigned | `cose` returned `undefined` for it, or `OP_CONTRACTS` has no entry for the route (REST: the URL did not match a `"<METHOD> <template>"` key, check `basePath`). Such calls are sent **unsealed** |
+| The call goes out and the server says it was unsigned | `cose` returned `undefined` for it, or `OP_CONTRACTS` has no entry for the route (REST: the URL did not match a `"<METHOD> <template>"` key, check `basePath`). Such calls are sent **unsealed**, by default. To make that an error instead, pass `requireSealed: true` to `createSealedLink` / `createSealedFetch` *(since 0.20.0, unreleased on main, cratestack#1371)* |
+| `SealRequired: requireSealed: no contract for route "…"` (or `the cose source declined route`); a `CoseFailure` `misuse` whose `name` is `SealRequired`, with a `route` field, thrown before any request is sent **(since 0.20.0, unreleased on main, cratestack#1371)** | Intended: `requireSealed: true` refused a call that would have gone out unsigned. Either `OP_CONTRACTS` has no entry for `route` (regenerate the client or fix a stale import; REST: check `basePath` and that the URL matches a `"<METHOD> <template>"` key) or the `cose` function returned `undefined` for it. Fix the wiring, or drop `requireSealed` for a deliberately anonymous call. Catch with `instanceof SealRequired`; `instanceof CoseFailure` also matches |
 | `CoseFailure` `misuse` | Local: an HMAC secret under 32 bytes, a key of the wrong length, an empty audience, a sealed `/rpc/batch` that is not CBOR both ways, a body that is not a string or bytes, or a failing `external` signer (the message never carries the signer's error) |
 | `external` signer: a refusal after the callback ran (the `CoseFailure` code is not verified) | The signature did not verify under `publicKey`, which Rust refuses before anything is sent. Sign the raw to-be-signed bytes, **not a hash of them** (WebCrypto hashes for ECDSA), with the key that matches `publicKey` |
 | A first call after a `415` goes out named | Intended: a `415` to a compact request switches that op back to named for later calls, sealed or not; the refused call is not retried |
