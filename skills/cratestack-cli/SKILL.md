@@ -328,17 +328,32 @@ cratestack contract ops --schema s.cstack --json
 
 - `key` and `contract_digest` are what `contract digest` prints. `kind` is `procedure`, `subscription`
   or `model.<verb>`; a model op carries the `@@allow` / `@@deny` rules of that verb (`all` applies to every verb).
-- `roles`: every `hasRole("...")` literal in an `@allow`, sorted and deduplicated. A `@deny` adds none.
-- `requires_principal`: `true` when no `@allow` rule can hold with no principal. `||` needs one only when
-  every branch does, `&&` when any does, several `@allow` lines are alternatives. `auth() != null`,
-  `hasRole`, `inTenant`, `auth().isSystem()` and any comparison against an `auth().<claim>` need one;
-  `true`, `auth() == null` and comparisons of inputs or fields do not. `@deny` is not consulted.
+  JSON keys come out in the order shown above.
+- **Verb to rule slot** (one table, `cratestack_policy::model_verb_policy_slots`, shared by the macros and this
+  command): `list` reads `"list"`, `"read"`; `get` and **`subscribe`** read `"detail"`, `"read"` (a feed decides
+  each event like `get` decides a row, so `subscribe` is **not** the `list` slot); `create`, `update` and `delete`
+  read their own name. `"all"` fills every slot.
+- `roles`: every `hasRole("...")` literal **named** anywhere in an `@allow`, sorted and deduplicated. It is a
+  **superset** of the roles that grant access, not the roles that grant it. A `@deny` adds none.
+- `requires_principal`: every policy node is, for a caller with no principal, *always false* or *maybe true*;
+  it is `true` exactly when every `@allow` is always false (or there is none). `&&` is always false if any
+  branch is, `||` only if all are; several `@allow` lines are alternatives. `auth() != null`, `hasRole`,
+  `inTenant`, `auth().isSystem()`, `false` and any comparison with an `auth()` side are always false; `true`,
+  `auth() == null`, comparisons of inputs or fields, `in [...]` and bare booleans are maybe true. **Relation
+  quantifiers:** `some` and to-one hops keep an `auth()` comparison always false, but `none` and `every` make it
+  maybe true (`NOT EXISTS (.. AND FALSE)` holds for every row, and `every` is vacuously true with no related
+  rows), so `memberships.none.userId == auth().id` reports `requires_principal: false`. `@deny` is not consulted.
 - An op with **no `@allow`** is denied to everyone: `requires_principal: true` with an empty `allow`.
-- `unanalysed`: rules the analysis does not understand. Such an op reports `requires_principal: false`
-  (treated as anonymous), so **refuse any op with a non-empty `unanalysed`** when gating on it.
-- Deriving an allowlist: `jq -r '.ops[] | select(.roles | index("operator")) | .key'` gives every op
-  naming that role; compare it with the committed list to check completeness, not just validity.
-- Exit codes: 0 ok, 2 an unreadable schema (with `--json`, `{ "ok": false, "error": ... }`).
+- `unanalysed`: rules the analysis does not understand, and attributes the macros' own audit would refuse (a
+  mis-spaced `@allow (x)`). Such an op reports `requires_principal: false` (treated as anonymous), so
+  **refuse any op with a non-empty `unanalysed`** when gating on it.
+- Deriving an allowlist: treat `roles` as a superset, **also** require `requires_principal`, and refuse a
+  non-empty `unanalysed`. Do not stop at the role filter:
+  `jq -e '[.ops[] | select(.unanalysed | length > 0)] | length == 0' ops.json` first, then
+  `jq -r '.ops[] | select((.roles | index("operator")) and .requires_principal) | .key' ops.json`. An op that
+  names the role but has `requires_principal: false` is callable anonymously: surface it, do not allow-list it
+  as authenticated. Compare with the committed list to check completeness, not just validity.
+- Exit codes: 0 ok, 2 an unreadable schema (with `--json`, `{ "ok": false, "error": ... }`, no colour codes).
 
 ## `migrate` and `studio` flags
 
