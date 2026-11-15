@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.19.8.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -482,7 +482,7 @@ layer underneath — you rarely name it directly.
 *(since 0.14.0, cratestack#1006)* `EnvelopeLayer` opens signed requests (COSE_Sign1 /
 COSE_Mac0 bodies) and seals every response of a generated REST or RPC router (ADR 0006).
 **`HmacEnvelope` / `SealedEnvelope` (`cratestack_core`, the old HS256 envelope) are gone**
-*(removed in 0.20.0, unreleased on main, cratestack#1357; deprecated since 0.19.6, cratestack#1018)*:
+*(removed in 0.20.0, cratestack#1357; deprecated since 0.19.6, cratestack#1018)*:
 naming either does not compile, so never write them. `KeyProvider`, `NonceStore`,
 `InMemoryNonceStore` and `StaticKeyProvider` stay in `cratestack_core`. For a shared-secret service-to-service seal, use this layer with
 `cratestack_cose::CoseEnvelope` in `CoseMode::Mac0`; `KeyProviderMacKeys::load(&provider, alg,
