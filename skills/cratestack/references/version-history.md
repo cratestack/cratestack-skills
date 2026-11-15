@@ -102,7 +102,8 @@ release is cut, move each item under its release heading.
   Each crate requires its siblings as `=x.y.z`, not a caret, so one build resolves one CrateStack version. Before,
   pinning one facade at `=0.20.0` could still resolve `cratestack-core` / `cratestack-policy` at 0.20.1 beside
   0.20.0 of the rest. Upgrading means moving every `cratestack-*` pin in the build to the same version in one
-  change; a second, different pin on another `cratestack-*` crate is now a resolution error, not a silent mix.
+  change, then `cargo update` (`cargo update -p <one sibling>` alone fails); an older facade pinned beside a newer
+  sibling is now a resolution error, not a silent mix.
   Applies from the first release that contains it; releases up to 0.20.1 still use caret sibling requirements.
   Owner: `cratestack` (router).
 
