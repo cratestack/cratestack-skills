@@ -321,10 +321,19 @@ model Bank {
   digests do not move, and `cratestack diff` reports it as Internal.
 - Grammar: one double-quoted name matching `^[a-z_][a-z0-9_]*$`, at most 63 bytes, no `.`, no
   PostgreSQL or SQLite reserved word (`"user"`, `"order"` are refused: generated SQL does not quote
-  names), a table not starting `cratestack_`, `sqlite_` or `pg_`. One marker per model or field.
+  names; the list includes `true`, `false`, `values`, `last`), a column not a PostgreSQL system
+  column (`xmin`, `xmax`, `cmin`, `cmax`, `ctid`, `oid`, `tableoid`), a table not starting
+  `cratestack_`, `sqlite_` or `pg_`. One marker per model or field.
 - Unique: table names across models and views (a `@@map("deposits")` beside `model Deposit` is
-  refused); column names within a model, including a derived name and the `deleted_at` of
-  `@@soft_delete`.
+  refused); final column names among a model's *stored* fields only (relation, model-typed and
+  `@computed` fields are not compared, so `ownerId Int @map("owner")` may sit beside `owner User`),
+  including the `deleted_at` of `@@soft_delete`. The raw snake_case identifier check on all fields is
+  unchanged by `@map`: `fooBar` beside `foo_bar @map("x")` is still refused.
+- Soft delete: on a `@@soft_delete` model no field may be mapped to `deleted_at`, and `deletedAt`
+  may not carry `@map`.
+- Embedded: `include_embedded_schema!` has no migrate step, so adding or changing `@@map` on a device
+  creates a new empty table (old rows orphaned) and adding `@map` to an existing column errors;
+  re-sync or wipe embedded caches.
 - Placement: stored scalar fields of models and mixins only. Refused on relation fields (also
   to-many back-references), `@computed` fields, and fields of a `view`, `type` or `auth`. `@@map`
   on a view is refused by the closed `@@` list.

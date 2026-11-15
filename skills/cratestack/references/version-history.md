@@ -103,7 +103,12 @@ pinned to 0.20.0 or earlier does not have them. When the release is cut, move ea
   no `cratestack_` / `sqlite_` / `pg_` table prefix; not on relation, `@computed`, view, `type` or `auth`
   fields. A changed mapping is refused by `migrate diff` unless `@@rename` / `@rename` is present; adopt an
   existing database with `@@map` plus `migrate baseline`. Raw SQL uses mapped names. Also fixes audit
-  redaction of mapped `@pii` / `@sensitive` columns. In a release before this ships `@@map` / `@map` are refused. Owner:
+  redaction of mapped `@pii` / `@sensitive` columns. Review follow-ups: reserved words gained `true`, `false`,
+  `values`, `last`; PG system columns (`xmin`, `ctid`, …) are refused as column names; column uniqueness
+  compares stored fields only; on `@@soft_delete` `deletedAt` may not be `@map`ped and nothing maps to
+  `deleted_at`; `migrate baseline` records the mapping (later change refused) and
+  `TableStorageNameUnrecorded` / `ColumnStorageNameUnrecorded` cover snapshots without identity;
+  embedded has no migrate step (new empty table on `@@map`, error on `@map` of an existing column). In a release before this ships `@@map` / `@map` are refused. Owner:
   `cratestack-schema` (+ `cratestack-migrations`, `cratestack-troubleshooting`, `cratestack-server`).
 
 ## 0.20.0 (2026-11-15)
