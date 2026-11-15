@@ -95,9 +95,13 @@ each step's breaking changes assume the one before:
 
 ## Unreleased (after 0.20.1, on main)
 
-Nothing is recorded here: every item verified so far is in a published release. When something lands on `main`
-and not in a release, mark it *(unreleased on main)* and list it here; when the release is cut, move each item
-under its release heading.
+When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
+release is cut, move each item under its release heading.
+
+- **One SSE event is capped in the generated clients** *(unreleased on main, cratestack#1379)*: 1 MiB by default,
+  configurable (`ClientConfig::with_max_sse_event_bytes`, TypeScript `subscriptions.maxEventBytes`, Dart
+  `CratestackSubscriptionOptions.maxEventBytes`); over it the stream ends with `ClientError::EventTooLarge { limit }` /
+  `CratestackEventTooLargeError` / `CratestackEventTooLargeException`. Owner: `cratestack-rpc`.
 
 ## 0.20.1 (2026-11-15)
 

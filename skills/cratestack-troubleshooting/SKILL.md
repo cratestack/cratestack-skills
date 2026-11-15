@@ -323,6 +323,14 @@ not fall back to another binding. The same code **without** `details` is the per
 cap (`WebSocketLimits`, 64 by default): cancel one first. Before 0.19.3 the Rust client showed either
 as `internal`.
 
+**An SSE subscription ends with `EventTooLarge` / `CratestackEventTooLargeError` / `CratestackEventTooLargeException` (code `event_too_large`)** *(unreleased on main, cratestack#1379)*.
+One server-sent event passed the client's per-event cap (1 MiB, delimiter included, counting the
+unfinished line), so the client dropped the connection and delivered nothing after it. Either the server
+or a proxy never sends the blank line that ends an event, or a frame is genuinely that big. Fix the
+sender first; raise the cap only for a real large frame: `ClientConfig::with_max_sse_event_bytes(n)` (Rust),
+`subscriptions: { maxEventBytes: n }` (TypeScript), `CratestackSubscriptionOptions(maxEventBytes: n)` (Dart).
+It is not retried and `auto` does not fall back on it.
+
 **An anonymous WebSocket subscription open fails with `failed_precondition`.** The subscription rate
 limiter (*since 0.19.3*, opt-in) has no principal and no peer address to key on. Serve with
 `into_make_service_with_connect_info::<SocketAddr>()`, or authenticate the socket. A WebSocket router
