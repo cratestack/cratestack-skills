@@ -58,6 +58,29 @@ In GitHub Actions, prefer the composite action over a Rust toolchain step:
 
 Pin `@main` to a tag or SHA for reproducibility.
 
+## Pin the binary version *(since 0.20.0, unreleased on main, cratestack#1372)*
+
+A second `cratestack` earlier on `PATH` (typically an old one in `~/.cargo/bin`) runs every command
+without complaint and generates from the wrong version. **In CI and justfiles, set
+`CRATESTACK_REQUIRE_VERSION` to the version you pinned**; the global flag `--require-version <REQ>` does
+the same per call.
+
+```bash
+export CRATESTACK_REQUIRE_VERSION=0.20.0     # justfile: export CRATESTACK_REQUIRE_VERSION := "0.20.0"
+cratestack generate-wiremock --schema schema.cstack --out wiremock --check
+```
+
+- `REQ` is Cargo `VersionReq` syntax (`=0.20.0`, `>=0.19.6, <0.21`), **except a bare `0.20.0` means exactly
+  `=0.20.0`**, not Cargo's caret.
+- The flag wins over the env var. An empty or blank value counts as unset (an empty flag falls through to
+  the env var). `--version` and `--help` are unaffected.
+- A mismatch or an unparsable `REQ` prints `Error: cratestack X does not satisfy the required version ...`
+  on stderr, naming the running version, the requirement and the executable path, and **exits 1**.
+- It works through `npx @cratestack/cli`: the shim passes argv and the environment to the binary unchanged
+  (`bin/cratestack.js`).
+- A binary older than 0.20.0 cannot enforce it: it ignores the env var and rejects the flag as unknown
+  (exit 2).
+
 ## `check`
 
 ```bash
@@ -318,6 +341,7 @@ versus "error".
 | `migrate baseline --strict` with drift, or snapshot already exists | 1 |
 | `contract check` not locked or broken; `contract lock` refused | 1 |
 | `contract …` tool error (unreadable schema or lock, bad date or flag) | 2 |
+| `--require-version` / `CRATESTACK_REQUIRE_VERSION` not satisfied, or unparsable *(since 0.20.0, unreleased on main)* | 1 |
 | a usage error caught by argument parsing (an unknown flag such as the removed `--no-native-cbor`, a missing required argument) | 2 (clap's usage-error code; `main` calls `Cli::parse()`) |
 
 ## CI recipes
