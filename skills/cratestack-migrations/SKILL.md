@@ -5,7 +5,7 @@ description: CrateStack database migrations — cratestack migrate diff and base
 
 # Migrations
 
-> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -119,7 +119,7 @@ re-run for 0.19.1; the rename reader and table diff are unchanged since 0.14.2):
 `ALTER TABLE new_models RENAME COLUMN old_field TO new_field;`. The
 `"OldModel"` form is refused as destructive.
 
-**Storage-name changes are renames** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*. A changed `@@map` / `@map` is never a silent drop and
+**Storage-name changes are renames** *(since 0.20.1, cratestack#1375)*. A changed `@@map` / `@map` is never a silent drop and
 create: `migrate diff` refuses a changed table or column storage name
 (`MigrateError::TableStorageNameChanged` / `ColumnStorageNameChanged`; the message names the exact
 `@@rename(from = "…")` / `@rename(from = "…")` to add) unless the model carries
@@ -194,7 +194,7 @@ payload_before JSONB;` (`crates/cratestack-sqlx/src/descriptor/event_outbox.rs`)
 
 Postgres only, enforced at the type level. Sequence:
 
-**Tables with other names** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*: do not rename them. Write `@@map("<live_table>")` and
+**Tables with other names** *(since 0.20.1, cratestack#1375)*: do not rename them. Write `@@map("<live_table>")` and
 `@map("<live_column>")` on the schema to match, then run `baseline`; the snapshot holds the mapped
 names and the next `diff` is empty. Index and FK names derive from the mapped names, so the first
 diff may drop and re-add a differently named live index; review it. The baseline also records the

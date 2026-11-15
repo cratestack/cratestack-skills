@@ -5,7 +5,7 @@ description: Building CrateStack's embedded offline-first mode — include_embed
 
 # Embedded mode (SQLite on device)
 
-> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -271,7 +271,7 @@ Reference implementations: `examples/embedded-webhook` (axum) and
 
 ## Traps
 
-**`@@map` / `@map` on the embedded role** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*. There is no migrate step on device, so adding or
+**`@@map` / `@map` on the embedded role** *(since 0.20.1, cratestack#1375)*. There is no migrate step on device, so adding or
 changing `@@map` creates a new empty table and orphans the old rows, and adding `@map` to an existing
 column errors. Re-sync or wipe the embedded cache when a mapping changes.
 

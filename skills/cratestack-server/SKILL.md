@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.20.0.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -113,7 +113,7 @@ only when the schema declares zero `@computed` fields.
 Under `db = None` the builder takes **no arguments**:
 `cratestack_schema::Cratestack::builder().build()`.
 
-## Storage names and hand-written SQL *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*
+## Storage names and hand-written SQL *(since 0.20.1, cratestack#1375)*
 
 `@@map("<table>")` / `@map("<column>")` change only the SQL names the generated code uses. Routes,
 op ids and the generated types keep the model and field names. Raw SQL you write yourself (view

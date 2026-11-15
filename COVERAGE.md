@@ -104,7 +104,7 @@ Verified against **CrateStack 0.19.6**. Feature-to-release history lives in
 | Events, `@@emit`, `cratestack-outbox` | `cratestack-server` |
 | `cratestack-service` (config, health, run) | `cratestack-server` |
 | Views, `@@materialized`, `query` blocks | `cratestack-schema` |
-| `@@map` / `@map` storage names *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*: grammar, placement, collisions, routes and clients unchanged, rename-on-change, adoption via `migrate baseline`, hand-written SQL uses mapped names, audit redaction of mapped columns | `cratestack-schema` (+ `references/attributes.md`) + `cratestack-migrations` + `cratestack-troubleshooting` (the refusals) + `cratestack-server` (raw SQL) |
+| `@@map` / `@map` storage names *(since 0.20.1, cratestack#1375)*: grammar, placement, collisions, routes and clients unchanged, rename-on-change, adoption via `migrate baseline`, hand-written SQL uses mapped names, audit redaction of mapped columns | `cratestack-schema` (+ `references/attributes.md`) + `cratestack-migrations` + `cratestack-troubleshooting` (the refusals) + `cratestack-server` (raw SQL) |
 | Enum storage and wire form (`TEXT` + `CHECK`, variant name on both codecs), `DateTime` / `Uuid` wire size; explicit enum ordinals *(since 0.17.0)*: `Pending = 1`, `@@reserved`, the parse-time rules, storage and wire form | `cratestack-schema` |
 | Ordinal enums in migrations *(since 0.17.0)*: `SMALLINT` + numeric `CHECK`, the append-only refusals, the string ↔ ordinal data conversion | `cratestack-migrations` |
 | Ordinal enums in the generated clients and WireMock *(since 0.17.0)*: number on the wire, Rust `#[repr(i16)]`, TypeScript revival to names, Dart `wireValue` | `cratestack-clients` |
