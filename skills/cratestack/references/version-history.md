@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.19.6** unless a marker says
+Everything in these skills is verified against **0.19.7** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.19.6** (2026-11-14). Every release from 0.15.0 to 0.19.6 is recorded below,
+The latest release is **0.19.7** (2026-11-14). Every release from 0.15.0 to 0.19.7 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -71,6 +71,8 @@ each step's breaking changes assume the one before:
 13. [0.19.6](#0196-2026-11-14): subscription frames in CBOR form (**breaking** on the CBOR sockets and for
    hand-written dispatchers), `Uuid` over CBOR, `@regex` unescaping (breaking for existing patterns),
    and `HmacEnvelope` / `SealedEnvelope` deprecated for COSE_Mac0.
+14. [0.19.7](#0197-2026-11-14): the `@device_auth` procedure marker and the generated fespalier
+   `DeviceAuthServer`, additive; nothing to migrate.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -80,19 +82,16 @@ each step's breaking changes assume the one before:
 
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(in the tags since 0.16.0, in no published crate)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.6`)
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.7`)
   and the 0.16.0 changelog lists it as a prototype, but `publish = false` keeps it off crates.io,
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.19.6, on `main`)
-
-Everything here is *(since 0.19.7, unreleased on main)*: it is in no published release, so a project pinned
-to 0.19.6 or earlier does not have it. Move each item under its release heading when that release is cut.
+## 0.19.7 (2026-11-14)
 
 - **`@device_auth` procedure marker; `generate-dart --preset fespalier` emits a `DeviceAuthServer`**
-  (cratestack#1303) *(since 0.19.7, unreleased on main, additive)*. `@device_auth(role: "...")` on the
+  (cratestack#1303) *(since 0.19.7, additive)*. `@device_auth(role: "...")` on the
   enrolment, renewal and revocation procedures (roles `beginEnrolment`, `confirmEnrolment`, `beginRenewal`,
   `confirmRenewal`, `revoke`, optional `sendEnrolmentCode`; `proof:` on `confirmEnrolment`) makes the fespalier
   preset write `lib/src/device_auth_server.dart`, `<Prefix>DeviceAuthServer implements DeviceAuthServer`,
