@@ -217,7 +217,7 @@ takes only what its kind lists, each in its one exact spelling:
 
 | Declaration | Accepts |
 | --- | --- |
-| `model` | `@id` `@unique` `@default(…)` `@relation(…)` `@computed` `@readonly` `@server_only` `@version` `@pii` `@sensitive` `@db_enforce` `@email` `@uri` `@iso4217` `@length(…)` `@range(…)` `@regex(…)` `@rename(from = "…")` |
+| `model` | `@id` `@unique` `@default(…)` `@relation(…)` `@computed` `@readonly` `@server_only` `@version` `@pii` `@sensitive` `@db_enforce` `@email` `@uri` `@iso4217` `@length(…)` `@range(…)` `@regex(…)` `@rename(from = "…")` `@map("…")` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* |
 | `view` | `@id` `@server_only` `@from(Model.field)` |
 | `mixin` | a model's list without `@id` and `@computed` |
 | `type` | `@computed` `@length(…)` `@range(…)` `@regex(…)` `@email` `@uri` `@iso4217` |
@@ -302,15 +302,52 @@ shows `using: "gist"` with quotes — that is wrong and will be rejected.
 validates composite primary keys, and all three entry macros reject them
 outright. Treat composite PKs as not yet usable, whatever `check` says.
 
-**`@@map` does not exist.** The table name is always
-`pluralize(snake_case(ModelName))`.
+## Storage names: `@@map` and `@map` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*
+
+`@@map("<table>")` on a model and `@map("<column>")` on a stored scalar field set the **SQL name
+only**. Use them to adopt an existing database whose tables are named differently (`bank`, not
+`banks`) instead of renaming the tables.
+
+```cstack
+model Bank {
+  code String @id
+  bic  String @map("bic_code")
+  @@map("bank")
+}
+```
+
+- Routes (`/banks`), RPC op ids (`model.Bank.list`), client accessors, generated identifiers and
+  wire field names do **not** change; generated clients are byte-identical. The contract and
+  digests do not move, and `cratestack diff` reports it as Internal.
+- Grammar: one double-quoted name matching `^[a-z_][a-z0-9_]*$`, at most 63 bytes, no `.`, no
+  PostgreSQL or SQLite reserved word (`"user"`, `"order"` are refused: generated SQL does not quote
+  names; the list includes `true`, `false`, `values`, `last`), a column not a PostgreSQL system
+  column (`xmin`, `xmax`, `cmin`, `cmax`, `ctid`, `oid`, `tableoid`), a table not starting
+  `cratestack_`, `sqlite_` or `pg_`. One marker per model or field.
+- Unique: table names across models and views (a `@@map("deposits")` beside `model Deposit` is
+  refused); final column names among a model's *stored* fields only (relation, model-typed and
+  `@computed` fields are not compared, so `ownerId Int @map("owner")` may sit beside `owner User`),
+  including the `deleted_at` of `@@soft_delete`. The raw snake_case identifier check on all fields is
+  unchanged by `@map`: `fooBar` beside `foo_bar @map("x")` is still refused.
+- Soft delete: on a `@@soft_delete` model no field may be mapped to `deleted_at`, and `deletedAt`
+  may not carry `@map`.
+- Embedded: `include_embedded_schema!` has no migrate step, so adding or changing `@@map` on a device
+  creates a new empty table (old rows orphaned) and adding `@map` to an existing column errors;
+  re-sync or wipe embedded caches.
+- Placement: stored scalar fields of models and mixins only. Refused on relation fields (also
+  to-many back-references), `@computed` fields, and fields of a `view`, `type` or `auth`. `@@map`
+  on a view is refused by the closed `@@` list.
+- Hand-written SQL (view `@@server_sql` / `@@sql`, `query` blocks, `up.pre.sql`) must use the
+  mapped names.
+- Changing a mapping later is a rename for `cratestack migrate`; see `cratestack-migrations`.
+- In a release before this ships both are refused (`unsupported attribute`).
 
 **An unrecognised `@@` attribute** was silently inert on 0.14.0 and earlier: the
-near-miss check only ran on field attributes, so `@@map(…)`, `@@check(…)` or
+near-miss check only ran on field attributes, so `@@check(…)` or
 `@@sofT_delete` reported `schema OK` and did nothing. It is refused *(since 0.14.1,
 GHSA-69g4-xvcm-vm2j)*: a model takes only `@@allow` `@@deny` `@@emit` `@@paged`
 `@@audit` `@@soft_delete` `@@retain` `@@subscribe` `@@id` `@@unique` `@@index`
-`@@internal` `@@rename` (and `@@mcp`); a view only `@@allow` `@@deny`
+`@@internal` `@@rename` `@@map` *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))* (and `@@mcp`); a view only `@@allow` `@@deny`
 `@@server_sql` `@@embedded_sql` `@@sql` `@@materialized` `@@no_unique`.
 
 ## Views and `query` blocks

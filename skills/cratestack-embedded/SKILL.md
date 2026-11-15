@@ -271,6 +271,10 @@ Reference implementations: `examples/embedded-webhook` (axum) and
 
 ## Traps
 
+**`@@map` / `@map` on the embedded role** *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*. There is no migrate step on device, so adding or
+changing `@@map` creates a new empty table and orphans the old rows, and adding `@map` to an existing
+column errors. Re-sync or wipe the embedded cache when a mapping changes.
+
 **Every column is `BLOB`.** The generic DDL helper emits BLOB for every column,
 because BLOB affinity is the only one that preserves the bound storage class.
 Consequence: **integer primary keys do not alias rowid, so there is no

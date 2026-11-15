@@ -113,6 +113,14 @@ only when the schema declares zero `@computed` fields.
 Under `db = None` the builder takes **no arguments**:
 `cratestack_schema::Cratestack::builder().build()`.
 
+## Storage names and hand-written SQL *(unreleased on main, [cratestack#1375](https://github.com/cratestack/cratestack/issues/1375))*
+
+`@@map("<table>")` / `@map("<column>")` change only the SQL names the generated code uses. Routes,
+op ids and the generated types keep the model and field names. Raw SQL you write yourself (view
+`@@server_sql`, `query` blocks, `up.pre.sql`, ad-hoc `sqlx` against the same tables) must use the
+mapped names (`bank`, `bic_code`), not the derived ones. Audit rows redact a mapped `@pii` /
+`@sensitive` field and record a mapped `@id`. That fix ships with this feature, and the Postgres `storage_map_audit` tests cover it. See `cratestack-schema`.
+
 ## What you get, by name
 
 Everything lands in `pub mod cratestack_schema`. For a `model Article`:

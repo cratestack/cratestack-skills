@@ -92,6 +92,25 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
+## Unreleased (after 0.20.0, on main)
+
+Nothing here is in a published release. Items are marked *(unreleased on main)*, so a project
+pinned to 0.20.0 or earlier does not have them. When the release is cut, move each item under its release heading.
+
+- **`@@map("table")` / `@map("column")` storage names** (cratestack#1375) *(unreleased on main, additive)*.
+  Set the SQL table or column name only: REST paths, RPC op ids, clients, contract and digests do not
+  change (`cratestack diff`: Internal). Grammar `^[a-z_][a-z0-9_]*$`, at most 63 bytes, no reserved word,
+  no `cratestack_` / `sqlite_` / `pg_` table prefix; not on relation, `@computed`, view, `type` or `auth`
+  fields. A changed mapping is refused by `migrate diff` unless `@@rename` / `@rename` is present; adopt an
+  existing database with `@@map` plus `migrate baseline`. Raw SQL uses mapped names. Also fixes audit
+  redaction of mapped `@pii` / `@sensitive` columns. Review follow-ups: reserved words gained `true`, `false`,
+  `values`, `last`; PG system columns (`xmin`, `ctid`, …) are refused as column names; column uniqueness
+  compares stored fields only; on `@@soft_delete` `deletedAt` may not be `@map`ped and nothing maps to
+  `deleted_at`; `migrate baseline` records the mapping (later change refused) and
+  `TableStorageNameUnrecorded` / `ColumnStorageNameUnrecorded` cover snapshots without identity;
+  embedded has no migrate step (new empty table on `@@map`, error on `@map` of an existing column). In a release before this ships `@@map` / `@map` are refused. Owner:
+  `cratestack-schema` (+ `cratestack-migrations`, `cratestack-troubleshooting`, `cratestack-server`).
+
 ## 0.20.0 (2026-11-15)
 
 - **`requireSealed` makes the TypeScript sealed link fail closed** (cratestack#1371) *(since 0.20.0)*.
