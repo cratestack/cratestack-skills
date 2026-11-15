@@ -343,9 +343,11 @@ cratestack contract ops --schema s.cstack --json
   quantifiers:** `some` and to-one hops keep an `auth()` comparison always false, but `none` and `every` make it
   maybe true (`NOT EXISTS (.. AND FALSE)` holds for every row, and `every` is vacuously true with no related
   rows), so `memberships.none.userId == auth().id` reports `requires_principal: false`. `@deny` is not consulted.
-- A string literal is a value: operators, `&&`, `||` and parentheses inside `"..."`/`'...'` are not structure,
-  and set membership is read before comparison. `label in ["== auth().id"]` is membership (maybe true), not a
-  comparison with `auth()`. The analysis and the macros share one term reader, so they cannot disagree on this.
+- `contract ops` reads every policy exactly as the generated server does: the macros and the analysis share one
+  term reader in `cratestack-policy`, with its quirks (set membership is read before comparison, so
+  `label in ["== auth().id"]` is membership, maybe true, not a comparison with `auth()`). How string literals that
+  hold quotes, escapes, operators or parentheses are read is the server's, unchanged, and is tracked in
+  cratestack#1392; do not write policies that depend on it.
 - An op with **no `@allow`** is denied to everyone: `requires_principal: true` with an empty `allow`.
 - `unanalysed`: rules the analysis does not understand, and attributes the macros' own audit would refuse (a
   mis-spaced `@allow (x)`). Such an op reports `requires_principal: false` (treated as anonymous), so
