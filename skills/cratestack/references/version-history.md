@@ -106,6 +106,10 @@ release is cut, move each item under its release heading.
   sibling is now a resolution error, not a silent mix.
   Applies from the first release that contains it; releases up to 0.20.1 still use caret sibling requirements.
   Owner: `cratestack` (router).
+- **One SSE event is capped in the generated clients** *(unreleased on main, cratestack#1379)*: 1 MiB by default,
+  configurable (`ClientConfig::with_max_sse_event_bytes`, TypeScript `subscriptions.maxEventBytes`, Dart
+  `CratestackSubscriptionOptions.maxEventBytes`); over it the stream ends with `ClientError::EventTooLarge { limit }` /
+  `CratestackEventTooLargeError` / `CratestackEventTooLargeException`. Owner: `cratestack-rpc`.
 
 ## 0.20.1 (2026-11-15)
 
