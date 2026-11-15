@@ -95,9 +95,12 @@ each step's breaking changes assume the one before:
 
 ## Unreleased (after 0.20.1, on main)
 
-Nothing is recorded here: every item verified so far is in a published release. When something lands on `main`
-and not in a release, mark it *(unreleased on main)* and list it here; when the release is cut, move each item
-under its release heading.
+When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
+release is cut, move each item under its release heading.
+
+- `cratestack contract ops --schema s.cstack [--json]` *(unreleased on main, cratestack#1388)*: every op's rules,
+  `roles`, `requires_principal` and `unanalysed`, from the macros' own policy analysis (`cratestack-policy`). Owner:
+  `cratestack-cli`.
 
 ## 0.20.1 (2026-11-15)
 
