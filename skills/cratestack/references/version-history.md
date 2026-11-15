@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.19.8** unless a marker says
+Everything in these skills is verified against **0.20.0** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.19.8** (2026-11-15). Every release from 0.15.0 to 0.19.8 is recorded below,
+The latest release is **0.20.0** (2026-11-15). Every release from 0.15.0 to 0.20.0 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -75,6 +75,8 @@ each step's breaking changes assume the one before:
    `DeviceAuthServer`, additive; nothing to migrate.
 15. [0.19.8](#0198-2026-11-15): the Dart keystore callback signer `ExternalSigner.esp256` and P-256 SPKI
    keys in `cratestack-cose`, additive; nothing to migrate.
+16. [0.20.0](#0200-2026-11-15): **breaking**: `HmacEnvelope` / `SealedEnvelope` removed (move to COSE_Mac0);
+   additive: TypeScript `requireSealed`, and the CLI `--require-version` / `CRATESTACK_REQUIRE_VERSION`.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -84,31 +86,28 @@ each step's breaking changes assume the one before:
 
 - **Offline sync engine: prototype only** (cratestack PR #1205) *(in the tags since 0.16.0, in no published crate)*. The
   framework adds `cratestack-sync` with `publish = false`, and `examples/sync-notes`, behind
-  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.19.8`)
+  ADR 0020, which is *Proposed*. The source is in the tags since `v0.16.0` (still at `v0.20.0`)
   and the 0.16.0 changelog lists it as a prototype, but `publish = false` keeps it off crates.io,
   so no release ships it: nothing installable exists. There is no `@@sync` attribute, and the
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.19.8, on `main`)
+## 0.20.0 (2026-11-15)
 
-Everything here is in no published release (items are marked *(removed in 0.20.0, unreleased on main)* or *(since 0.20.0, unreleased on main)*), so a project pinned
-to 0.19.8 or earlier does not have it. Move each item under its release heading when that release is cut.
-
-- **`requireSealed` makes the TypeScript sealed link fail closed** (cratestack#1371) *(since 0.20.0, unreleased on main)*.
+- **`requireSealed` makes the TypeScript sealed link fail closed** (cratestack#1371) *(since 0.20.0)*.
   `@cratestack/cbor/cose`'s `createSealedLink` (RPC unary and batch) and `createSealedFetch` (REST) take an
   opt-in `requireSealed: true`. The default is unchanged: a call with no `OP_CONTRACTS` entry, or that `cose`
   declines with `undefined`, still goes out unsealed. With it, such a call is refused locally before any
   `fetch`, rejecting with the new exported `SealRequired` (a `CoseFailure`, `code` `misuse`, with a `route`
   field). Additive, not breaking. Owner: `cratestack-clients` (+ `cratestack-troubleshooting`).
-- **Breaking: `HmacEnvelope` and `SealedEnvelope` removed** (cratestack#1357) *(removed in 0.20.0, unreleased on main)*.
+- **Breaking: `HmacEnvelope` and `SealedEnvelope` removed** (cratestack#1357) *(removed in 0.20.0)*.
   `cratestack_core::HmacEnvelope` and `SealedEnvelope` (the HS256 envelope, deprecated since 0.19.6,
   cratestack#1018) are gone; naming either no longer compiles. Use `cratestack_cose::CoseEnvelope` in
   `CoseMode::Mac0`, secrets loaded with `KeyProviderMacKeys::load`, served by `envelope_layer` and sealed by
   `with_envelope`. `KeyProvider`, `NonceStore`, `InMemoryNonceStore` and `StaticKeyProvider` stay;
   `cratestack-core` no longer depends on `hmac` or `subtle`. Owner: `cratestack-server` ("Signed transport")
   (+ `cratestack-troubleshooting`).
-- **`cratestack --require-version` / `CRATESTACK_REQUIRE_VERSION`** (cratestack#1372) *(since 0.20.0, unreleased on main, additive)*.
+- **`cratestack --require-version` / `CRATESTACK_REQUIRE_VERSION`** (cratestack#1372) *(since 0.20.0, additive)*.
   The CLI checks its own version against a Cargo `VersionReq` before any subcommand and exits 1 with an
   `Error:` naming the running version, the requirement and the executable path on a mismatch or an
   unparsable requirement. A bare version means exactly `=`, not caret; the flag wins over the env var; an
