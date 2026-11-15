@@ -95,6 +95,12 @@ each step's breaking changes assume the one before:
 Everything here is in no published release (items are marked *(removed in 0.20.0, unreleased on main)* or *(since 0.20.0, unreleased on main)*), so a project pinned
 to 0.19.8 or earlier does not have it. Move each item under its release heading when that release is cut.
 
+- **`requireSealed` makes the TypeScript sealed link fail closed** (cratestack#1371) *(since 0.20.0, unreleased on main)*.
+  `@cratestack/cbor/cose`'s `createSealedLink` (RPC unary and batch) and `createSealedFetch` (REST) take an
+  opt-in `requireSealed: true`. The default is unchanged: a call with no `OP_CONTRACTS` entry, or that `cose`
+  declines with `undefined`, still goes out unsealed. With it, such a call is refused locally before any
+  `fetch`, rejecting with the new exported `SealRequired` (a `CoseFailure`, `code` `misuse`, with a `route`
+  field). Additive, not breaking. Owner: `cratestack-clients` (+ `cratestack-troubleshooting`).
 - **Breaking: `HmacEnvelope` and `SealedEnvelope` removed** (cratestack#1357) *(removed in 0.20.0, unreleased on main)*.
   `cratestack_core::HmacEnvelope` and `SealedEnvelope` (the HS256 envelope, deprecated since 0.19.6,
   cratestack#1018) are gone; naming either no longer compiles. Use `cratestack_cose::CoseEnvelope` in
