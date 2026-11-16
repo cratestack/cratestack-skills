@@ -597,7 +597,9 @@ Rust: `EnvelopeError::StreamsUnsupported` (`envelope_streams_unsupported`) for a
 (a model feed is never marked), a `WebSocket` / `WebTransport` pin, a REST route on `wasm32`, or a
 `*_streamed` / `@stream` call. TypeScript: a `CratestackSubscriptionError` with code
 `streams_unsupported` for an unmarked subscription or a `"websocket"` / `"webtransport"` pin when
-`subscriptions.seal` is set. Fix: mark the subscription `@frames(unsigned)` (and use `SubscriptionTransport::Sse`
+`subscriptions.seal` is set. Dart: a `CratestackSubscriptionException` with code `streams_unsupported`, but only when
+`CratestackSubscriptionOptions(sealsSubscriptions: true)` is set (the same cases, thrown before anything is connected
+or sent). Fix: mark the subscription `@frames(unsigned)` (and use `SubscriptionTransport::Sse`
 or `CborSeq`, `"sse"` or `"cbor-seq"`, or leave `Auto`), or open it from a client with no envelope against a
 policy that allows it unsigned.
 
@@ -607,8 +609,21 @@ the answer is not the unsigned stream that was asked for: `Cratestack-Frames: un
 another value, or the `Content-Type` is not the requested stream type (a plain `200`, or a proxy that
 stripped headers). The frames are never read. Look at what is between you and the server (a proxy
 that drops unknown response headers, or rewrites the type); the marker is not signed, so the client
-cannot tell a stripped one from a forged answer. Dart also raises it for the marker on a subscription the
-schema does not mark `@frames(unsigned)`.
+cannot tell a stripped one from a forged answer. **A browser client (TypeScript, cross-origin) gets
+`UnsignedFramesRefused` on every sealed open though the server is fine**: `Cratestack-Frames` is not a
+CORS-safelisted response header, so `fetch` hides it unless the server sends
+`Access-Control-Expose-Headers: Cratestack-Frames`. CrateStack has no CORS layer of its own, so add it to the
+app's (tower-http: `CorsLayer::new().expose_headers([HeaderName::from_static("cratestack-frames")])`). Same-origin
+pages, Rust and Dart need nothing.
+
+**`unsigned_refusal` (TypeScript `CratestackSubscriptionError`, Dart `CratestackSubscriptionException`)** *(since
+0.20.4, unreleased on main)*. A signed subscription open was refused by a response that is not signed (a hop, or a
+server layer ahead of the envelope), so its status is a hint and its body, never read, cannot be trusted for an
+error code. Read the status, not a code; fix what is refusing upstream. Dart only: a transport that verified and
+opened a refusal must return it with `CratestackHttpResponse(opened: true)`, or it reads as `unsigned_refusal`.
+Dart: with `CratestackSubscriptionOptions(sealsSubscriptions: false)` (the default) nothing is sealed or checked;
+an app whose transport seals must set it to `true`. `streams_unsupported` and `unsigned_frames_refused` repeat
+for the same setup, so do not retry them.
 
 **TypeScript `CoseFailure` `misuse` opening a subscription signed** *(since 0.20.4, unreleased on main)*:
 `createSealedSubscriptions` is RPC only. A REST route cannot be opened sealed from `fetch` (a `GET` with a body,

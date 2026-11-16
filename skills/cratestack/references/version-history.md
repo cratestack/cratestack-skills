@@ -114,8 +114,9 @@ release is cut, move each item under its release heading.
   Rust, TypeScript (RPC only) and Dart clients open a subscription marked `@frames(unsigned)` signed and accept only the
   unsigned stream they asked for. **Source break:** a hand-built Rust `SubscriptionTarget { .. }` needs
   `frames: None, seal_route: String::new()`. New: `EnvelopeError::UnsignedFramesRefused`, TypeScript
-  `createSealedSubscriptions` and `UnsignedFramesRefused`, Dart `unsigned_frames_refused`. A client with an envelope no
-  longer opens an unsealed socket. Owners: `cratestack-clients`, `cratestack-rpc`, `cratestack-troubleshooting`.
+  `createSealedSubscriptions` and `UnsignedFramesRefused`, Dart `unsigned_frames_refused`, `streams_unsupported` and
+  `unsigned_refusal`; Dart signs only with `CratestackSubscriptionOptions(sealsSubscriptions: true)` (default `false`,
+  no behaviour change). A Rust or TypeScript client with an envelope no longer opens an unsealed socket. Owners: `cratestack-clients`, `cratestack-rpc`, `cratestack-troubleshooting`.
 
 ## 0.20.3 (2026-11-16)
 
