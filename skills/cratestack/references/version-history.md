@@ -109,8 +109,13 @@ release is cut, move each item under its release heading.
   `serve_subscription_with`, `SignedStreamDeadline`, `until_stream_deadline`, `EnvelopeLayerBuilder::max_signed_stream_life`,
   `DEFAULT_MAX_SIGNED_STREAM_LIFE`, `MAX_SIGNED_STREAM_LIFE` (24 h, refused above at `build`). The layer now binds `POST /rpc/subscribe/{op_id}` (an unsigned one under `Required` is a
   `401`; it was a `405`), and a signed open must literally name `application/cbor-seq` or `text/event-stream` in `Accept` (else a sealed `406`).
-  Generated handlers call `serve_subscription_with`, so a crate must rebuild. **Generated clients still refuse a sealed
-  subscription open locally until the client PR.** Owner: `cratestack-rpc` (`references/subscriptions.md`).
+  Generated handlers call `serve_subscription_with`, so a crate must rebuild. Owner: `cratestack-rpc` (`references/subscriptions.md`).
+- **Signed subscription open, generated clients** (cratestack#1378 part B2) *(unreleased on main, since 0.20.4)*. The
+  Rust, TypeScript (RPC only) and Dart clients open a subscription marked `@frames(unsigned)` signed and accept only the
+  unsigned stream they asked for. **Source break:** a hand-built Rust `SubscriptionTarget { .. }` needs
+  `frames: None, seal_route: String::new()`. New: `EnvelopeError::UnsignedFramesRefused`, TypeScript
+  `createSealedSubscriptions` and `UnsignedFramesRefused`, Dart `unsigned_frames_refused`. A client with an envelope no
+  longer opens an unsealed socket. Owners: `cratestack-clients`, `cratestack-rpc`, `cratestack-troubleshooting`.
 
 ## 0.20.3 (2026-11-16)
 

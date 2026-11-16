@@ -559,7 +559,7 @@ relation or full-text filter, or one over a column the event does not carry
 (`@server_only`). A feed takes only `list`'s filters, `operations` and `fields`.
 On 0.17.x an `EventSource` client saw every such refusal as `406`.
 
-**406 on a signed subscription.** Streams cannot be sealed until ADR 0006 P1, so
+**406 on a signed subscription.** Streams cannot be sealed until ADR 0006 P1 (frames can only be left plain), so
 a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler
 runs, under `Required` and `Optional` alike, and an unsigned one under
 `Required` is the 401. Give subscriptions `Optional` or `Off` in the policy
@@ -591,9 +591,30 @@ closes. Under `policy(UnsignedRequestSealedReply)` an unsigned `POST` to a subsc
 changes from a `405` to the unsigned sealed-reply path (an unsigned `406`, before the
 handler runs). Sign it, or use `GET` where the policy allows an unsigned subscribe.
 
-**Generated clients refuse a sealed subscription open** (`StreamsUnsupported`, or
-the TypeScript/Dart equivalent): expected until the client PR of cratestack#1378
-lands; the server half works with a hand-sealed request.
+**A generated client refuses a subscription locally, sending nothing** *(since 0.20.4, unreleased on main,
+cratestack#1378)*. A client that holds an envelope opens only a subscription marked `@frames(unsigned)`.
+Rust: `EnvelopeError::StreamsUnsupported` (`envelope_streams_unsupported`) for an unmarked subscription
+(a model feed is never marked), a `WebSocket` / `WebTransport` pin, a REST route on `wasm32`, or a
+`*_streamed` / `@stream` call. TypeScript: a `CratestackSubscriptionError` with code
+`streams_unsupported` for an unmarked subscription or a `"websocket"` / `"webtransport"` pin when
+`subscriptions.seal` is set. Fix: mark the subscription `@frames(unsigned)` (and use `SubscriptionTransport::Sse`
+or `CborSeq`, `"sse"` or `"cbor-seq"`, or leave `Auto`), or open it from a client with no envelope against a
+policy that allows it unsigned.
+
+**`EnvelopeError::UnsignedFramesRefused` (`envelope_unsigned_frames_refused`), TypeScript `UnsignedFramesRefused`,
+Dart `unsigned_frames_refused`** *(since 0.20.4, unreleased on main)*. The server accepted the signed open but
+the answer is not the unsigned stream that was asked for: `Cratestack-Frames: unsigned` is missing, repeated or
+another value, or the `Content-Type` is not the requested stream type (a plain `200`, or a proxy that
+stripped headers). The frames are never read. Look at what is between you and the server (a proxy
+that drops unknown response headers, or rewrites the type); the marker is not signed, so the client
+cannot tell a stripped one from a forged answer. Dart also raises it for the marker on a subscription the
+schema does not mark `@frames(unsigned)`.
+
+**TypeScript `CoseFailure` `misuse` opening a subscription signed** *(since 0.20.4, unreleased on main)*:
+`createSealedSubscriptions` is RPC only. A REST route cannot be opened sealed from `fetch` (a `GET` with a body,
+cratestack#1407); use `transport rpc`, or a Rust client on a native target. `createSealedFetch` also refuses
+(`misuse`, before any `fetch`) any call whose `Accept` names a stream type. `SealRequired` there means the op has
+no `OP_CONTRACTS` entry or `cose` declined it: a subscription is never opened in plain.
 
 **The `AuthProvider` sees CBOR, not the COSE body, and the signer is not the
 user.** The layer hands the router the opened payload as `application/cbor`.
