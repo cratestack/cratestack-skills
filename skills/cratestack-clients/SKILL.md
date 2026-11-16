@@ -171,6 +171,22 @@ and its providers, not the call sites.
 > `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter`.** They are deleted,
 > with no aliases. Older docs, blog posts and the docs site may still show them.
 
+**Signed subscriptions (Dart)** *(since 0.20.4, unreleased on main, cratestack#1378)*: the generated
+client **never seals**; the app's `CratestackHttpTransport` does, and **the app opts in** with
+`CratestackSubscriptionOptions(sealsSubscriptions: true)` (default `false`; off, a subscription opens as it
+always did: no `extra`, no marker check, an unmarked answer accepted). On, for a subscription marked
+`@frames(unsigned)` the SSE and cbor-seq readers put `cratestack.frames` (`unsigned`), `cratestack.route`
+(`subscribe/<op id>` on RPC, the route template on REST) and `cratestack.contract` (the digest, hex) in
+`CratestackHttpRequest.extra`, never on the wire; a sealing transport seals the open under them and answers
+with the stream untouched (`Cratestack-Frames: unsigned` and the stream `Content-Type` kept) or a refusal.
+A refusal the transport verified and opened is returned as `CratestackHttpResponse(..., opened: true)` and
+keeps its real code; any other non-2xx is `unsigned_refusal` (status kept, body never read). The reader
+refuses a `2xx` without the marker, with another value or stream type: `CratestackSubscriptionException`
+with code `unsigned_frames_refused`. Never add the marker in the transport. With the opt-in, an unmarked
+subscription and a `webSocket` / `webTransport` pin are `streams_unsupported` (nothing connected or sent);
+`auto` reads `cborSeq`. The riverpod `cratestackSubscriptionRetry` does not retry those three codes.
+`CratestackSubscriptionTarget` gained optional `frames` and `sealRoute`.
+
 Every generated `runtime.dart` declares `CratestackHttpTransport` (one method,
 `send`). There is one adapter per protocol, written over it, and the HTTP stack is
 a transport:
@@ -320,9 +336,27 @@ macOS and iOS xcframeworks, and web — **Linux arm64 is the one gap**, and sinc
 default; *since 0.15.0, cratestack#1007*) makes a client `Required`: every request is sealed,
 every response must be a COSE message verifying against the request it answers
 (`EnvelopeError::Unverified`), and an unsealed answer is `EnvelopeError::Unsigned { status }`
-with its body never read. Streamed entry points (`*_streamed`, `call_streaming`) and
-subscriptions fail locally with `EnvelopeError::StreamsUnsupported`, and redirects are never
-followed. Reseal, never replay: a retry layer must send the call again through the client.
+with its body never read. Streamed entry points (`*_streamed`, `call_streaming`) fail locally with
+`EnvelopeError::StreamsUnsupported`, and redirects are never followed. Reseal, never replay: a retry
+layer must send the call again through the client. **Subscriptions** *(since 0.20.4, unreleased on main,
+cratestack#1378)*: one marked `@frames(unsigned)` is opened sealed (see the next heading); every other
+subscription is `StreamsUnsupported`, **before anything is sent**.
+
+**Signed subscriptions (Rust)** *(since 0.20.4, unreleased on main)*. `subscribe()` / the generated
+`procedures().<name>(&args)` on a client with an envelope seals the open (`POST` of the input's CBOR on
+RPC; a `GET` carrying the sealed message as its body on REST) with `Accept: <stream type>,
+application/cose`, and reads the **plain** frames that answer: treat each as a hint and re-read through
+a sealed call. `SubscriptionTarget` gained `frames: Option<FramesMode>` and `seal_route: String` (a source
+break for a hand-built `SubscriptionTarget { .. }`: add `frames: None, seal_route: String::new()`). `Auto`
+picks cbor-seq and never a socket; `Sse` and `CborSeq` work. `StreamsUnsupported` (nothing sent) for: an
+unmarked subscription (a model feed is never marked), a `WebSocket` / `WebTransport` pin, a REST route on
+`wasm32`, and `@stream`. A non-COSE answer is the stream only with `Cratestack-Frames` exactly once =
+`unsigned` and the requested `Content-Type`, else `EnvelopeError::UnsignedFramesRefused` (code
+`envelope_unsigned_frames_refused`). A sealed refusal is the `Remote` error it carries; at
+`max_signed_stream_life` the receiver yields `Remote` 503 `unavailable` / `"stream lifetime"`: resubscribe
+(a fresh nonce is sealed every `subscribe()`) with a jittered backoff. Source:
+`crates/cratestack-client-rust/src/client/sealed_stream.rs`, `src/subscription/sealed.rs`, tests
+`crates/cratestack-api/tests/cose_client_stream_{rpc,rest}.rs`.
 
 On 0.15.0 to 0.15.3, `with_envelope` refused every codec but CBOR. It takes
 any codec whose types can be sealed now: the codec's `CONTENT_TYPE` is the type of each sealed
@@ -523,6 +557,21 @@ new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_C
   (`CoseFailure` `rejected`); an unsigned non-ok response (a gateway `401`, `415`, `426`) passes
   through unchanged, a hint and never proof. Errors are `CoseFailure` with `code` `rejected` (empty
   message, by design) or `misuse`. There is no response-expiry check, as in Rust.
+- **Signed subscriptions** *(since 0.20.4, unreleased on main, cratestack#1378)*: pass
+  `subscriptions: { seal: createSealedSubscriptions({ cose, contracts: OP_CONTRACTS }) }` to the
+  generated **RPC** runtime. The open is a `POST` of the input's CBOR, the frames that answer are plain
+  hints. **RPC only**: a REST route is a `CoseFailure` `misuse` before any `fetch` (a `GET` with a body is
+  not sendable from `fetch`, cratestack#1407), and `createSealedFetch` now throws `misuse` for any call
+  whose `Accept` names a stream type. It never opens in plain: no contract, or `cose` declining, is a
+  `SealRequired`. With a sealer, `"auto"` picks `"cbor-seq"`, and an unmarked subscription or a
+  `"websocket"` / `"webtransport"` pin is a `CratestackSubscriptionError` with code
+  **`streams_unsupported`**, nothing sent. A marker missing, repeated or not `unsigned`, or another
+  `Content-Type` than the stream asked for, throws `UnsignedFramesRefused` (`CoseFailure`, code
+  `rejected`). The sealed `fetch` is sent with `redirect: "error"` (a `redirected` answer is a `CoseFailure`
+  `rejected`). An **unsigned** non-2xx is a `CratestackSubscriptionError` with code `unsigned_refusal` (status
+  kept, body never read); an opened refusal keeps its real code. A cross-origin browser needs the server's CORS
+  layer to send `Access-Control-Expose-Headers: Cratestack-Frames`, or every sealed open fails closed with
+  `UnsignedFramesRefused`. Source: `packages/cratestack-cbor/src/sealed-stream.ts`.
 - **Not sealed / not available:** `stream()` is never sealed. The chunk-fed `StreamOpener` /
   `StreamSealer` and trust-chain verification (founder list, intermediates, replica certificate) do
   not exist yet; they wait on the Rust side (cratestack#1008, #1009). `serverKeys` is the whole trust
