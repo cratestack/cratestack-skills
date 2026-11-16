@@ -585,8 +585,11 @@ with a fresh signed open (a replayed open is the coarse 401) and jittered backof
 *(unreleased on main, since 0.20.4)*. The layer now binds `POST` on the subscribe
 route (it used to bind `GET` only, so the `POST` was unresolved). Under `Required` an
 unsigned `POST` was already refused (a `405`) and is now this `401`; it reached the
-handler only under a closure policy with a non-strict `unresolved_mode`, a bypass this
-closes. Sign it, or use `GET` where the policy allows an unsigned subscribe.
+handler under any policy whose `unresolved_mode` is not strict (for example
+`policy(Required).unresolved_mode(Optional)`, or a custom `EnvelopePolicy`), a bypass this
+closes. Under `policy(UnsignedRequestSealedReply)` an unsigned `POST` to a subscribe route
+changes from a `405` to the unsigned sealed-reply path (an unsigned `406`, before the
+handler runs). Sign it, or use `GET` where the policy allows an unsigned subscribe.
 
 **Generated clients refuse a sealed subscription open** (`StreamsUnsupported`, or
 the TypeScript/Dart equivalent): expected until the client PR of cratestack#1378
