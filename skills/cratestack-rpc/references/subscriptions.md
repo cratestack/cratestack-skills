@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.1.** Everything here is *(since 0.18.0)*:
+> **Verified against CrateStack 0.20.2.** Everything here is *(since 0.18.0)*:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -265,7 +265,7 @@ let config = ClientConfig::new(base)
   offers `WebTransportClient::connect(url, trust, headers)` and
   `subscribe(op, input)`; dropping a `Subscription` cancels it. `input` is anything
   `Into<RpcFrameValue>` and `Subscription::next` yields `RpcFrameValue` *(since 0.19.6, cratestack#1360; through 0.19.5 both were `serde_json::Value`)*.
-- **One SSE event is capped** *(unreleased on main, cratestack#1379)*: 1 MiB by default, counted as the
+- **One SSE event is capped** *(since 0.20.2, cratestack#1379)*: 1 MiB by default, counted as the
   raw bytes received (line endings and the blank line included), counting partial `data:` lines and the pending line. Set it with
   `ClientConfig::with_max_sse_event_bytes(n)`. An event over the cap ends the stream with
   `ClientError::EventTooLarge { limit }` (on the RPC client `RpcClientError::EventTooLarge { limit }`, not
@@ -298,7 +298,7 @@ for await (const line of client.procedures.lines({ args: { roomId: "r1" } })) { 
   never opens falls back; a refusal is thrown, never a fallback. A WebTransport
   attempt not `Ready` within 3 s is remembered in `localStorage` for 10 minutes per
   origin. Node has no `WebTransport`, so there it starts at the WebSocket.
-- **Event cap** *(unreleased on main, cratestack#1379)*: `subscriptions: { maxEventBytes: n }`,
+- **Event cap** *(since 0.20.2, cratestack#1379)*: `subscriptions: { maxEventBytes: n }`,
   default 1 MiB (UTF-8 bytes after `\r\n` -> `\n`, so up to one more byte per line than Rust counts). Over it, the SSE reader throws
   `CratestackEventTooLargeError` (a `CratestackSubscriptionError`, code `event_too_large`, `.limit`)
   and cancels the `fetch` body.
@@ -355,7 +355,7 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   certificate; `webSocketUrl` overrides the derived `ws(s)://<base>/rpc/ws`.
 - In the riverpod preset, override `<prefix>SubscriptionOptionsProvider`.
 - Native Dart has no WebTransport: there `auto` starts at the WebSocket.
-- **Event cap** *(unreleased on main, cratestack#1379)*:
+- **Event cap** *(since 0.20.2, cratestack#1379)*:
   `CratestackSubscriptionOptions(maxEventBytes: n)`, default 1 MiB (UTF-8 bytes after `\r\n` -> `\n`, so up to
   one more byte per line than Rust counts). Over it, the SSE stream throws `CratestackEventTooLargeException` (a
   `CratestackSubscriptionException`, code `event_too_large`, `.limit`) and cancels the request. In `--preset riverpod` the generated subscription stream providers pass

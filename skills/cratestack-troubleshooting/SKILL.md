@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.2.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -323,7 +323,7 @@ not fall back to another binding. The same code **without** `details` is the per
 cap (`WebSocketLimits`, 64 by default): cancel one first. Before 0.19.3 the Rust client showed either
 as `internal`.
 
-**An SSE subscription ends with `EventTooLarge` / `CratestackEventTooLargeError` / `CratestackEventTooLargeException` (code `event_too_large`)** *(unreleased on main, cratestack#1379)*.
+**An SSE subscription ends with `EventTooLarge` / `CratestackEventTooLargeError` / `CratestackEventTooLargeException` (code `event_too_large`)** *(since 0.20.2, cratestack#1379)*.
 One server-sent event passed the client's per-event cap (1 MiB; Rust counts raw bytes received, TypeScript and Dart UTF-8 bytes after CRLF->LF, so they may take
 one more byte per line; the unfinished line counts too), so the client dropped the connection and delivered nothing after it. Either the server
 or a proxy never sends the blank line that ends an event, or a frame is genuinely that big. Fix the
