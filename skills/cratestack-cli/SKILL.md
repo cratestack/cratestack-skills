@@ -5,7 +5,7 @@ description: The cratestack CLI — check, generate-dart, generate-typescript, g
 
 # The `cratestack` CLI
 
-> **Verified against CrateStack 0.20.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -22,7 +22,7 @@ studio  print-ir  contract  migrate  diff
 ```
 
 `contract` is *(since 0.15.1)* (`digest`, `print`), with `lock`, `check` and `prune`
-*(since 0.15.2)* and `ops` *(unreleased on main, cratestack#1388)*; on 0.15.0 and earlier there are eight.
+*(since 0.15.2)* and `ops` *(since 0.20.3, cratestack#1388)*; on 0.15.0 and earlier there are eight.
 
 **There is no top-level `init`, `run` or `eject`** — those three are `studio`
 subcommands. There is no `migrate apply`, `rollback`, `verify` or `drift`, no
@@ -296,7 +296,7 @@ keeps accepting (`include_server_schema!(.., contracts = "s.contracts.lock")`; s
 ```bash
 cratestack contract digest --schema s.cstack [--json]        # every op's digest + the client contract digest
 cratestack contract print  --schema s.cstack --op <key>      # the canonical JSON one op's digest is taken over
-cratestack contract ops    --schema s.cstack [--json]        # every op's roles and whether it needs a principal (unreleased on main, cratestack#1388)
+cratestack contract ops    --schema s.cstack [--json]        # every op's roles and whether it needs a principal (since 0.20.3, cratestack#1388)
 cratestack contract lock   --schema s.cstack --lock s.contracts.lock [--note <text>] [--date YYYY-MM-DD]
 cratestack contract check  --schema s.cstack --lock s.contracts.lock [--json]   # the CI gate
 cratestack contract prune  --lock s.contracts.lock (--op <key> | --before YYYY-MM-DD | --keep N | --generation <hex>)
@@ -313,7 +313,7 @@ selector (`--generation` needs at least 8 hex digits).
 **Exit codes differ from the rest of the CLI:** 0 ok, 1 a failed verdict, **2** a tool error
 (an unreadable schema or lock, a bad date or flag value).
 
-### `contract ops` *(unreleased on main, cratestack#1388)*
+### `contract ops` *(since 0.20.3, cratestack#1388)*
 
 Every op with the rules written on it, the roles they name and whether it can be called with no
 principal, **computed by the same policy parser the macros use**. Use it to derive policy-dependent

@@ -5,7 +5,7 @@ description: CrateStack's RPC transport — transport rpc, POST /rpc/{op_id}, PO
 
 # RPC transport
 
-> **Verified against CrateStack 0.20.2.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.3.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -153,7 +153,7 @@ In 0.17.x there is no `ready` event, and items start at id 1. Payloads are **alw
 JSON** regardless of the negotiated codec. A quiet stream gets a `: keepalive`
 comment every 15 s *(since 0.18.0, cratestack#1267)*.
 
-`Accept: application/cbor-seq` selects a second HTTP binding on the same routes, a CBOR sequence of `ServerFrame`s *(since 0.20.3 (unreleased), cratestack#1001)*. Clients pin it (`SubscriptionTransport::CborSeq`, `transport: "cbor-seq"`, `CratestackSubscriptionTransport.cborSeq`); `auto` never picks it. See `references/subscriptions.md`.
+`Accept: application/cbor-seq` selects a second HTTP binding on the same routes, a CBOR sequence of `ServerFrame`s *(since 0.20.3, cratestack#1001)*. Clients pin it (`SubscriptionTransport::CborSeq`, `transport: "cbor-seq"`, `CratestackSubscriptionTransport.cborSeq`); `auto` never picks it. See `references/subscriptions.md`.
 
 **Errors before the stream** (a refusal, a bad input) are a JSON body with the
 error's own status — 400, 401 with `WWW-Authenticate`, 403, 500 — whatever the
