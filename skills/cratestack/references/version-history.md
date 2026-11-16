@@ -102,7 +102,15 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-Nothing yet.
+- **Signed subscription open with unsigned frames, server half** (cratestack#1378 part B1) *(unreleased on main, since 0.20.4)*.
+  A `subscription procedure` marked `@frames(unsigned)` may be opened with a signed request under a `Required` envelope; the
+  stream that answers is plain, labelled `Cratestack-Frames: unsigned`, and ends at `max_signed_stream_life` (default one hour)
+  with `err` `unavailable` / `"stream lifetime"`. Frames are hints only. New: `cratestack_core::FRAMES_HEADER`,
+  `serve_subscription_with`, `SignedStreamDeadline`, `until_stream_deadline`, `EnvelopeLayerBuilder::max_signed_stream_life`,
+  `DEFAULT_MAX_SIGNED_STREAM_LIFE`. The layer now binds `POST /rpc/subscribe/{op_id}` (an unsigned one under `Required` is a
+  `401`), and a signed open must literally name `application/cbor-seq` or `text/event-stream` in `Accept` (else a sealed `406`).
+  Generated handlers call `serve_subscription_with`, so a crate must rebuild. **Generated clients still refuse a sealed
+  subscription open locally until the client PR.** Owner: `cratestack-rpc` (`references/subscriptions.md`).
 
 ## 0.20.3 (2026-11-16)
 

@@ -694,10 +694,18 @@ Traps:
    `seal_response` / `media_type`). `self.inner.open_request(..)` picks
    `CoseEnvelope`'s inherent typed method and does not type-check (E0308).
 4. **Streams cannot be sealed yet** (ADR 0006 P1). A signed RPC subscription is
-   a **sealed `406`** before its handler runs, in `Required` and `Optional` alike;
-   give subscriptions `Optional` or `Off` in the policy
-   (`request.is_subscription()`). A signed `@stream` call is answered as **one
-   sealed CBOR array**, not a stream.
+   a **sealed `406`** before its handler runs, in `Required` and `Optional` alike,
+   **unless the schema marks it `@frames(unsigned)`** *(unreleased on main, since
+   0.20.4, cratestack#1378)*: then the open is verified like a unary call and the
+   stream that answers is plain (`Cratestack-Frames: unsigned`), bounded by
+   `.max_signed_stream_life(Duration)` on the builder (default one hour, zero
+   refused at `build`; the generated `envelope_layer(..)` passes the
+   `SUBSCRIPTION_FRAMES` table, a hand-built layer with none opens nothing). Its
+   `Accept` must literally name `application/cbor-seq` or `text/event-stream`. The
+   frames are hints, never values; see `cratestack-rpc`
+   `references/subscriptions.md`. Any other subscription: give it `Optional` or
+   `Off` in the policy (`request.is_subscription()`). A signed `@stream` call is
+   answered as **one sealed CBOR array**, not a stream.
 5. **The envelope does not authenticate.** The `AuthProvider` sees the opened
    CBOR payload (plus a `VerifiedSigner` in the request extensions), and
    generated handlers record the `VerifiedSigner` on the context
