@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.20.1.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.2.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -141,7 +141,7 @@ Runtime, under `db = Postgres`: `Cratestack::builder(pool)` →
 and, when the schema has them, `db.subscriptions()` *(since 0.17.1)* and `db.topics()`
 *(since 0.18.0)* (see "Events and the outbox" below).
 
-## Building the pool: `PgPoolConfig` *(unreleased on main, cratestack#1385)*
+## Building the pool: `PgPoolConfig` *(since 0.20.2, cratestack#1385)*
 
 `Cratestack::builder(pool)` takes a `PgPool`. Build it with `cratestack::PgPoolConfig`
 (`cratestack-pg`; also `cratestack_service::PgPoolConfig`) so the crate never names sqlx:
@@ -172,7 +172,7 @@ let db = cratestack_schema::Cratestack::builder(pool).build();
   TLS failure; never echoes the URL), `Unavailable` when the database cannot be reached or is going away (57P01/57P02/57P03, class 08).
 - URLs only: a libpq `host=.. dbname=..` DSN is `BadRequest`. There is no `connect_timeout`
   knob (sqlx has none); `acquire_timeout` bounds the wait and the connect.
-- Not in a release yet: on 0.20.1 and earlier there is no such type; use sqlx's `PgPoolOptions`.
+- Before 0.20.2 there is no such type; use sqlx's `PgPoolOptions`.
 
 *(since 0.14.1, GHSA-r67q-4qqq-g9gm)* The builder gains
 `.with_isolation_max_retries(n)`, and a schema that declares an `@isolation`
@@ -343,7 +343,7 @@ Encoded with the same negotiated codec as a success body. This is the REST shape
 | `TooManyRequests` | `TOO_MANY_REQUESTS` | 429 |
 | `AuthRefused` *(since 0.17.1)* | `UNAUTHORIZED` / `FORBIDDEN` | 401 / 403 — an `AuthRefusal`, see `cratestack-policy-auth` |
 | `Database`, `DatabaseTyped`, `Internal` | `DATABASE_ERROR`, `INTERNAL_ERROR` | 500 |
-| `Unavailable` | `UNAVAILABLE` | 503 (also, *(unreleased on main, cratestack#1385)*, the sqlx errors `PoolTimedOut`, `PoolClosed`, `WorkerCrashed`, `Io`; TLS, protocol and decode errors stay `DATABASE_ERROR` 500) |
+| `Unavailable` | `UNAVAILABLE` | 503 (also, *(since 0.20.2, cratestack#1385)*, the sqlx errors `PoolTimedOut`, `PoolClosed`, `WorkerCrashed`, `Io`; TLS, protocol and decode errors stay `DATABASE_ERROR` 500) |
 
 4xx messages (and `Unavailable`'s 503) are the caller-supplied string, except
 `Codec`, whose 400 always reads `invalid request payload`. **500 messages are

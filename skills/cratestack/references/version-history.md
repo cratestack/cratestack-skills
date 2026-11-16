@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.20.1** unless a marker says
+Everything in these skills is verified against **0.20.2** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.20.1** (2026-11-15). Every release from 0.15.0 to 0.20.1 is recorded below,
+The latest release is **0.20.2** (2026-11-16). Every release from 0.15.0 to 0.20.2 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -78,6 +78,8 @@ each step's breaking changes assume the one before:
 16. [0.20.0](#0200-2026-11-15): **breaking**: `HmacEnvelope` / `SealedEnvelope` removed (move to COSE_Mac0);
    additive: TypeScript `requireSealed`, and the CLI `--require-version` / `CRATESTACK_REQUIRE_VERSION`.
 17. [0.20.1](#0201-2026-11-15): additive: `@@map` / `@map` storage names; nothing to migrate unless you adopt them.
+18. [0.20.2](#0202-2026-11-16): additive: `PgPoolConfig`, the SSE event size cap in the generated clients; the
+   `cratestack-*` crates pin each other exactly (move every pin together).
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -93,7 +95,7 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.20.1, on main)
+## Unreleased (after 0.20.2, on main)
 
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
@@ -101,15 +103,23 @@ release is cut, move each item under its release heading.
 - `cratestack contract ops --schema s.cstack [--json]` *(unreleased on main, cratestack#1388)*: every op's rules,
   `roles`, `requires_principal` and `unanalysed`, from the macros' own policy analysis (`cratestack-policy`). Owner:
   `cratestack-cli`.
-- **The `cratestack-*` crates pin each other exactly** (cratestack#1390) *(unreleased on main, cratestack#1390)*.
+
+## 0.20.2 (2026-11-16)
+
+- **`PgPoolConfig` builds the Postgres pool without naming sqlx** (cratestack#1385) *(since 0.20.2, additive)*.
+  `cratestack::PgPoolConfig` (`cratestack-pg`; also `cratestack_service::PgPoolConfig`): `from_url`,
+  `max_connections`, `acquire_timeout`, `test_before_acquire`, `session_setting`, `application_name`,
+  `connect_lazy` / `connect`, `verify_settings`. Also maps the sqlx errors `PoolTimedOut`, `PoolClosed`,
+  `WorkerCrashed`, `Io` to `Unavailable` (503). Before 0.20.2 use sqlx's `PgPoolOptions`. Owner: `cratestack-server`.
+- **The `cratestack-*` crates pin each other exactly** (cratestack#1390) *(since 0.20.2)*.
   Each crate requires its siblings as `=x.y.z`, not a caret, so one build resolves one CrateStack version. Before,
   pinning one facade at `=0.20.0` could still resolve `cratestack-core` / `cratestack-policy` at 0.20.1 beside
   0.20.0 of the rest. Upgrading means moving every `cratestack-*` pin in the build to the same version in one
   change, then `cargo update` (`cargo update -p <one sibling>` alone fails); an older facade pinned beside a newer
   sibling is now a resolution error, not a silent mix.
-  Applies from the first release that contains it; releases up to 0.20.1 still use caret sibling requirements.
+  Applies from 0.20.2; releases up to 0.20.1 still use caret sibling requirements.
   Owner: `cratestack` (router).
-- **One SSE event is capped in the generated clients** *(unreleased on main, cratestack#1379)*: 1 MiB by default,
+- **One SSE event is capped in the generated clients** (cratestack#1379) *(since 0.20.2)*: 1 MiB by default,
   configurable (`ClientConfig::with_max_sse_event_bytes`, TypeScript `subscriptions.maxEventBytes`, Dart
   `CratestackSubscriptionOptions.maxEventBytes`); over it the stream ends with `ClientError::EventTooLarge { limit }` /
   `CratestackEventTooLargeError` / `CratestackEventTooLargeException`. Owner: `cratestack-rpc`.
