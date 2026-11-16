@@ -224,20 +224,20 @@ framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were
   uses one subscription id throughout, so ids are not shared between the bindings), then exactly one terminal `{id, err}` or `{id, end: {}}`. Unlike SSE, a source
   that ends sends `end`. A bare CBOR `null` (`0xf6`) every 15 s is a keep-alive, not a frame. Items are
   CBOR-encoded, so a `Uuid` is a byte string. A refusal before the stream is the same JSON error body as SSE.
-- **`Vary: Accept`**: every subscribe response, SSE or cbor-seq and a refusal too, carries it, on both bindings.
+- **`Vary: Accept`**: every subscribe response, SSE or cbor-seq and a refusal too, carries it, on both bindings, refusals included (the 406, auth refusals, the POST body 400 and an unknown op).
 - **`POST /rpc/subscribe/{op_id}`** reads its open body by `Content-Type`: `application/cbor` is CBOR, anything
   else (or none) is JSON.
 - **Bounds**: the credential-expiry cut-off and the open rate limit apply (shared with SSE).
   `SessionRegistry::admit` (the per-principal cap) is WebSocket and WebTransport only; SSE and cbor-seq do not use it.
 - **Server types** in `cratestack::rpc`: `SubscribeBinding::CborSeq`, `SubscribeBinding::codec()` ->
   `SubscribeCodec`, `encode_subscription_cbor_seq_response`,
-  `decode_subscribe_open_body`; the media type is the existing `CBOR_SEQUENCE_CONTENT_TYPE` (no new constant). Generated handlers pass `binding.codec()` where they passed `SseCodec`
+  `decode_subscribe_open_body`; the media type is the existing `cratestack::CBOR_SEQUENCE_CONTENT_TYPE`, at the crate root (not under `rpc`) on both the `cratestack-pg` and `cratestack-api` facades (no new constant). Generated handlers pass `binding.codec()` where they passed `SseCodec`
   (which stays).
 - **Clients opt in; `Auto` / `"auto"` / `auto` never picks it:**
   - Rust: `ClientConfig::with_subscription_transport(SubscriptionTransport::CborSeq)`; cap one frame with
     `with_max_subscription_frame_bytes(n)` (an alias of `with_max_sse_event_bytes`, same 1 MiB field).
   - TypeScript: `subscriptions: { transport: "cbor-seq" }`; needs `@cratestack/cbor` (a dependency of an RPC
-    package, an optional peer of a REST one); cap is `maxEventBytes`. A REST package with a subscription now
+    package, an optional peer of a REST one; without it, a cbor-seq subscription fails with `CratestackSubscriptionError` code `codec_unavailable` before any request is sent); cap is `maxEventBytes`. A REST package with a subscription now
     also emits `src/cbor-item.ts` and `src/cbor-argument.ts`.
   - Dart: `CratestackSubscriptionOptions(transport: CratestackSubscriptionTransport.cborSeq)`; cap is `maxEventBytes`.
 - **Errors, every client**: a frame over the cap is `EventTooLarge` (`CratestackEventTooLargeError` /
