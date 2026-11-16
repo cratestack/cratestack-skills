@@ -214,22 +214,24 @@ framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were
   /rpc/subscribe/{op_id}`, REST `GET /$procs/<name>` and `GET /<plural>/$subscribe`). REST has no `POST`
   subscribe form. `Content-Type: application/cbor-seq`.
 - **Negotiation**: `application/cbor-seq` selects it; `text/event-stream` and `*/*` stay SSE. Entries are
-  matched literally and **the first entry the server speaks wins**, so `application/cbor-seq, text/event-stream`
+  matched literally (no q-values) and **the first entry the server speaks wins**, so `application/cbor-seq, text/event-stream`
   is cbor-seq and the reverse is SSE. A missing or unacceptable `Accept` is `406` (`not_acceptable`) before
   authentication; its message now reads `subscription endpoint requires Accept: text/event-stream or
   application/cbor-seq`, so match on the status or code. The deprecated `validate_subscribe_accept_header` is
   still SSE-only.
-- **Framing**: a CBOR sequence in which each item is one `ServerFrame`: `{id: 1, ready: {}}`, then `{id: n,
-  next: <item>}` (n from 2), then exactly one terminal `{id, err}` or `{id, end: {}}`. Unlike SSE, a source
+- **Framing**: SSE's frames, CBOR-encoded, as a CBOR sequence in which each item is one `ServerFrame`:
+  `{id: 1, ready: {}}`, then `{id: n, next: <item>}` (ids count up per frame, `n` from 2; WebTransport instead
+  uses one subscription id throughout, so ids are not shared between the bindings), then exactly one terminal `{id, err}` or `{id, end: {}}`. Unlike SSE, a source
   that ends sends `end`. A bare CBOR `null` (`0xf6`) every 15 s is a keep-alive, not a frame. Items are
   CBOR-encoded, so a `Uuid` is a byte string. A refusal before the stream is the same JSON error body as SSE.
+- **`Vary: Accept`**: every subscribe response, SSE or cbor-seq and a refusal too, carries it, on both bindings.
 - **`POST /rpc/subscribe/{op_id}`** reads its open body by `Content-Type`: `application/cbor` is CBOR, anything
   else (or none) is JSON.
 - **Bounds**: the credential-expiry cut-off and the open rate limit apply (shared with SSE).
   `SessionRegistry::admit` (the per-principal cap) is WebSocket and WebTransport only; SSE and cbor-seq do not use it.
 - **Server types** in `cratestack::rpc`: `SubscribeBinding::CborSeq`, `SubscribeBinding::codec()` ->
-  `SubscribeCodec`, `encode_subscription_cbor_seq_response`, `CBOR_SEQ_CONTENT_TYPE`,
-  `decode_subscribe_open_body`. Generated handlers pass `binding.codec()` where they passed `SseCodec`
+  `SubscribeCodec`, `encode_subscription_cbor_seq_response`,
+  `decode_subscribe_open_body`; the media type is the existing `CBOR_SEQUENCE_CONTENT_TYPE` (no new constant). Generated handlers pass `binding.codec()` where they passed `SseCodec`
   (which stays).
 - **Clients opt in; `Auto` / `"auto"` / `auto` never picks it:**
   - Rust: `ClientConfig::with_subscription_transport(SubscriptionTransport::CborSeq)`; cap one frame with
@@ -239,9 +241,15 @@ framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were
     also emits `src/cbor-item.ts` and `src/cbor-argument.ts`.
   - Dart: `CratestackSubscriptionOptions(transport: CratestackSubscriptionTransport.cborSeq)`; cap is `maxEventBytes`.
 - **Errors, every client**: a frame over the cap is `EventTooLarge` (`CratestackEventTooLargeError` /
-  `CratestackEventTooLargeException`); a body that ends inside a frame, or between frames without `end` or
-  `err`, is an error (`ClientError::InvalidResponse`; TypeScript `CratestackSubscriptionError`; Dart
-  `CratestackSubscriptionException`, code `invalid_response`), never a quiet end.
+  `CratestackEventTooLargeException`). Invalid responses are `ClientError::InvalidResponse` (Rust),
+  `CratestackSubscriptionError` with code `invalid_response` (TypeScript) and `CratestackSubscriptionException`
+  with code `invalid_response` (Dart): a `Content-Type` that is not `application/cbor-seq` (parameters ignored,
+  case-insensitive); a first frame that is `end` or `next` instead of `ready`; a non-map item; a body that
+  ends inside a frame, or between frames without `end` or `err`, never a quiet end. An `err` as the first
+  frame is the server's refusal and carries the server's code.
+- **Model event ids**: a model event's `event_id` is a 16-byte CBOR byte string on cbor-seq. TypeScript
+  (`ModelEvent.event_id`) and Dart (`CratestackModelEvent.eventId`) revive it to the canonical hyphenated UUID
+  string; Rust's `ModelEvent.event_id` is a `Uuid`.
 - **Breaking for exhaustive matches** on `SubscriptionTransport` (Rust, not `#[non_exhaustive]`) and
   `CratestackSubscriptionTransport` (Dart): add an arm.
 - Not in it: `Auto` selection, compression, resumption, MCP (exempt, ADR 0002 D5).
