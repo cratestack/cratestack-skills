@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.20.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -171,7 +171,7 @@ and its providers, not the call sites.
 > `CratestackRpcDioAdapter` or `CratestackRpcCborDioAdapter`.** They are deleted,
 > with no aliases. Older docs, blog posts and the docs site may still show them.
 
-**Signed subscriptions (Dart)** *(since 0.20.4, unreleased on main, cratestack#1378)*: the generated
+**Signed subscriptions (Dart)** *(since 0.20.4, cratestack#1378)*: the generated
 client **never seals**; the app's `CratestackHttpTransport` does, and **the app opts in** with
 `CratestackSubscriptionOptions(sealsSubscriptions: true)` (default `false`; off, a subscription opens as it
 always did: no `extra`, no marker check, an unmarked answer accepted). On, for a subscription marked
@@ -338,11 +338,11 @@ every response must be a COSE message verifying against the request it answers
 (`EnvelopeError::Unverified`), and an unsealed answer is `EnvelopeError::Unsigned { status }`
 with its body never read. Streamed entry points (`*_streamed`, `call_streaming`) fail locally with
 `EnvelopeError::StreamsUnsupported`, and redirects are never followed. Reseal, never replay: a retry
-layer must send the call again through the client. **Subscriptions** *(since 0.20.4, unreleased on main,
+layer must send the call again through the client. **Subscriptions** *(since 0.20.4,
 cratestack#1378)*: one marked `@frames(unsigned)` is opened sealed (see the next heading); every other
 subscription is `StreamsUnsupported`, **before anything is sent**.
 
-**Signed subscriptions (Rust)** *(since 0.20.4, unreleased on main)*. `subscribe()` / the generated
+**Signed subscriptions (Rust)** *(since 0.20.4)*. `subscribe()` / the generated
 `procedures().<name>(&args)` on a client with an envelope seals the open (`POST` of the input's CBOR on
 RPC; a `GET` carrying the sealed message as its body on REST) with `Accept: <stream type>,
 application/cose`, and reads the **plain** frames that answer: treat each as a hint and re-read through
@@ -557,7 +557,7 @@ new CratestackRuntime(origin, { fetch: createSealedFetch({ cose, contracts: OP_C
   (`CoseFailure` `rejected`); an unsigned non-ok response (a gateway `401`, `415`, `426`) passes
   through unchanged, a hint and never proof. Errors are `CoseFailure` with `code` `rejected` (empty
   message, by design) or `misuse`. There is no response-expiry check, as in Rust.
-- **Signed subscriptions** *(since 0.20.4, unreleased on main, cratestack#1378)*: pass
+- **Signed subscriptions** *(since 0.20.4, cratestack#1378)*: pass
   `subscriptions: { seal: createSealedSubscriptions({ cose, contracts: OP_CONTRACTS }) }` to the
   generated **RPC** runtime. The open is a `POST` of the input's CBOR, the frames that answer are plain
   hints. **RPC only**: a REST route is a `CoseFailure` `misuse` before any `fetch` (a `GET` with a body is

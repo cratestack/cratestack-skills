@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.20.3** unless a marker says
+Everything in these skills is verified against **0.20.4** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.20.3** (2026-11-16). Every release from 0.15.0 to 0.20.3 is recorded below,
+The latest release is **0.20.4** (2026-11-16). Every release from 0.15.0 to 0.20.4 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -82,6 +82,8 @@ each step's breaking changes assume the one before:
    `cratestack-*` crates pin each other exactly (move every pin together).
 19. [0.20.3](#0203-2026-11-16): additive: `cratestack contract ops`, subscriptions over `application/cbor-seq`;
    **breaking for an exhaustive `match` / `switch`** on the Rust and Dart subscription transport enums.
+20. [0.20.4](#0204-2026-11-16): additive: `@frames(unsigned)` and the signed subscription open (server and the Rust, TypeScript and
+   Dart clients); **source break** for a hand-built Rust `SubscriptionTarget { .. }`; a crate must rebuild.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -97,12 +99,16 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.20.3, on main)
+## Unreleased (after 0.20.4, on main)
 
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-- **Signed subscription open with unsigned frames, server half** (cratestack#1378 part B1) *(unreleased on main, since 0.20.4)*.
+Nothing yet.
+
+## 0.20.4 (2026-11-16)
+
+- **Signed subscription open with unsigned frames, server half** (cratestack#1378 part B1) *(since 0.20.4)*.
   A `subscription procedure` marked `@frames(unsigned)` may be opened with a signed request under a `Required` envelope; the
   stream that answers is plain, labelled `Cratestack-Frames: unsigned`, and ends at `max_signed_stream_life` (default one hour)
   with `err` `unavailable` / `"stream lifetime"`. Frames are hints only. New: `cratestack_core::FRAMES_HEADER`,
@@ -110,7 +116,7 @@ release is cut, move each item under its release heading.
   `DEFAULT_MAX_SIGNED_STREAM_LIFE`, `MAX_SIGNED_STREAM_LIFE` (24 h, refused above at `build`). The layer now binds `POST /rpc/subscribe/{op_id}` (an unsigned one under `Required` is a
   `401`; it was a `405`), and a signed open must literally name `application/cbor-seq` or `text/event-stream` in `Accept` (else a sealed `406`).
   Generated handlers call `serve_subscription_with`, so a crate must rebuild. Owner: `cratestack-rpc` (`references/subscriptions.md`).
-- **Signed subscription open, generated clients** (cratestack#1378 part B2) *(unreleased on main, since 0.20.4)*. The
+- **Signed subscription open, generated clients** (cratestack#1378 part B2) *(since 0.20.4)*. The
   Rust, TypeScript (RPC only) and Dart clients open a subscription marked `@frames(unsigned)` signed and accept only the
   unsigned stream they asked for. **Source break:** a hand-built Rust `SubscriptionTarget { .. }` needs
   `frames: None, seal_route: String::new()`. New: `EnvelopeError::UnsignedFramesRefused`, TypeScript

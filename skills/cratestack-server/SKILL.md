@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.20.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -695,7 +695,7 @@ Traps:
    `CoseEnvelope`'s inherent typed method and does not type-check (E0308).
 4. **Streams cannot be sealed yet** (ADR 0006 P1). A signed RPC subscription is
    a **sealed `406`** before its handler runs, in `Required` and `Optional` alike,
-   **unless the schema marks it `@frames(unsigned)`** *(unreleased on main, since
+   **unless the schema marks it `@frames(unsigned)`** *(since
    0.20.4, cratestack#1378)*: then the open is verified like a unary call and the
    stream that answers is plain (`Cratestack-Frames: unsigned`), bounded by
    `.max_signed_stream_life(Duration)` on the builder (default one hour; `build` refuses zero and

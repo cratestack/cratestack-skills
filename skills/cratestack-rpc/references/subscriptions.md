@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.3**. Everything here is *(since 0.18.0)* unless marked:
+> **Verified against CrateStack 0.20.4**. Everything here is *(since 0.18.0)* unless marked:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -253,7 +253,7 @@ Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the framewor
   `CratestackSubscriptionTransport` (Dart): add an arm.
 - Not in it: `Auto` selection, compression, resumption, MCP (exempt, ADR 0002 D5).
 
-## Signed services: `@frames(unsigned)` *(unreleased on main, since 0.20.4, cratestack#1378 parts B1 and B2)*
+## Signed services: `@frames(unsigned)` *(since 0.20.4, cratestack#1378 parts B1 and B2)*
 
 Source of truth: `docs/design/subscriptions-websocket.md` §7.4, `crates/cratestack-axum/src/envelope_layer/signed_subscription.rs` and the tests `crates/cratestack-api/tests/signed_subscription_{rpc,rest}.rs`. The generated Rust, TypeScript and Dart clients open a marked subscription signed (part B2; see below). A client that holds an envelope never sends a subscription in plain: it seals the open or refuses it locally, with nothing sent.
 
