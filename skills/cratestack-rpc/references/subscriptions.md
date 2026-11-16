@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.2.** Everything here is *(since 0.18.0)*:
+> **Verified against CrateStack 0.20.2** (plus one *(unreleased)* section, the `application/cbor-seq` binding, read from `main`). Everything here is *(since 0.18.0)* unless marked:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -205,6 +205,47 @@ The frames, admission, `OriginPolicy` and the session registry live in
 `cratestack_core::subscription_wire`. `cratestack-webtransport` re-exports them
 unchanged.
 
+## The `application/cbor-seq` binding *(since 0.20.3 (unreleased), cratestack#1001)*
+
+Not in any release: only on `main` after 0.20.2. Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the
+framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were SSE only.
+
+- **Server**: the same four subscribe routes answer `Accept: application/cbor-seq` (RPC `GET` and `POST
+  /rpc/subscribe/{op_id}`, REST `GET /$procs/<name>` and `GET /<plural>/$subscribe`). REST has no `POST`
+  subscribe form. `Content-Type: application/cbor-seq`.
+- **Negotiation**: `application/cbor-seq` selects it; `text/event-stream` and `*/*` stay SSE. Entries are
+  matched literally and **the first entry the server speaks wins**, so `application/cbor-seq, text/event-stream`
+  is cbor-seq and the reverse is SSE. A missing or unacceptable `Accept` is `406` (`not_acceptable`) before
+  authentication; its message now reads `subscription endpoint requires Accept: text/event-stream or
+  application/cbor-seq`, so match on the status or code. The deprecated `validate_subscribe_accept_header` is
+  still SSE-only.
+- **Framing**: a CBOR sequence in which each item is one `ServerFrame`: `{id: 1, ready: {}}`, then `{id: n,
+  next: <item>}` (n from 2), then exactly one terminal `{id, err}` or `{id, end: {}}`. Unlike SSE, a source
+  that ends sends `end`. A bare CBOR `null` (`0xf6`) every 15 s is a keep-alive, not a frame. Items are
+  CBOR-encoded, so a `Uuid` is a byte string. A refusal before the stream is the same JSON error body as SSE.
+- **`POST /rpc/subscribe/{op_id}`** reads its open body by `Content-Type`: `application/cbor` is CBOR, anything
+  else (or none) is JSON.
+- **Bounds**: the credential-expiry cut-off and the open rate limit apply (shared with SSE).
+  `SessionRegistry::admit` (the per-principal cap) is WebSocket and WebTransport only; SSE and cbor-seq do not use it.
+- **Server types** in `cratestack::rpc`: `SubscribeBinding::CborSeq`, `SubscribeBinding::codec()` ->
+  `SubscribeCodec`, `encode_subscription_cbor_seq_response`, `CBOR_SEQ_CONTENT_TYPE`,
+  `decode_subscribe_open_body`. Generated handlers pass `binding.codec()` where they passed `SseCodec`
+  (which stays).
+- **Clients opt in; `Auto` / `"auto"` / `auto` never picks it:**
+  - Rust: `ClientConfig::with_subscription_transport(SubscriptionTransport::CborSeq)`; cap one frame with
+    `with_max_subscription_frame_bytes(n)` (an alias of `with_max_sse_event_bytes`, same 1 MiB field).
+  - TypeScript: `subscriptions: { transport: "cbor-seq" }`; needs `@cratestack/cbor` (a dependency of an RPC
+    package, an optional peer of a REST one); cap is `maxEventBytes`. A REST package with a subscription now
+    also emits `src/cbor-item.ts` and `src/cbor-argument.ts`.
+  - Dart: `CratestackSubscriptionOptions(transport: CratestackSubscriptionTransport.cborSeq)`; cap is `maxEventBytes`.
+- **Errors, every client**: a frame over the cap is `EventTooLarge` (`CratestackEventTooLargeError` /
+  `CratestackEventTooLargeException`); a body that ends inside a frame, or between frames without `end` or
+  `err`, is an error (`ClientError::InvalidResponse`; TypeScript `CratestackSubscriptionError`; Dart
+  `CratestackSubscriptionException`, code `invalid_response`), never a quiet end.
+- **Breaking for exhaustive matches** on `SubscriptionTransport` (Rust, not `#[non_exhaustive]`) and
+  `CratestackSubscriptionTransport` (Dart): add an arm.
+- Not in it: `Auto` selection, compression, resumption, MCP (exempt, ADR 0002 D5).
+
 ## The Rust client
 
 `include_server_schema!` and `include_client_schema!` both generate the client
@@ -247,7 +288,7 @@ while let Some(item) = lines.recv().await { let line = item?; }
 
   Features, native targets only: `client-ws` / `client-webtransport` on
   `cratestack-pg`/`cratestack-api`; `ws` / `webtransport` on `cratestack-client`.
-  `SubscriptionTransport::WebTransport` / `WebSocket` / `Sse` pin one binding.
+  `SubscriptionTransport::WebTransport` / `WebSocket` / `Sse` pin one binding, and `CborSeq` *(since 0.20.3 (unreleased), cratestack#1001)* pins `application/cbor-seq`, which `Auto` never picks.
 - **SSE** is always a `GET` with the input as the query string, signed by the
   request authorizer like any call. The socket's upgrade carries the
   authorizer's headers for `GET /rpc/ws`.
@@ -269,7 +310,7 @@ let config = ClientConfig::new(base)
   raw bytes received (line endings and the blank line included), counting partial `data:` lines and the pending line. Set it with
   `ClientConfig::with_max_sse_event_bytes(n)`. An event over the cap ends the stream with
   `ClientError::EventTooLarge { limit }` (on the RPC client `RpcClientError::EventTooLarge { limit }`, not
-  `InvalidResponse`), drops the connection and delivers nothing after it. Applies to the SSE binding only.
+  `InvalidResponse`), drops the connection and delivers nothing after it. Applies to the SSE binding, and *(since 0.20.3 (unreleased))* to one `CborSeq` frame, where `with_max_subscription_frame_bytes(n)` sets the same field.
 
 ## The TypeScript client
 
@@ -280,7 +321,7 @@ and `src/subscription-sockets.ts`; any other schema generates exactly as before.
 ```ts
 const client = new Client(origin, {
   subscriptions: {
-    transport: "auto", // "webtransport" | "websocket" | "sse"
+    transport: "auto", // "webtransport" | "websocket" | "sse" | "cbor-seq" (unreleased, never picked by "auto")
     webTransport: { url: "https://api.example.com:4433/rpc/wt" }, // its own UDP address
   },
 });
@@ -351,7 +392,7 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   a socket until you set it (return `{}` for a server allowing anonymous
   subscriptions).
 - `transport: CratestackSubscriptionTransport.webSocket` / `.webTransport` /
-  `.sse` pins one. `serverCertificateHashes` pins a self-signed dev
+  `.sse` pins one (`.cborSeq` *(since 0.20.3 (unreleased), cratestack#1001)* too; `auto` never picks it). `serverCertificateHashes` pins a self-signed dev
   certificate; `webSocketUrl` overrides the derived `ws(s)://<base>/rpc/ws`.
 - In the riverpod preset, override `<prefix>SubscriptionOptionsProvider`.
 - Native Dart has no WebTransport: there `auto` starts at the WebSocket.

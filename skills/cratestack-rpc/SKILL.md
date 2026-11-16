@@ -153,6 +153,8 @@ In 0.17.x there is no `ready` event, and items start at id 1. Payloads are **alw
 JSON** regardless of the negotiated codec. A quiet stream gets a `: keepalive`
 comment every 15 s *(since 0.18.0, cratestack#1267)*.
 
+`Accept: application/cbor-seq` selects a second HTTP binding on the same routes, a CBOR sequence of `ServerFrame`s *(since 0.20.3 (unreleased), cratestack#1001)*. Clients pin it (`SubscriptionTransport::CborSeq`, `transport: "cbor-seq"`, `CratestackSubscriptionTransport.cborSeq`); `auto` never picks it. See `references/subscriptions.md`.
+
 **Errors before the stream** (a refusal, a bad input) are a JSON body with the
 error's own status — 400, 401 with `WWW-Authenticate`, 403, 500 — whatever the
 RPC codec *(since 0.18.0, cratestack#1267)*. In 0.17.x they went through the unary

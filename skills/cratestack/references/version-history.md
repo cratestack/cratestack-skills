@@ -103,6 +103,13 @@ release is cut, move each item under its release heading.
 - `cratestack contract ops --schema s.cstack [--json]` *(unreleased on main, cratestack#1388)*: every op's rules,
   `roles`, `requires_principal` and `unanalysed`, from the macros' own policy analysis (`cratestack-policy`). Owner:
   `cratestack-cli`.
+- **Subscriptions over `application/cbor-seq`** (cratestack#1001) *(since 0.20.3 (unreleased))*. The four subscribe routes
+  answer `Accept: application/cbor-seq` with a CBOR sequence of `ServerFrame`s (`ready`, `next`, one `err` or `end`; a CBOR
+  `null` keep-alive); first entry the server speaks wins, `*/*` stays SSE, the 406 text changed. `POST /rpc/subscribe` takes an
+  `application/cbor` body. Clients opt in, `Auto` never picks it: `SubscriptionTransport::CborSeq` (+
+  `with_max_subscription_frame_bytes`), TypeScript `"cbor-seq"` (needs `@cratestack/cbor`), Dart
+  `CratestackSubscriptionTransport.cborSeq`. **Breaking for exhaustive matches** on the Rust and Dart transport enums.
+  Owner: `cratestack-rpc` (`references/subscriptions.md`).
 
 ## 0.20.2 (2026-11-16)
 
