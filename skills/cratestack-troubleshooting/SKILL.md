@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.20.3.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -564,12 +564,12 @@ a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler
 runs, under `Required` and `Optional` alike, and an unsigned one under
 `Required` is the 401. Give subscriptions `Optional` or `Off` in the policy
 (`request.is_subscription()`) and subscribe unsigned, **or** mark the subscription
-`@frames(unsigned)` *(unreleased on main, since 0.20.4, cratestack#1378)* and open
+`@frames(unsigned)` *(since 0.20.4, cratestack#1378)* and open
 it signed. A signed `@stream` call is not refused: it is answered as one sealed
 CBOR array.
 
 **A signed open of an `@frames(unsigned)` subscription is still a sealed `406`**
-*(unreleased on main, since 0.20.4)*. The `406` has two causes now: the subscription
+*(since 0.20.4)*. The `406` has two causes now: the subscription
 is not marked (the layer holds no `SUBSCRIPTION_FRAMES` row for it, e.g. a
 hand-built layer or a schema without the attribute), or the open names no stream:
 the single `Accept` must literally contain `application/cbor-seq` or
@@ -577,12 +577,12 @@ the single `Accept` must literally contain `application/cbor-seq` or
 also a `406`. Open the sealed answer to read it.
 
 **A signed subscription ends with `err` `unavailable` / `"stream lifetime"`**
-*(unreleased on main, since 0.20.4)*. Not a fault: the stream hit
+*(since 0.20.4)*. Not a fault: the stream hit
 `max_signed_stream_life` (default one hour, at most 24 hours) or the credential's `exp`. Resubscribe
 with a fresh signed open (a replayed open is the coarse 401) and jittered backoff.
 
 **An unsigned `POST /rpc/subscribe/{op_id}` is a 401 under `Required`**
-*(unreleased on main, since 0.20.4)*. The layer now binds `POST` on the subscribe
+*(since 0.20.4)*. The layer now binds `POST` on the subscribe
 route (it used to bind `GET` only, so the `POST` was unresolved). Under `Required` an
 unsigned `POST` was already refused (a `405`) and is now this `401`; it reached the
 handler under any policy whose `unresolved_mode` is not strict (for example
@@ -591,7 +591,7 @@ closes. Under `policy(UnsignedRequestSealedReply)` an unsigned `POST` to a subsc
 changes from a `405` to the unsigned sealed-reply path (an unsigned `406`, before the
 handler runs). Sign it, or use `GET` where the policy allows an unsigned subscribe.
 
-**A generated client refuses a subscription locally, sending nothing** *(since 0.20.4, unreleased on main,
+**A generated client refuses a subscription locally, sending nothing** *(since 0.20.4,
 cratestack#1378)*. A client that holds an envelope opens only a subscription marked `@frames(unsigned)`.
 Rust: `EnvelopeError::StreamsUnsupported` (`envelope_streams_unsupported`) for an unmarked subscription
 (a model feed is never marked), a `WebSocket` / `WebTransport` pin, a REST route on `wasm32`, or a
@@ -604,7 +604,7 @@ or `CborSeq`, `"sse"` or `"cbor-seq"`, or leave `Auto`), or open it from a clien
 policy that allows it unsigned.
 
 **`EnvelopeError::UnsignedFramesRefused` (`envelope_unsigned_frames_refused`), TypeScript `UnsignedFramesRefused`,
-Dart `unsigned_frames_refused`** *(since 0.20.4, unreleased on main)*. The server accepted the signed open but
+Dart `unsigned_frames_refused`** *(since 0.20.4)*. The server accepted the signed open but
 the answer is not the unsigned stream that was asked for: `Cratestack-Frames: unsigned` is missing, repeated or
 another value, or the `Content-Type` is not the requested stream type (a plain `200`, or a proxy that
 stripped headers). The frames are never read. Look at what is between you and the server (a proxy
@@ -617,7 +617,7 @@ app's (tower-http: `CorsLayer::new().expose_headers([HeaderName::from_static("cr
 pages, Rust and Dart need nothing.
 
 **`unsigned_refusal` (TypeScript `CratestackSubscriptionError`, Dart `CratestackSubscriptionException`)** *(since
-0.20.4, unreleased on main)*. A signed subscription open was refused by a response that is not signed (a hop, or a
+0.20.4)*. A signed subscription open was refused by a response that is not signed (a hop, or a
 server layer ahead of the envelope), so its status is a hint and its body, never read, cannot be trusted for an
 error code. Read the status, not a code; fix what is refusing upstream. Dart only: a transport that verified and
 opened a refusal must return it with `CratestackHttpResponse(opened: true)`, or it reads as `unsigned_refusal`.
@@ -625,7 +625,7 @@ Dart: with `CratestackSubscriptionOptions(sealsSubscriptions: false)` (the defau
 an app whose transport seals must set it to `true`. `streams_unsupported` and `unsigned_frames_refused` repeat
 for the same setup, so do not retry them.
 
-**TypeScript `CoseFailure` `misuse` opening a subscription signed** *(since 0.20.4, unreleased on main)*:
+**TypeScript `CoseFailure` `misuse` opening a subscription signed** *(since 0.20.4)*:
 `createSealedSubscriptions` is RPC only. A REST route cannot be opened sealed from `fetch` (a `GET` with a body,
 cratestack#1407); use `transport rpc`, or a Rust client on a native target. `createSealedFetch` also refuses
 (`misuse`, before any `fetch`) any call whose `Accept` names a stream type. `SealRequired` there means the op has
