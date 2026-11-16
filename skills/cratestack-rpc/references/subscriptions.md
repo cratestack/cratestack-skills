@@ -224,7 +224,7 @@ framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were
   uses one subscription id throughout, so ids are not shared between the bindings), then exactly one terminal `{id, err}` or `{id, end: {}}`. Unlike SSE, a source
   that ends sends `end`. A bare CBOR `null` (`0xf6`) every 15 s is a keep-alive, not a frame. Items are
   CBOR-encoded, so a `Uuid` is a byte string. A refusal before the stream is the same JSON error body as SSE.
-- **`Vary: Accept`**: every subscribe response, SSE or cbor-seq and a refusal too, carries it, on both bindings, refusals included (the 406, auth refusals, the POST body 400 and an unknown op).
+- **`Vary: Accept`**: every response the generated subscribe handler makes carries it exactly once: success on both bindings (SSE and cbor-seq) and every refusal the handler itself makes (the 406, auth refusals, the RPC POST body 400 and an unknown op). A refusal from a layer in front of the handler does not carry it: the 413 body limit, a 405, a path rejection, the rate-limit 429, an envelope-layer error.
 - **`POST /rpc/subscribe/{op_id}`** reads its open body by `Content-Type`: `application/cbor` is CBOR, anything
   else (or none) is JSON.
 - **Bounds**: the credential-expiry cut-off and the open rate limit apply (shared with SSE).
