@@ -563,8 +563,37 @@ On 0.17.x an `EventSource` client saw every such refusal as `406`.
 a signed request to `/rpc/subscribe/{op_id}` is a sealed 406 before the handler
 runs, under `Required` and `Optional` alike, and an unsigned one under
 `Required` is the 401. Give subscriptions `Optional` or `Off` in the policy
-(`request.is_subscription()`) and subscribe unsigned. A signed `@stream` call is
-not refused: it is answered as one sealed CBOR array.
+(`request.is_subscription()`) and subscribe unsigned, **or** mark the subscription
+`@frames(unsigned)` *(unreleased on main, since 0.20.4, cratestack#1378)* and open
+it signed. A signed `@stream` call is not refused: it is answered as one sealed
+CBOR array.
+
+**A signed open of an `@frames(unsigned)` subscription is still a sealed `406`**
+*(unreleased on main, since 0.20.4)*. The `406` has two causes now: the subscription
+is not marked (the layer holds no `SUBSCRIPTION_FRAMES` row for it, e.g. a
+hand-built layer or a schema without the attribute), or the open names no stream:
+the single `Accept` must literally contain `application/cbor-seq` or
+`text/event-stream` (`*/*`, none, or two `Accept` headers fail). A sealed `HEAD` is
+also a `406`. Open the sealed answer to read it.
+
+**A signed subscription ends with `err` `unavailable` / `"stream lifetime"`**
+*(unreleased on main, since 0.20.4)*. Not a fault: the stream hit
+`max_signed_stream_life` (default one hour, at most 24 hours) or the credential's `exp`. Resubscribe
+with a fresh signed open (a replayed open is the coarse 401) and jittered backoff.
+
+**An unsigned `POST /rpc/subscribe/{op_id}` is a 401 under `Required`**
+*(unreleased on main, since 0.20.4)*. The layer now binds `POST` on the subscribe
+route (it used to bind `GET` only, so the `POST` was unresolved). Under `Required` an
+unsigned `POST` was already refused (a `405`) and is now this `401`; it reached the
+handler under any policy whose `unresolved_mode` is not strict (for example
+`policy(Required).unresolved_mode(Optional)`, or a custom `EnvelopePolicy`), a bypass this
+closes. Under `policy(UnsignedRequestSealedReply)` an unsigned `POST` to a subscribe route
+changes from a `405` to the unsigned sealed-reply path (an unsigned `406`, before the
+handler runs). Sign it, or use `GET` where the policy allows an unsigned subscribe.
+
+**Generated clients refuse a sealed subscription open** (`StreamsUnsupported`, or
+the TypeScript/Dart equivalent): expected until the client PR of cratestack#1378
+lands; the server half works with a hand-sealed request.
 
 **The `AuthProvider` sees CBOR, not the COSE body, and the signer is not the
 user.** The layer hands the router the opened payload as `application/cbor`.

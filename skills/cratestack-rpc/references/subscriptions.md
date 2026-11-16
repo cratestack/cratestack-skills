@@ -253,6 +253,25 @@ Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the framewor
   `CratestackSubscriptionTransport` (Dart): add an arm.
 - Not in it: `Auto` selection, compression, resumption, MCP (exempt, ADR 0002 D5).
 
+## Signed services: `@frames(unsigned)` *(unreleased on main, since 0.20.4, cratestack#1378 part B1)*
+
+Source of truth: `docs/design/subscriptions-websocket.md` §7.4, `crates/cratestack-axum/src/envelope_layer/signed_subscription.rs` and the tests `crates/cratestack-api/tests/signed_subscription_{rpc,rest}.rs`. **Server half only: the generated Rust, TypeScript and Dart clients still refuse a sealed subscription open locally (`StreamsUnsupported`) until the client PR lands. Do not write client code that opens one signed; hand-seal the request.**
+
+Under a `Required` envelope a signed open of a subscription was a sealed `406`. A `subscription procedure` marked `@frames(unsigned)` now may be opened signed:
+
+```text
+subscription procedure roomMessages(args: RoomArgs): ChatMessage
+  @frames(unsigned)
+```
+
+- **The open is verified like a unary call** (signature, `kid`, audience, replay, nonce, op contract); `@allow` runs against the principal the signature names. **The frames that answer are plain and unauthenticated.** Treat them only as hints (an id), then re-read through a sealed call. Never take a value from a frame; `@@subscribe` model feeds carry rows and are not eligible.
+- **Routes**: RPC `POST /rpc/subscribe/{op_id}` (sealed message as the body; the one browsers can send), or `GET` with the input as a query; REST `GET /$procs/<name>` with the sealed message as the body, which browsers cannot send (cratestack#1407). A sealed `HEAD` is a sealed `406`. The envelope layer's resolver now binds `POST` on the subscribe route, so an *unsigned* `POST` there under `Required` is the coarse `401`.
+- **`Accept` must name the stream, literally**: `application/cbor-seq` or `text/event-stream` (first one listed wins). `*/*`, no `Accept` or two `Accept` headers is a sealed `406`.
+- **The answer**: a `2xx` stream in that type, unsealed, with `Cratestack-Frames: unsigned` and `Cache-Control: no-store`, no `Cratestack-Payload-Type`. Everything else (`403` from `@allow`, `400`, a stream of another type) is **sealed**, so a refusal is never frames. This is the one exception to "a signed request is always answered sealed", and it holds in every mode that accepts a signed request (`Required`, `Optional`, `UnsignedRequestSealedReply`). Tamper, replay, wrong audience, or a signer the principal mapper refuses is the coarse unsigned `401`; an old op contract the unsigned `426`.
+- **Lifetime**: `EnvelopeLayerBuilder::max_signed_stream_life(Duration)` (default `DEFAULT_MAX_SIGNED_STREAM_LIFE`, one hour; `build` refuses zero and anything above `MAX_SIGNED_STREAM_LIFE`, 24 hours, with a `Validation` error naming the cap). At the deadline the stream ends with `err` `unavailable` / `"stream lifetime"`; resubscribe with a **fresh signed open** (nonces are single-use) and jittered backoff, since a relay can forge that frame. The credential's `exp` applies too; the earlier wins. Handlers call `serve_subscription_with(binding, &extensions, open)`; `serve_subscription` delegates to it.
+- **Limits**: refusal detail is lost once sealed; no per-principal cap on concurrent signed streams (use `RateLimitLayer::for_subscriptions`); signed frames are #1020, chained frames #1008 (`@frames(sealed)` / `@frames(chain)` are refused).
+- MCP is exempt (ADR 0002 D5).
+
 ## The Rust client
 
 `include_server_schema!` and `include_client_schema!` both generate the client
