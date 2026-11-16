@@ -22,7 +22,7 @@ studio  print-ir  contract  migrate  diff
 ```
 
 `contract` is *(since 0.15.1)* (`digest`, `print`), with `lock`, `check` and `prune`
-*(since 0.15.2)*; on 0.15.0 and earlier there are eight.
+*(since 0.15.2)* and `ops` *(unreleased on main, cratestack#1388)*; on 0.15.0 and earlier there are eight.
 
 **There is no top-level `init`, `run` or `eject`** — those three are `studio`
 subcommands. There is no `migrate apply`, `rollback`, `verify` or `drift`, no
@@ -296,6 +296,7 @@ keeps accepting (`include_server_schema!(.., contracts = "s.contracts.lock")`; s
 ```bash
 cratestack contract digest --schema s.cstack [--json]        # every op's digest + the client contract digest
 cratestack contract print  --schema s.cstack --op <key>      # the canonical JSON one op's digest is taken over
+cratestack contract ops    --schema s.cstack [--json]        # every op's roles and whether it needs a principal (unreleased on main, cratestack#1388)
 cratestack contract lock   --schema s.cstack --lock s.contracts.lock [--note <text>] [--date YYYY-MM-DD]
 cratestack contract check  --schema s.cstack --lock s.contracts.lock [--json]   # the CI gate
 cratestack contract prune  --lock s.contracts.lock (--op <key> | --before YYYY-MM-DD | --keep N | --generation <hex>)
@@ -311,6 +312,56 @@ selector (`--generation` needs at least 8 hex digits).
 
 **Exit codes differ from the rest of the CLI:** 0 ok, 1 a failed verdict, **2** a tool error
 (an unreadable schema or lock, a bad date or flag value).
+
+### `contract ops` *(unreleased on main, cratestack#1388)*
+
+Every op with the rules written on it, the roles they name and whether it can be called with no
+principal, **computed by the same policy parser the macros use**. Use it to derive policy-dependent
+artefacts (a relay's per-app allowlist, an API gateway route table) and to check them for completeness;
+never port the `@allow` grammar into a script. Read-only; the document is the same shape on REST and RPC.
+
+```bash
+cratestack contract ops --schema s.cstack --json
+# { "ok": true, "schema": "<file stem>", "transport": "rest"|"rpc",
+#   "ops": [ { "key", "kind", "allow", "deny", "roles", "requires_principal", "unanalysed", "contract_digest" } ] }
+```
+
+- `key` and `contract_digest` are what `contract digest` prints. `kind` is `procedure`, `subscription`
+  or `model.<verb>`; a model op carries the `@@allow` / `@@deny` rules of that verb (`all` applies to every verb).
+  JSON keys come out in the order shown above.
+- **Verb to rule slot** (one table, `cratestack_policy::model_verb_policy_slot`, shared by the macros and this
+  command): `list` reads `"list"`, `"read"`; `get` and **`subscribe`** read `"detail"`, `"read"` (a feed decides
+  each event like `get` decides a row, so `subscribe` is **not** the `list` slot); `create`, `update` and `delete`
+  read their own name. `"all"` fills every slot.
+- `roles`: every `hasRole("...")` literal **named** anywhere in an `@allow`, sorted and deduplicated. It is a
+  **superset** of the roles that grant access, not the roles that grant it. A `@deny` adds none.
+- `requires_principal`: every policy node is, for a caller with no principal, *always false* or *maybe true*;
+  it is `true` exactly when every `@allow` is always false (or there is none). `&&` is always false if any
+  branch is, `||` only if all are; several `@allow` lines are alternatives. `auth() != null`, `hasRole`,
+  `inTenant`, `auth().isSystem()`, `false` and any comparison with an `auth()` side are always false; `true`,
+  `auth() == null`, comparisons of inputs or fields, `in [...]` and bare booleans are maybe true. **Relation
+  quantifiers:** `some` and to-one hops keep an `auth()` comparison always false, but `none` and `every` make it
+  maybe true (`NOT EXISTS (.. AND FALSE)` holds for every row, and `every` is vacuously true with no related
+  rows), so `memberships.none.userId == auth().id` reports `requires_principal: false`. `@deny` is not consulted.
+- `contract ops` reads every policy exactly as the generated server does: the macros and the analysis share one
+  term reader in `cratestack-policy`, with its quirks (set membership is read before comparison, so
+  `label in ["== auth().id"]` is membership, maybe true, not a comparison with `auth()`). How string literals that
+  hold quotes, escapes, operators or parentheses are read is the server's, unchanged, and is tracked in
+  cratestack#1392; do not write policies that depend on it. For a schema that compiles the verdict is the
+  server's behaviour; for a schema the macros refuse no server exists and the verdict is not meaningful (the
+  command parses and semantically checks but does not run the macros, so a term they would refuse can still get
+  a verdict). Run `cratestack check` first.
+- An op with **no `@allow`** is denied to everyone: `requires_principal: true` with an empty `allow`.
+- `unanalysed`: rules the analysis does not understand, and attributes the macros' own audit would refuse (a
+  mis-spaced `@allow (x)`). Such an op reports `requires_principal: false` (treated as anonymous), so
+  **refuse any op with a non-empty `unanalysed`** when gating on it.
+- Deriving an allowlist: treat `roles` as a superset, **also** require `requires_principal`, and refuse a
+  non-empty `unanalysed`. Do not stop at the role filter:
+  `jq -e '[.ops[] | select(.unanalysed | length > 0)] | length == 0' ops.json` first, then
+  `jq -r '.ops[] | select((.roles | index("operator")) and .requires_principal) | .key' ops.json`. An op that
+  names the role but has `requires_principal: false` is callable anonymously: surface it, do not allow-list it
+  as authenticated. Compare with the committed list to check completeness, not just validity.
+- Exit codes: 0 ok, 2 an unreadable schema (with `--json`, `{ "ok": false, "error": ... }`, no colour codes).
 
 ## `migrate` and `studio` flags
 
@@ -340,7 +391,7 @@ versus "error".
 | `migrate diff` lossy without `--allow-destructive` | 1 |
 | `migrate baseline --strict` with drift, or snapshot already exists | 1 |
 | `contract check` not locked or broken; `contract lock` refused | 1 |
-| `contract …` tool error (unreadable schema or lock, bad date or flag) | 2 |
+| `contract …` tool error (unreadable schema or lock, bad date or flag; `contract ops --json` prints `{"ok": false, ...}`) | 2 |
 | `--require-version` / `CRATESTACK_REQUIRE_VERSION` not satisfied, or unparsable *(since 0.20.0)* | 1 |
 | a usage error caught by argument parsing (an unknown flag such as the removed `--no-native-cbor`, a missing required argument) | 2 (clap's usage-error code; `main` calls `Cli::parse()`) |
 

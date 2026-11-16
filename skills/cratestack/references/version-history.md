@@ -98,6 +98,9 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
+- `cratestack contract ops --schema s.cstack [--json]` *(unreleased on main, cratestack#1388)*: every op's rules,
+  `roles`, `requires_principal` and `unanalysed`, from the macros' own policy analysis (`cratestack-policy`). Owner:
+  `cratestack-cli`.
 - **The `cratestack-*` crates pin each other exactly** (cratestack#1390) *(unreleased on main, cratestack#1390)*.
   Each crate requires its siblings as `=x.y.z`, not a caret, so one build resolves one CrateStack version. Before,
   pinning one facade at `=0.20.0` could still resolve `cratestack-core` / `cratestack-policy` at 0.20.1 beside
