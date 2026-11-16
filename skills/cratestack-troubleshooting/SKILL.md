@@ -578,13 +578,15 @@ also a `406`. Open the sealed answer to read it.
 
 **A signed subscription ends with `err` `unavailable` / `"stream lifetime"`**
 *(unreleased on main, since 0.20.4)*. Not a fault: the stream hit
-`max_signed_stream_life` (default one hour) or the credential's `exp`. Resubscribe
+`max_signed_stream_life` (default one hour, at most 24 hours) or the credential's `exp`. Resubscribe
 with a fresh signed open (a replayed open is the coarse 401) and jittered backoff.
 
 **An unsigned `POST /rpc/subscribe/{op_id}` is a 401 under `Required`**
 *(unreleased on main, since 0.20.4)*. The layer now binds `POST` on the subscribe
-route (it used to bind `GET` only, so the `POST` passed unresolved). Sign it, or
-use `GET` where the policy allows an unsigned subscribe.
+route (it used to bind `GET` only, so the `POST` was unresolved). Under `Required` an
+unsigned `POST` was already refused (a `405`) and is now this `401`; it reached the
+handler only under a closure policy with a non-strict `unresolved_mode`, a bypass this
+closes. Sign it, or use `GET` where the policy allows an unsigned subscribe.
 
 **Generated clients refuse a sealed subscription open** (`StreamsUnsupported`, or
 the TypeScript/Dart equivalent): expected until the client PR of cratestack#1378

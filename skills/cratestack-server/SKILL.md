@@ -609,7 +609,7 @@ rate limiting, so put an IP-level limiter **outside** the envelope layer.
   included (a handler's `404`, the `429`, `412`, `422`; a plain request to an
   unmatched path still gets the router's plain `404`). Prefer `GET` over `HEAD`: a signed
   `HEAD`'s body may be dropped by an intermediary.
-- `Optional` — a signed request is opened and **always** answered sealed (its
+- `Optional` — a signed request is opened and **always** answered sealed (except a signed open of an `@frames(unsigned)` subscription, which streams unsigned in every mode that accepts a signed request; its
   `Accept` rewritten to the sealable types it negotiated, CBOR unless
   `Cratestack-Payload-Accept` names others); an unsigned one runs, sealed only with a valid
   `Cratestack-Nonce` and an `Accept` naming `application/cose`. That seal binds
@@ -698,8 +698,8 @@ Traps:
    **unless the schema marks it `@frames(unsigned)`** *(unreleased on main, since
    0.20.4, cratestack#1378)*: then the open is verified like a unary call and the
    stream that answers is plain (`Cratestack-Frames: unsigned`), bounded by
-   `.max_signed_stream_life(Duration)` on the builder (default one hour, zero
-   refused at `build`; the generated `envelope_layer(..)` passes the
+   `.max_signed_stream_life(Duration)` on the builder (default one hour; `build` refuses zero and
+   anything above `MAX_SIGNED_STREAM_LIFE`, 24 hours; the generated `envelope_layer(..)` passes the
    `SUBSCRIPTION_FRAMES` table, a hand-built layer with none opens nothing). Its
    `Accept` must literally name `application/cbor-seq` or `text/event-stream`. The
    frames are hints, never values; see `cratestack-rpc`
