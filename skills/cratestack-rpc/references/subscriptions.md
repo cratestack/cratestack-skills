@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.2** (plus one *(unreleased)* section, the `application/cbor-seq` binding, read from `main`). Everything here is *(since 0.18.0)* unless marked:
+> **Verified against CrateStack 0.20.3**. Everything here is *(since 0.18.0)* unless marked:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -205,10 +205,9 @@ The frames, admission, `OriginPolicy` and the session registry live in
 `cratestack_core::subscription_wire`. `cratestack-webtransport` re-exports them
 unchanged.
 
-## The `application/cbor-seq` binding *(since 0.20.3 (unreleased), cratestack#1001)*
+## The `application/cbor-seq` binding *(since 0.20.3, cratestack#1001)*
 
-Not in any release: only on `main` after 0.20.2. Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the
-framework `CHANGELOG.md` (`## Unreleased`). Before this, HTTP subscriptions were SSE only.
+Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the framework `CHANGELOG.md` (`## 0.20.3`). Before this, HTTP subscriptions were SSE only.
 
 - **Server**: the same four subscribe routes answer `Accept: application/cbor-seq` (RPC `GET` and `POST
   /rpc/subscribe/{op_id}`, REST `GET /$procs/<name>` and `GET /<plural>/$subscribe`). REST has no `POST`
@@ -296,7 +295,7 @@ while let Some(item) = lines.recv().await { let line = item?; }
 
   Features, native targets only: `client-ws` / `client-webtransport` on
   `cratestack-pg`/`cratestack-api`; `ws` / `webtransport` on `cratestack-client`.
-  `SubscriptionTransport::WebTransport` / `WebSocket` / `Sse` pin one binding, and `CborSeq` *(since 0.20.3 (unreleased), cratestack#1001)* pins `application/cbor-seq`, which `Auto` never picks.
+  `SubscriptionTransport::WebTransport` / `WebSocket` / `Sse` pin one binding, and `CborSeq` *(since 0.20.3, cratestack#1001)* pins `application/cbor-seq`, which `Auto` never picks.
 - **SSE** is always a `GET` with the input as the query string, signed by the
   request authorizer like any call. The socket's upgrade carries the
   authorizer's headers for `GET /rpc/ws`.
@@ -318,7 +317,7 @@ let config = ClientConfig::new(base)
   raw bytes received (line endings and the blank line included), counting partial `data:` lines and the pending line. Set it with
   `ClientConfig::with_max_sse_event_bytes(n)`. An event over the cap ends the stream with
   `ClientError::EventTooLarge { limit }` (on the RPC client `RpcClientError::EventTooLarge { limit }`, not
-  `InvalidResponse`), drops the connection and delivers nothing after it. Applies to the SSE binding, and *(since 0.20.3 (unreleased))* to one `CborSeq` frame, where `with_max_subscription_frame_bytes(n)` sets the same field.
+  `InvalidResponse`), drops the connection and delivers nothing after it. Applies to the SSE binding, and *(since 0.20.3)* to one `CborSeq` frame, where `with_max_subscription_frame_bytes(n)` sets the same field.
 
 ## The TypeScript client
 
@@ -329,7 +328,7 @@ and `src/subscription-sockets.ts`; any other schema generates exactly as before.
 ```ts
 const client = new Client(origin, {
   subscriptions: {
-    transport: "auto", // "webtransport" | "websocket" | "sse" | "cbor-seq" (unreleased, never picked by "auto")
+    transport: "auto", // "webtransport" | "websocket" | "sse" | "cbor-seq" (since 0.20.3, never picked by "auto")
     webTransport: { url: "https://api.example.com:4433/rpc/wt" }, // its own UDP address
   },
 });
@@ -400,7 +399,7 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   a socket until you set it (return `{}` for a server allowing anonymous
   subscriptions).
 - `transport: CratestackSubscriptionTransport.webSocket` / `.webTransport` /
-  `.sse` pins one (`.cborSeq` *(since 0.20.3 (unreleased), cratestack#1001)* too; `auto` never picks it). `serverCertificateHashes` pins a self-signed dev
+  `.sse` pins one (`.cborSeq` *(since 0.20.3, cratestack#1001)* too; `auto` never picks it). `serverCertificateHashes` pins a self-signed dev
   certificate; `webSocketUrl` overrides the derived `ws(s)://<base>/rpc/ws`.
 - In the riverpod preset, override `<prefix>SubscriptionOptionsProvider`.
 - Native Dart has no WebTransport: there `auto` starts at the WebSocket.

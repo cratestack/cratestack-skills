@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.20.2** unless a marker says
+Everything in these skills is verified against **0.20.3** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.20.2** (2026-11-16). Every release from 0.15.0 to 0.20.2 is recorded below,
+The latest release is **0.20.3** (2026-11-16). Every release from 0.15.0 to 0.20.3 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -80,6 +80,8 @@ each step's breaking changes assume the one before:
 17. [0.20.1](#0201-2026-11-15): additive: `@@map` / `@map` storage names; nothing to migrate unless you adopt them.
 18. [0.20.2](#0202-2026-11-16): additive: `PgPoolConfig`, the SSE event size cap in the generated clients; the
    `cratestack-*` crates pin each other exactly (move every pin together).
+19. [0.20.3](#0203-2026-11-16): additive: `cratestack contract ops`, subscriptions over `application/cbor-seq`;
+   **breaking for an exhaustive `match` / `switch`** on the Rust and Dart subscription transport enums.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -95,15 +97,19 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.20.2, on main)
+## Unreleased (after 0.20.3, on main)
 
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-- `cratestack contract ops --schema s.cstack [--json]` *(unreleased on main, cratestack#1388)*: every op's rules,
+Nothing yet.
+
+## 0.20.3 (2026-11-16)
+
+- `cratestack contract ops --schema s.cstack [--json]` *(since 0.20.3, cratestack#1388)*: every op's rules,
   `roles`, `requires_principal` and `unanalysed`, from the macros' own policy analysis (`cratestack-policy`). Owner:
   `cratestack-cli`.
-- **Subscriptions over `application/cbor-seq`** (cratestack#1001) *(since 0.20.3 (unreleased))*. The four subscribe routes
+- **Subscriptions over `application/cbor-seq`** (cratestack#1001) *(since 0.20.3)*. The four subscribe routes
   answer `Accept: application/cbor-seq` with a CBOR sequence of `ServerFrame`s (`ready`, `next`, one `err` or `end`; a CBOR
   `null` keep-alive); first entry the server speaks wins, `*/*` stays SSE, the 406 text changed. `POST /rpc/subscribe` takes an
   `application/cbor` body. Clients opt in, `Auto` never picks it: `SubscriptionTransport::CborSeq` (+
