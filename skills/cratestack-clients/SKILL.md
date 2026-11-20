@@ -492,6 +492,19 @@ open is `resource_exhausted`, status 429, not `internal` as before), and no bind
 Dart and TypeScript never had the bug: their templates (`subscriptions.dart.j2`, `subscriptions.ts.j2`, `subscription-sockets.ts.j2`) pass `err.code` through verbatim. The Dart builder's `cratestack_annotations`
 ceiling is `<0.20.0` since 0.19.3 (it was `<0.10.0`, resolving stale 0.9.x).
 
+Why a subscription ended *(since 0.20.5, unreleased on main, cratestack#1381)*: the server ends a live stream when its principal is revoked,
+suspended or signed out (see `cratestack-rpc`, `references/subscriptions.md`), and the terminal `err`
+frame names a reason. Read it typed: Rust `ClientError::stream_end_reason() -> Option<StreamEndReason>`
+(`None` for no reason or one this client does not know: fall back to the code); TypeScript
+`CratestackSubscriptionError.endReason` with `isTerminalEndReason`, `shouldResubscribe` and
+`resubscribeDelayMs`; Dart `CratestackSubscriptionException.endReason` (`CratestackStreamEndReason`, with
+`unknown` for a newer server's reason, `isTerminal`, `resubscribes`). **Never auto-retry `session_ended`,
+`principal_suspended` or `device_revoked`; resubscribe with jittered backoff on `stream_lifetime` and
+`revocation_resync`.** The generated Riverpod `cratestackSubscriptionRetry`, `--tanstack`
+`useSubscriptionQuery` and `--swr` `useSubscription` already follow that rule (the tanstack hook used to
+set `retry: false`, the swr hook never retried; tanstack and Riverpod retry those two ends with no cap on the count), so use them instead of a hand-written retry loop. A session's `{id: 0, err}` is the terminal error of every subscription open on that socket (Rust, TypeScript and Dart socket clients), carrying `details.reason`. Do not
+treat an unknown reason as fatal.
+
 `--rtk` *(since 0.12.0)*: its interesting part is that a **procedure's
 invalidation tags are derived from the schema** — the generator walks the procedure's own args and return type
 (recursing through `Page<T>` and `FindMany<T>`) and turns the models it finds
