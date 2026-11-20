@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.20.5.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -122,7 +122,7 @@ they appear at the `include_*_schema!` call site.
 | ``unsupported attribute `@deviceAuth` ... did you mean `@device_auth`?`` *(since 0.19.7, cratestack#1303)* | the marker is snake_case | write `@device_auth(role: "...")` |
 | `must return a single item type` *(since 0.18.0, cratestack#1268)* | `subscription procedure x(..): T[]` | return `T`: each item of the stream is one value |
 | ``topic `X` needs a subscription backplane, and `db = None` has none yet`` *(never in a release: only on a `main` between cratestack#1268 and PR #1280, both in 0.18.0)* | a `topic` under `include_server_schema!(.., db = None)` on such a build | update: on 0.18.0 and later `db = None` topics compile, on an in-process backplane |
-| ``non-exhaustive patterns: `&_` not covered`` on a `match` over `BackplaneMessage` *(since 0.20.6, unreleased on main, cratestack#1419)* | the enum gained `Bytes` and is `#[non_exhaustive]` | add a wildcard arm (and end the stream on `Resync` / `Lagged`); see `cratestack-rpc` `references/subscriptions.md` |
+| ``non-exhaustive patterns: `&_` not covered`` on a `match` over `BackplaneMessage` *(since 0.20.6, cratestack#1419)* | the enum gained `Bytes` and is `#[non_exhaustive]` | add a wildcard arm (and end the stream on `Resync` / `Lagged`); see `cratestack-rpc` `references/subscriptions.md` |
 | `the trait bound … Copy` / `use of moved value` on a `db = None` `Cratestack` *(since 0.18.0, cratestack PR #1280)* | the schema gained a `topic`, so `Cratestack` holds the backplane and is `Clone`, not `Copy` | `.clone()` it where it was copied |
 | `serves no subscriptions, so there is nothing for it to bind` *(since 0.17.1, cratestack#1255)* | `extension webtransport { }` under `include_embedded_schema!` | declare it only in the server's schema |
 | ``needs a `decimal = RustDecimal` or `decimal = BigDecimal` argument`` | the schema has a `Decimal` field | add the argument; backend choice is schema-authored, not a Cargo feature |

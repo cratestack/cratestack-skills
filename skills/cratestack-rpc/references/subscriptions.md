@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.5**. Everything here is *(since 0.18.0)* unless marked:
+> **Verified against CrateStack 0.20.6**. Everything here is *(since 0.18.0)* unless marked:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -124,7 +124,7 @@ on the runtime's backplane, channel `cratestack.topic.RoomMessage.<key>`.
   messages even when the attempt commits. Topics from a plain `Cratestack`
   publish immediately, including in `@authorize` and `@computed` hooks.
 
-### Byte payloads on the backplane *(since 0.20.6, unreleased on main, cratestack#1419)*
+### Byte payloads on the backplane *(since 0.20.6, cratestack#1419)*
 
 The backplane carries your own binary rows, not only text. `SubscriptionBackplane::publish_bytes(channel, &[u8])` publishes bytes; a subscriber of that channel receives `BackplaneMessage::Bytes(Arc<[u8]>)`, exactly as published, in order with any text on the same channel (`BackplaneMessage::Payload`). `InProcessBackplane` and `PgNotifyBackplane` implement it. Before 0.20.6 there is no `publish_bytes` and no `Bytes`: do not write this against an older version.
 

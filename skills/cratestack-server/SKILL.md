@@ -5,7 +5,7 @@ description: Building a CrateStack HTTP server — include_server_schema! with d
 
 # Server (`include_server_schema!`)
 
-> **Verified against CrateStack 0.20.5.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.6.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -447,7 +447,7 @@ by default *(since 0.18.0, cratestack#1266)*. Behind PgBouncer in transaction mo
 and a single replica. In 0.17.x only the committing replica's subscribers got the
 event. `drain()` claims rows with `FOR UPDATE SKIP LOCKED`, so two replicas never
 both run one `on_<model>_<op>` handler *(since 0.18.0, cratestack#1266)*.
-Your own binary rows ride the same backplane with `publish_bytes` *(since 0.20.6, unreleased on main, cratestack#1419)*, and a mixed 0.20.5 / 0.20.6 rollout needs `PgNotifyBackplane::use_json_envelope()` once at startup (a process-wide, one-way switch that also covers model-event writes and `publish_in_tx`): see `cratestack-rpc` `references/subscriptions.md`.
+Your own binary rows ride the same backplane with `publish_bytes` *(since 0.20.6, cratestack#1419)*, and a mixed 0.20.5 / 0.20.6 rollout needs `PgNotifyBackplane::use_json_envelope()` once at startup (a process-wide, one-way switch that also covers model-event writes and `publish_in_tx`): see `cratestack-rpc` `references/subscriptions.md`.
 `subscription procedure`s and `topic`s *(since 0.18.0, cratestack#1268)*: a handler
 resolves to a `SubscriptionStream<Output>` (usually
 `db.topics().<topic>(key).subscribe().await`), and `topics().<topic>(key)` also has
