@@ -447,6 +447,7 @@ by default *(since 0.18.0, cratestack#1266)*. Behind PgBouncer in transaction mo
 and a single replica. In 0.17.x only the committing replica's subscribers got the
 event. `drain()` claims rows with `FOR UPDATE SKIP LOCKED`, so two replicas never
 both run one `on_<model>_<op>` handler *(since 0.18.0, cratestack#1266)*.
+Your own binary rows ride the same backplane with `publish_bytes` *(since 0.20.6, unreleased on main, cratestack#1419)*, and a mixed 0.20.5 / 0.20.6 rollout needs `PgNotifyBackplane::with_json_envelope()`: see `cratestack-rpc` `references/subscriptions.md`.
 `subscription procedure`s and `topic`s *(since 0.18.0, cratestack#1268)*: a handler
 resolves to a `SubscriptionStream<Output>` (usually
 `db.topics().<topic>(key).subscribe().await`), and `topics().<topic>(key)` also has

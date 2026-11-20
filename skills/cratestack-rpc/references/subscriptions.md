@@ -124,6 +124,35 @@ on the runtime's backplane, channel `cratestack.topic.RoomMessage.<key>`.
   messages even when the attempt commits. Topics from a plain `Cratestack`
   publish immediately, including in `@authorize` and `@computed` hooks.
 
+### Byte payloads on the backplane *(since 0.20.6, unreleased on main, cratestack#1419)*
+
+The backplane carries your own binary rows, not only text. `SubscriptionBackplane::publish_bytes(channel, &[u8])` publishes bytes; a subscriber of that channel receives `BackplaneMessage::Bytes(Arc<[u8]>)`, exactly as published, in order with any text on the same channel (`BackplaneMessage::Payload`). `InProcessBackplane` and `PgNotifyBackplane` implement it. Before 0.20.6 there is no `publish_bytes` and no `Bytes`: do not write this against an older version.
+
+```rust
+use cratestack::{BackplaneMessage, CborCodec, CratestackCodec};  // facade re-exports (cratestack-pg)
+use futures_util::StreamExt;
+
+let bytes = CborCodec.encode(&row)?;                       // CrateStack CBOR (cratestack-codec-cbor)
+backplane.publish_bytes("rows.invoice", &bytes).await?;     // Err(BadRequest) when too large
+
+let mut rx = backplane.subscribe("rows.invoice").await?;
+while let Some(message) = rx.next().await {
+    match message {
+        BackplaneMessage::Bytes(bytes) => { /* decode with the same codec */ }
+        BackplaneMessage::Payload(text) => { /* text on this channel */ }
+        _ => {} // required: Resync, Lagged, and any future variant
+    }
+}
+```
+
+- **Encode with the framework's CBOR codec; never hand-roll base64 (or CBOR) in app code.** `publish_bytes` takes raw bytes and the envelope handles the transport encoding. Encode with `CborCodec` (`CratestackCodec::encode`, from `cratestack-codec-cbor`, re-exported by the facade) and decode with the same codec, so the bytes are what the clients and servers already speak.
+- **Keep a wildcard arm.** `BackplaneMessage` is `#[non_exhaustive]` *(since 0.20.6)*, and gained `Bytes`: a `match` outside `cratestack-core` that lists every variant stops compiling on 0.20.6 and breaks again on the next variant. On `Resync` or `Lagged` a real consumer ends its stream (messages may have been lost), as the framework's own do; do not swallow them in `_ => {}` in production code.
+- **Respect the size limit.** The 8000-byte Postgres `NOTIFY` limit applies to the final notification text (`cbor:` plus base64 of a CBOR map), 7,900 bytes in the backplane. The largest byte payload is **about 5.8 KB**, a little less for a long channel name. An oversized `publish_bytes` returns `CratestackError::BadRequest` naming the sizes; it never truncates, and there is **no outbox fallback** (a text *model event* over the limit still goes as a reference to its outbox row; bytes have no row). For bigger rows, publish a key and fetch the row, or split it. Check the size before publishing if you cannot tolerate the error.
+- **A hand-written `SubscriptionBackplane` refuses bytes** until it overrides `publish_bytes`: the default returns `Internal("this backplane does not carry byte payloads")`.
+- **The framework's text channels skip a stray `Bytes`** (model feed, topics, the revocation follower): a `warn!`, the message dropped, the stream or follower keeps running. Do not publish bytes on `cratestack.model.*`, `cratestack.topic.*` or `cratestack.revocation`; use your own channel names.
+- **The `NOTIFY` envelope is CBOR now** *(since 0.20.6)*: `cbor:` + base64 of a map `{"v": 1, "c": channel, "t" | "b" | "r": text | bytes | outbox id, "n": nonce}`. The reader reads it and the legacy JSON `{"c","p","r","n"}`; an unreadable notification is logged and skipped. If you issue a raw `pg_notify('cratestack_events', ..)` from SQL, the JSON form is still accepted.
+- **Mixed 0.20.5 / 0.20.6 rollout: `PgNotifyBackplane::new(pool).with_json_envelope()`.** A 0.20.5 replica cannot read the CBOR envelope and skips it, so it would miss model events and topic messages written by a 0.20.6 replica. Step 1: deploy 0.20.6 with `.with_json_envelope()` on every replica (they write JSON, read both). Step 2, once no 0.20.5 replica remains: remove it and redeploy. It is **process-wide**: the writers with no backplane (a model event's write path, a topic's `publish_in_tx`) honour it too. In JSON mode a byte payload is base64 in a field (`b`) that 0.20.5 replicas ignore, so bytes reach 0.20.6 replicas only, and the limit is that of the base64 text. Skip it on a fleet that is all 0.20.6, or on a fresh deployment.
+
 ## The WebSocket binding
 
 ```text

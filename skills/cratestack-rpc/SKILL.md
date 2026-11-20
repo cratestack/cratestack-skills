@@ -207,6 +207,14 @@ In 0.17.x, events reached only the subscribers of the replica that committed the
 write, so do not run more than one replica with subscriptions on those versions.
 Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/replicas.rs`.
 
+**Binary rows on the backplane** *(since 0.20.6, unreleased on main, cratestack#1419)*. `publish_bytes(channel, &[u8])`
+delivers `BackplaneMessage::Bytes` to subscribers; encode with `CborCodec`, never
+hand-rolled base64, keep a wildcard arm on the `#[non_exhaustive]` enum, stay under
+about 5.8 KB (an oversized one is `BadRequest`, no outbox fallback), and use
+`PgNotifyBackplane::new(pool).with_json_envelope()` while 0.20.5 and 0.20.6 replicas
+run together. Detail and the two-step rollout:
+[references/subscriptions.md](references/subscriptions.md#byte-payloads-on-the-backplane-since-0206-unreleased-on-main-cratestack1419).
+
 **Each event passes the subscriber's read policy** *(since 0.17.1,
 cratestack#1253)*: the model's `detail`/`read` `@@allow`/`@@deny` rules, the
 ones `get` applies, decided against the event's record with the context

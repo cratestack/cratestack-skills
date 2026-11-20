@@ -105,7 +105,14 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-Nothing yet.
+- **Byte payloads on the subscription backplane, and a CBOR `NOTIFY` envelope** (cratestack#1419) *(since 0.20.6, unreleased on main, cratestack#1419)*.
+  `SubscriptionBackplane::publish_bytes(channel, &[u8])` and `BackplaneMessage::Bytes(Arc<[u8]>)`
+  (`InProcessBackplane`, `PgNotifyBackplane`); `PgNotifyBackplane` writes `cbor:` + base64 of a CBOR map,
+  7,900-byte limit on the final text (about 5.8 KB of bytes; an oversized `publish_bytes` is `BadRequest`, no
+  outbox fallback); the reader reads this and the legacy JSON envelope; `PgNotifyBackplane::with_json_envelope()`
+  (process-wide) for a rolling deploy from 0.20.5. **Source edge:** `BackplaneMessage` is `#[non_exhaustive]`
+  and gains `Bytes` (a `match` needs a wildcard arm); a hand-written backplane refuses bytes until it
+  overrides `publish_bytes`. Owner: `cratestack-rpc` (`references/subscriptions.md`).
 
 ## 0.20.5 (2026-11-20)
 
