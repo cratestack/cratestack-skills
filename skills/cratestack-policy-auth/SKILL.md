@@ -435,6 +435,11 @@ The rules:
   `authorize`/`invoke` calls. A `subscription procedure` *(since 0.18.0)* also takes
   `@authn` (and `@allow` / `@deny` / `@authorize`), evaluated once, when the subscription
   opens (see `cratestack-rpc`, `references/subscriptions.md`).
+- **Revocation is not a policy check.** *(since 0.20.5, unreleased on main, cratestack#1381)* A stream authenticates once, at open. When the app
+  logs a principal out, suspends it or revokes its device, call `db.stream_revocations().revoke(..)` to end
+  its live streams (see `cratestack-rpc`, `references/subscriptions.md`). The tombstone that call can keep
+  refuses new **stream opens** only: it does **not** refuse unary calls, so your `AuthProvider` must still
+  reject a revoked principal itself. Do not poll to detect revocation.
 - *(since 0.17.2, cratestack#1261)* The step-up refusal is **not recorded** under an `Idempotency-Key`
   (nor MCP's `_meta` key), and neither is the provider's or `@allow`/`@deny`'s: they come before
   the body, so the layer releases the key and the retry after the re-proof runs once under the same

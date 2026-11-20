@@ -104,7 +104,14 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-Nothing yet.
+- **Ending a live subscription when its principal is revoked, suspended or signed out** (cratestack#1381) *(since 0.20.5,
+  unreleased on main)*. `db.stream_revocations().revoke(RevocationKey::{Subject, Session, Signer, Custom}, StreamEndReason, Some(until))`
+  ends every stream and socket session of that key on every binding, REST and RPC; `until` keeps a tombstone refusing new
+  stream opens (not unary calls). Across replicas: `publish` + `tokio::spawn(registry.follow(backplane))`, `ResyncPolicy::EndAll`
+  by default (fails closed with `revocation_resync`). New wire `details.reason` on the terminal `err` frame; clients read it
+  (Rust `stream_end_reason()`, TypeScript `endReason`, Dart `endReason`) and the Riverpod, `--tanstack` and `--swr` helpers retry only
+  `stream_lifetime` and `revocation_resync`. **Source edge:** `CratestackError::StreamEnded(StreamEndNotice)`. WebTransport now
+  closes at the credential's `exp`. Owners: `cratestack-rpc`, `cratestack-clients`, `cratestack-policy-auth`, `cratestack-troubleshooting`.
 
 ## 0.20.4 (2026-11-16)
 
