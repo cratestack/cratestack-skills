@@ -502,7 +502,7 @@ frame names a reason. Read it typed: Rust `ClientError::stream_end_reason() -> O
 `principal_suspended` or `device_revoked`; resubscribe with jittered backoff on `stream_lifetime` and
 `revocation_resync`.** The generated Riverpod `cratestackSubscriptionRetry`, `--tanstack`
 `useSubscriptionQuery` and `--swr` `useSubscription` already follow that rule (the tanstack hook used to
-set `retry: false`, the swr hook never retried), so use them instead of a hand-written retry loop. Do not
+set `retry: false`, the swr hook never retried; tanstack and Riverpod retry those two ends with no cap on the count), so use them instead of a hand-written retry loop. A session's `{id: 0, err}` is the terminal error of every subscription open on that socket (Rust, TypeScript and Dart socket clients), carrying `details.reason`. Do not
 treat an unknown reason as fatal.
 
 `--rtk` *(since 0.12.0)*: its interesting part is that a **procedure's
