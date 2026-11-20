@@ -13,13 +13,13 @@ cratestack --version
 grep -n 'cratestack' Cargo.toml          # the facade version
 ```
 
-Everything in these skills is verified against **0.20.5** unless a marker says
+Everything in these skills is verified against **0.20.6** unless a marker says
 otherwise. Read every *(since X.Y.Z)* as "absent before X.Y.Z" and every
 **breaking** note as "your call sites change". One exception: *(since 0.14.0)*
 also covers the yanked 0.13.1, which shipped the same changes (see
 [0.14.0](#0140-2026-09-26)).
 
-The latest release is **0.20.5** (2026-11-20). Every release from 0.15.0 to 0.20.5 is recorded below,
+The latest release is **0.20.6** (2026-11-20). Every release from 0.15.0 to 0.20.6 is recorded below,
 and its changes are marked *(since X.Y.Z)* where they are taught. 0.19.2 and 0.19.3 carry only the items
 listed below (`git log v0.19.1..` was checked), each reflected in the skill that owns it.
 
@@ -85,6 +85,7 @@ each step's breaking changes assume the one before:
 20. [0.20.4](#0204-2026-11-16): additive: `@frames(unsigned)` and the signed subscription open (server and the Rust, TypeScript and
    Dart clients); **source break** for a hand-built Rust `SubscriptionTarget { .. }`; a crate must rebuild.
 21. [0.20.5](#0205-2026-11-20): additive: ending a live subscription when its principal is revoked (`db.stream_revocations()`, `StreamEndReason`); **source edge** for an exhaustive match on `CratestackError` (`StreamEnded`).
+22. [0.20.6](#0206-2026-11-20): additive: byte payloads on the subscription backplane (`publish_bytes`) and a CBOR `NOTIFY` envelope; **source edge** for an exhaustive match on `BackplaneMessage` (now `#[non_exhaustive]`, gains `Bytes`); a mixed 0.20.5 / 0.20.6 deploy needs `PgNotifyBackplane::use_json_envelope()`.
 
 0.15.3 changed nothing over 0.15.2.
 
@@ -100,12 +101,16 @@ each step's breaking changes assume the one before:
   crate's API is expected to change. Owner: `cratestack-embedded` (the "no supported sync engine"
   note). Agents must not depend on it.
 
-## Unreleased (after 0.20.5, on main)
+## Unreleased (after 0.20.6, on main)
 
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-- **Byte payloads on the subscription backplane, and a CBOR `NOTIFY` envelope** (cratestack#1419) *(since 0.20.6, unreleased on main, cratestack#1419)*.
+Nothing yet.
+
+## 0.20.6 (2026-11-20)
+
+- **Byte payloads on the subscription backplane, and a CBOR `NOTIFY` envelope** (cratestack#1419) *(since 0.20.6)*.
   `SubscriptionBackplane::publish_bytes(channel, &[u8])` and `BackplaneMessage::Bytes(Arc<[u8]>)`
   (`InProcessBackplane`, `PgNotifyBackplane`); `PgNotifyBackplane` writes `cbor:` + base64 of a CBOR map,
   7,900-byte limit on the final text (about 5.8 KB of bytes; an oversized `publish_bytes` is `BadRequest`, no
