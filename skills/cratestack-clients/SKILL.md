@@ -5,7 +5,7 @@ description: Generating and consuming CrateStack clients — include_client_sche
 
 # Clients
 
-> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.5.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -492,7 +492,7 @@ open is `resource_exhausted`, status 429, not `internal` as before), and no bind
 Dart and TypeScript never had the bug: their templates (`subscriptions.dart.j2`, `subscriptions.ts.j2`, `subscription-sockets.ts.j2`) pass `err.code` through verbatim. The Dart builder's `cratestack_annotations`
 ceiling is `<0.20.0` since 0.19.3 (it was `<0.10.0`, resolving stale 0.9.x).
 
-Why a subscription ended *(since 0.20.5, unreleased on main, cratestack#1381)*: the server ends a live stream when its principal is revoked,
+Why a subscription ended *(since 0.20.5, cratestack#1381)*: the server ends a live stream when its principal is revoked,
 suspended or signed out (see `cratestack-rpc`, `references/subscriptions.md`), and the terminal `err`
 frame names a reason. Read it typed: Rust `ClientError::stream_end_reason() -> Option<StreamEndReason>`
 (`None` for no reason or one this client does not know: fall back to the code); TypeScript

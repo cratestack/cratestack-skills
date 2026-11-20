@@ -5,7 +5,7 @@ description: CrateStack access control and identity — the @@allow / @@deny pol
 
 # Policy and auth
 
-> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.5.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -435,7 +435,7 @@ The rules:
   `authorize`/`invoke` calls. A `subscription procedure` *(since 0.18.0)* also takes
   `@authn` (and `@allow` / `@deny` / `@authorize`), evaluated once, when the subscription
   opens (see `cratestack-rpc`, `references/subscriptions.md`).
-- **Revocation is not a policy check.** *(since 0.20.5, unreleased on main, cratestack#1381)* A stream authenticates once, at open. When the app
+- **Revocation is not a policy check.** *(since 0.20.5, cratestack#1381)* A stream authenticates once, at open. When the app
   logs a principal out, suspends it or revokes its device, call `db.stream_revocations().revoke(..)` to end
   its live streams (see `cratestack-rpc`, `references/subscriptions.md`). The tombstone that call can keep
   refuses new **stream opens** only: it does **not** refuse unary calls, so your `AuthProvider` must still

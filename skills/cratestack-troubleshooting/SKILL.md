@@ -5,7 +5,7 @@ description: Diagnosing CrateStack build, test and macro failures — E0583 on a
 
 # Troubleshooting
 
-> **Verified against CrateStack 0.20.4.** CrateStack is pre-1.0 and its crates version
+> **Verified against CrateStack 0.20.5.** CrateStack is pre-1.0 and its crates version
 > together, so a minor release can break any of this. Check what you are actually on —
 > `cratestack --version`, and the `cratestack-*` version in `Cargo.toml` — before relying
 > on a fact here. Anything that arrived in a specific release is marked *(since X.Y.Z)*;
@@ -323,7 +323,7 @@ not fall back to another binding. The same code **without** `details` is the per
 cap (`WebSocketLimits`, 64 by default): cancel one first. Before 0.19.3 the Rust client showed either
 as `internal`.
 
-**A live subscription ends with `session_ended`, `principal_suspended`, `device_revoked` or `revocation_resync`** *(since 0.20.5, unreleased on main, cratestack#1381)*.
+**A live subscription ends with `session_ended`, `principal_suspended`, `device_revoked` or `revocation_resync`** *(since 0.20.5, cratestack#1381)*.
 Read `details.reason` (Rust `stream_end_reason()`, TypeScript `endReason`, Dart `endReason`). The first three
 mean the app called `db.stream_revocations().revoke(..)` for that principal (401 / 403): do not retry, sign in or
 re-enrol; a reopen inside the tombstone's `until` is refused with the same reason. `revocation_resync` (503) means a

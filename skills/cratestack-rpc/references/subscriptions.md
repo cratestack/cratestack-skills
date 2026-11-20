@@ -1,6 +1,6 @@
 # Subscription procedures, topics, the WebSocket binding, the clients
 
-> **Verified against CrateStack 0.20.4**. Everything here is *(since 0.18.0)* unless marked:
+> **Verified against CrateStack 0.20.5**. Everything here is *(since 0.18.0)* unless marked:
 > cratestack#1268, plus the PRs named inline (#1269, #1270, #1271, #1280, #1282), all
 > in the 0.18.0 release; the WebSocket rate limit and refusal-code notes below (0.19.3) and the CBOR item form (0.19.6) are the only changes since. None of it
 > exists on 0.17.x or earlier. Source of truth:
@@ -253,7 +253,7 @@ Source of truth: `docs/design/subscriptions-websocket.md` §7.3 and the framewor
   `CratestackSubscriptionTransport` (Dart): add an arm.
 - Not in it: `Auto` selection, compression, resumption, MCP (exempt, ADR 0002 D5).
 
-## Ending a principal's streams *(since 0.20.5, unreleased on main, cratestack#1381)*
+## Ending a principal's streams *(since 0.20.5, cratestack#1381)*
 
 A stream authenticates **once, at open**. Before this, only its credential's `exp` (and, signed, the stream lifetime) ended it: a device revoked a minute later kept receiving events. Now the app calls `revoke` and every stream and socket session of that principal ends, on SSE, cbor-seq, WebSocket and WebTransport, REST and RPC alike. Nothing happens until the app calls it: the default registry never revokes. Source: `crates/cratestack-core/src/subscription_revocation/`, `crates/cratestack-axum/src/rpc/principal_bound.rs`, tests `crates/cratestack-api/tests/subscription_revocation_{rpc,rest}.rs`, `crates/cratestack-pg/tests/stream_revocation_replicas.rs`.
 
@@ -275,7 +275,7 @@ let ended: usize = db.stream_revocations().revoke(
 - **`revoke(key, reason, until) -> usize`** ends every live stream and socket session holding `key` with a typed reason and returns how many it ended. A stream already ended keeps its first reason.
 - **The key kinds** (`RevocationKey`): `Subject(String)` (every session of one user: a suspension), `Session(String)` (the `sid` claim: one login, a logout), `Signer([u8; 32])` (the RFC 9679 thumbprint of the key that signed the open: one enrolled device), `Custom(String)` (whatever else the app keys by). Match the reason to the key: `SessionEnded` / `Session`, `PrincipalSuspended` / `Subject`, `DeviceRevoked` / `Signer`.
 - **`default_revocation_keys`** is what a stream is held under unless you replace it: the context's `subject()`, its `sid` claim **only when that is a string**, and the signer thumbprint when the open was signed. `sid` is not a reserved claim, so an app that carries a session id under another name supplies its own `fn(&CratestackContext) -> Vec<RevocationKey>` with `StreamRevocations::with_keys(..)` (one place: streams and sockets cannot disagree). A principal with none of the three keys cannot be revoked by key.
-- **`until` is the credential's longest `exp`.** `Some(until)` also keeps a *tombstone*: a later open (or socket `Init`) under that key is refused until then, so a cached context cannot simply reopen. Give the longest `exp` a context of that principal could still carry (the credential's maximum lifetime from now). `None` ends live streams only and tombstones nothing, so the client may reopen at once. **Never tombstone with a resubscribe reason** (`stream_lifetime`, `revocation_resync`): `revoke` / `publish` end the live streams but keep NO tombstone (with a `warn!`), because clients retry those reasons without a cap and would reconnect until it lapsed. Tombstones belong with `session_ended`, `principal_suspended`, `device_revoked` (or `credential_expired`) *(since 0.20.5, unreleased)*. Tombstones are capped (`DEFAULT_MAX_TOMBSTONES` = 100 000, `with_max_tombstones(n)`; soonest-lapsing dropped first, with a `warn!`). A tombstoned open fails with the same typed end, before `Ready`.
+- **`until` is the credential's longest `exp`.** `Some(until)` also keeps a *tombstone*: a later open (or socket `Init`) under that key is refused until then, so a cached context cannot simply reopen. Give the longest `exp` a context of that principal could still carry (the credential's maximum lifetime from now). `None` ends live streams only and tombstones nothing, so the client may reopen at once. **Never tombstone with a resubscribe reason** (`stream_lifetime`, `revocation_resync`): `revoke` / `publish` end the live streams but keep NO tombstone (with a `warn!`), because clients retry those reasons without a cap and would reconnect until it lapsed. Tombstones belong with `session_ended`, `principal_suspended`, `device_revoked` (or `credential_expired`) *(since 0.20.5)*. Tombstones are capped (`DEFAULT_MAX_TOMBSTONES` = 100 000, `with_max_tombstones(n)`; soonest-lapsing dropped first, with a `warn!`). A tombstoned open fails with the same typed end, before `Ready`.
 - **Wiring a custom registry**: `Cratestack::builder()...with_stream_revocations(StreamRevocations::default().with_max_tombstones(n).with_keys(f))`, then `db.stream_revocations()` returns it.
 
 ### Several replicas
@@ -297,7 +297,7 @@ db.stream_revocations()
 - **`publish(&backplane, key, reason, until)`** revokes locally (returns how many this replica ended) **and** sends on the channel `REVOCATION_CHANNEL` (`"cratestack.revocation"`). A replica that is not running `follow` never hears it. The local revoke is not undone: if the backplane send fails, `publish` returns `Err` with this replica's streams already ended (count lost); only other replicas missed it, so retry.
 - **`follow(backplane)`** applies what other replicas send and resubscribes after a gap; spawn it once per replica. Use the same backplane the runtime was built with (`PgNotifyBackplane` is the Postgres default; it and `SubscriptionBackplane` are re-exported by the facade; on `db = None`, an `InProcessBackplane` reaches this process only). It returns only when subscribing fails: log it and respawn with a pause.
 - **`ResyncPolicy::EndAll` is the default and fails closed.** When the backplane may have lost messages (`Resync`, `Lagged`, a dropped `LISTEN`), every watched stream ends with `revocation_resync` (503), because a revocation may have been lost. Clients reopen with a jittered backoff. `follow_with(backplane, ResyncPolicy::Ignore)` keeps the streams instead; choose it only where a flapping listener costs more than a lost revoke going unnoticed until `exp`. Delivery is at-most-once. **A payload cannot end the follower:** the revoke always applies, and only an `until` no `SystemTime` can hold is clamped to now + 24 h; a negative, NaN or non-numeric `until` revokes with no tombstone and a `warn!`; a malformed payload is skipped with a `warn!`; a `reason` this version does not know (a newer replica) revokes as `session_ended` with a warning. However the follower ends, it applies its `ResyncPolicy` last (`EndAll` ends every watched stream with `revocation_resync`).
-- `publish_in_tx` does not exist for revocations; with `PgNotifyBackplane` you may issue the same `NOTIFY` inside the transaction that records the change. The payload is JSON `{"kind","key","reason","until"}`; **`until` is integer seconds since the epoch.** When you NOTIFY from SQL, send integer seconds (`extract(epoch from expires_at)::bigint`) or rely on the follower rounding a fraction or numeric string up; do not send a negative or non-numeric value, which revokes but keeps no tombstone. Never put a resubscribe reason (`stream_lifetime`, `revocation_resync`) in a payload that expects a tombstone *(since 0.20.5, unreleased)*.
+- `publish_in_tx` does not exist for revocations; with `PgNotifyBackplane` you may issue the same `NOTIFY` inside the transaction that records the change. The payload is JSON `{"kind","key","reason","until"}`; **`until` is integer seconds since the epoch.** When you NOTIFY from SQL, send integer seconds (`extract(epoch from expires_at)::bigint`) or rely on the follower rounding a fraction or numeric string up; do not send a negative or non-numeric value, which revokes but keeps no tombstone. Never put a resubscribe reason (`stream_lifetime`, `revocation_resync`) in a payload that expects a tombstone *(since 0.20.5)*.
 
 ### What a tombstone does NOT do
 
@@ -502,7 +502,7 @@ client.procedures.lines(const LinesArgs(args: Room(roomId: 'r1'))).listen(print)
   function skips `CratestackEventTooLargeException` (it reaches the provider as an `AsyncError` at once;
   `ref.invalidate` retries by hand) and keeps the default for other errors.
 
-### Reading why a stream ended *(since 0.20.5, unreleased on main, cratestack#1381)*
+### Reading why a stream ended *(since 0.20.5, cratestack#1381)*
 
 Every generated client reads `details.reason` of the terminal `err` frame (also the `{id: 0, err}` of a closed socket session), on every binding:
 
