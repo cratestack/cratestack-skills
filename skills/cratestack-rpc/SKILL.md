@@ -210,8 +210,8 @@ Test: `crates/cratestack-pg/tests/rpc_subscribe_read_policy/replicas.rs`.
 **Binary rows on the backplane** *(since 0.20.6, unreleased on main, cratestack#1419)*. `publish_bytes(channel, &[u8])`
 delivers `BackplaneMessage::Bytes` to subscribers; encode with `CborCodec`, never
 hand-rolled base64, keep a wildcard arm on the `#[non_exhaustive]` enum, stay under
-about 5.8 KB (an oversized one is `BadRequest`, no outbox fallback), and use
-`PgNotifyBackplane::new(pool).with_json_envelope()` while 0.20.5 and 0.20.6 replicas
+about 5.8 KB (an oversized one is `BadRequest`, no outbox fallback; plain text under CBOR fits about 5,900 bytes, not 7,870), and call
+`PgNotifyBackplane::use_json_envelope()` once at startup (process-wide, one-way) while 0.20.5 and 0.20.6 replicas
 run together. Detail and the two-step rollout:
 [references/subscriptions.md](references/subscriptions.md#byte-payloads-on-the-backplane-since-0206-unreleased-on-main-cratestack1419).
 

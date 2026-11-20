@@ -109,8 +109,12 @@ release is cut, move each item under its release heading.
   `SubscriptionBackplane::publish_bytes(channel, &[u8])` and `BackplaneMessage::Bytes(Arc<[u8]>)`
   (`InProcessBackplane`, `PgNotifyBackplane`); `PgNotifyBackplane` writes `cbor:` + base64 of a CBOR map,
   7,900-byte limit on the final text (about 5.8 KB of bytes; an oversized `publish_bytes` is `BadRequest`, no
-  outbox fallback); the reader reads this and the legacy JSON envelope; `PgNotifyBackplane::with_json_envelope()`
-  (process-wide) for a rolling deploy from 0.20.5. **Source edge:** `BackplaneMessage` is `#[non_exhaustive]`
+  outbox fallback; **plain text now fits about 5,900 bytes under CBOR, against about 7,870 under JSON**, so a
+  text publish between those errors `BadRequest`; a model event too big even by reference fails the write with
+  `Internal`); the readers are strict (duplicate key, second payload key, trailing CBOR bytes, or more than one
+  of `p`/`r`/`b` is logged and skipped) and read this and the legacy JSON envelope;
+  `PgNotifyBackplane::use_json_envelope()` (a process-wide, one-way switch; `with_json_envelope()` wraps it) for
+  a rolling deploy from 0.20.5. **Source edge:** `BackplaneMessage` is `#[non_exhaustive]`
   and gains `Bytes` (a `match` needs a wildcard arm); a hand-written backplane refuses bytes until it
   overrides `publish_bytes`. Owner: `cratestack-rpc` (`references/subscriptions.md`).
 
