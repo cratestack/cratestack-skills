@@ -301,6 +301,16 @@ Add the `part` line to the root; that edit is also what triggers the rebuild.
 
 ## Runtime behaviour that looks like a bug and is not
 
+**A database error's `Display` leaks a value, or you cannot tell a CHECK from a partition miss without matching text** *(since 0.21.0, unreleased on main, a24-context#745)*.
+`Display` of a `DatabaseTyped` error prints the server message, which can quote row values. Log
+`err.db_sqlstate()`, `db_constraint()`, `db_table()`, `db_column()`, `db_schema()` instead; a partition miss
+is `23514` with a table and no constraint, a named CHECK is `23514` with `db_constraint()` set. On 0.20.6 and
+earlier these accessors do not exist except `db_sqlstate()` / `db_constraint()`, and table, column and schema
+were dropped. A struct literal of `DbErrorInfo` failing to compile on 0.21.0 is the new `#[non_exhaustive]`:
+use `DbErrorInfo::new(..).with_*`. A migration, idempotency or audit-bootstrap failure that was a bare
+`Database` 500 is now typed with its SQLSTATE, and a lost connection there is `Unavailable` 503. Full
+detail: `cratestack-server` ("Reading a database error").
+
 **A decode fails with "nesting too deep (maximum depth is 128)", or a JS `RangeError` with that
 message** *(since 0.19.4, cratestack#1315)*. The CBOR input nests more than 128 levels (arrays, maps
 and tags, definite or indefinite). On 0.19.3 and earlier there is no limit and a hostile body
