@@ -106,7 +106,19 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
-Nothing yet.
+- **`Bytes`, `Geography` and `Geometry` are CBOR byte strings** (cratestack#1425) *(since 0.21.0, unreleased on main)*.
+  **Breaking on the wire, CBOR only; upgrade readers first, no switch.** Generated models, `type` blocks,
+  procedure `Args`, CRUD inputs and patch shapes (Rust client), `/rpc/batch` frames and CBOR socket items write
+  major type 2 instead of an integer array (`a1 64 64617461 43 01 02 ff`); JSON is byte-identical. Breaks
+  against a 0.21.0 server: Flutter apps resolving `cratestack_cbor` below 0.19.6 (generated Dart packages now
+  require `>=0.19.6`, was `>=0.9.3`), Rust clients up to 0.20.6 reading projection views (now decoded through
+  `RpcFrameValue`), and array-only hand-written decoders. New API: `BytesShape`, `WireBytes`,
+  `serialize_bytes_shape` (and `deserialize_bytes` to read both) for your own `Vec<u8>` fields. **Not changed:**
+  bare procedure returns (`Bytes`, `Bytes?`, `Bytes[]`, `@stream`) and the Dart client's writer (still arrays,
+  accepted by servers); `Uuid` in Rust projection views is out of scope. The idempotency request hash covers the
+  raw body, so one `Idempotency-Key` retried across a client upgrade is a payload mismatch within the TTL; COSE,
+  ETags and op-contract digests are unaffected. Owner: `cratestack-clients` ("`Bytes`, `Geography` and
+  `Geometry` are CBOR byte strings"), with `cratestack-server` ("Codecs") and `cratestack-troubleshooting`.
 
 ## 0.20.6 (2026-11-20)
 

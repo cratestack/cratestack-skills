@@ -376,6 +376,15 @@ write a row and then fail to encode.
 `application/cbor-seq` is response-only and procedures-only, and requires a CBOR
 codec.
 
+**`Bytes`, `Geography` and `Geometry` under CBOR** *(since 0.21.0, unreleased on main, cratestack#1425)*. A CBOR response, `/rpc/batch` frame or
+CBOR socket item carries these as a byte string (major type 2), not an array of integers; JSON, SSE, audit and
+outbox payloads, cursors and MCP are unchanged. Requests accept both forms (since 0.8.15). A hard cutover with no
+switch: deploy readers first (Dart `cratestack_cbor` >= 0.19.6, Rust clients > 0.20.6 for projection views). Bare
+procedure returns stay arrays. COSE signs the bytes as sent, and ETags and op-contract digests do not change, but
+the idempotency request hash covers the raw body, so retrying one `Idempotency-Key` across a client upgrade is a
+payload mismatch within the TTL; verify signatures or hashes over stored bytes, never over a re-encoding of a
+generated value. Details: `cratestack-clients`, "`Bytes`, `Geography` and `Geometry` are CBOR byte strings".
+
 A CBOR request body must be exactly one item. Bytes after the item are a 400
 (`CODEC_ERROR` on REST, `invalid_argument` on `/rpc`), not ignored, *(since 0.16.0,
 cratestack#1153)*. JSON already refused trailing characters the same way.

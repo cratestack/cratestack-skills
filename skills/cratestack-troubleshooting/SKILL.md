@@ -721,6 +721,16 @@ Source: `packages/cratestack-cbor/src/sealed.ts`, `packages/cratestack-ts-types/
 | (Dart) `FormatException: ... expected a Uuid as a string or 16 bytes` | The wire value was neither; the message names `Model.field` |
 | (server) `UUID parsing failed` or `unexpected type string ... expected bytes` on a CBOR request | The server is 0.19.5 or older and refuses a text `Uuid`: upgrade it (and regenerate the client) |
 
+### `Bytes`, `Geography` and `Geometry` as byte strings *(since 0.21.0, unreleased on main, cratestack#1425)*
+
+| What you see | It means |
+| --- | --- |
+| (Rust client) a decode error (message not verified) on `get_view`, `list_view`, `list_view_paged` or an RPC `view` call against a new server | The client is 0.20.6 or older: projection views decoded into `serde_json::Value` and refuse a byte string. Upgrade the client |
+| (Dart) `CratestackCborCodecError: ... invalid type: byte array` on a response with a `Bytes` field | `cratestack_cbor` is older than 0.19.6: upgrade it (generated packages now require it) |
+| (any) a hand-written decoder fails on a `Bytes` field only under CBOR | It accepts only an array of integers: use `cratestack::deserialize_bytes` (reads both) on a `Vec<u8>` field |
+| A retry of one `Idempotency-Key` is refused as a payload mismatch right after a client upgrade | The request hash covers the raw body, and the upgraded client now sends byte strings. Wait out the TTL or use a new key |
+| A signature or hash over `CborCodec::encode(&value)` no longer verifies for old data | The re-encoding changed. Verify over the stored bytes |
+
 ### Dart: the HTTP transport and its exceptions *(since 0.16.0, cratestack#1204)*
 
 For an app using a generated Dart client. The package: `skills/cratestack-clients/references/dart-transport.md`.

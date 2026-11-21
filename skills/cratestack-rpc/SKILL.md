@@ -132,8 +132,8 @@ are `RpcFrameValue`, and the frame constructors take `impl Into<RpcFrameValue>`.
 WebSocket and WebTransport bindings an item keeps its CBOR form, so a `Uuid` is a 16-byte string
 (every model event's `eventId` included) and `Value::Bytes` in a `Json` field a byte string;
 through 0.19.5 the server ran each item through `serde_json::to_value`, so they arrived as text
-and base64. JSON text frames and SSE are unchanged. A schema `Bytes` field is an integer array on
-every wire and was never affected. **Breaking on the CBOR sockets:** a Rust client from before
+and base64. JSON text frames and SSE are unchanged. A schema `Bytes` field was an integer array on
+every wire and was not affected by that change (it became a byte string on the CBOR sockets from 0.21.0 *(since 0.21.0, unreleased on main, cratestack#1425)*). **Breaking on the CBOR sockets:** a Rust client from before
 the fix cannot read a newer server's model events there (pin `SubscriptionTransport::Sse`, or
 upgrade both); a newer client still reads an older server.
 
