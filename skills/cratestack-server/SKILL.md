@@ -354,6 +354,33 @@ which may carry `details`, extra top-level members (the envelope's `extra` map) 
 (`CratestackError::into_response`, `crates/cratestack-core/src/error/response.rs`).
 Before 0.17.1 `details` was always `null`.
 
+**Reading a database error** *(since 0.21.0, unreleased on main, a24-context#745, cratestack#1429)*. A
+`DatabaseTyped` / `ConflictTyped` error carries SQLSTATE, constraint, table, column and schema. Read them
+with `CratestackError::db_sqlstate()`, `db_constraint()`, `db_table()`, `db_column()`, `db_schema()` and
+`db_message()` (the server's own text); each is `None` for any other variant, including the untyped
+`Database(String)`. **`Display` is unchanged and still prints the server message, which can quote row
+values: log the accessors, not `Display`** (and keep `db_message()` out of such logs). Classify on
+SQLSTATE plus constraint plus table, not on text (`crates/cratestack-pg/tests/db_error_accessors.rs`):
+
+```rust
+match (err.db_sqlstate(), err.db_constraint(), err.db_table()) {
+    (Some("23505"), Some(name), _) => conflict(name),       // named UNIQUE: arrives as ConflictTyped, 409
+    (Some("A2401"), _, _) => reservation_refused(),         // a trigger's custom ERRCODE passes through
+    (Some("40001" | "40P01"), _, _) => retry(),             // serialization failure / deadlock
+    (Some("23514"), None, Some(table)) => partition_miss(table), // CHECK with a table and no constraint
+    _ => fail(),
+}
+```
+
+`DbErrorInfo` is `#[non_exhaustive]` *(since 0.21.0, unreleased on main)*: a struct literal outside
+`cratestack-core` does not compile. Build with `DbErrorInfo::new(detail).with_sqlstate(..).with_constraint(..)
+.with_table(..).with_column(..).with_schema(..)`; read `table()` / `column()` / `schema()` (`detail`,
+`sqlstate`, `constraint` stay public fields). sqlx `Configuration` and `Tls` errors map to the fixed
+messages `database connection configuration error` / `database TLS error` (still `Database`, 500; the cause,
+which can hold the URL and password, goes to tracing only). The migration runner, idempotency store,
+audit-table bootstrap and materialized-view refresh used `Database(String)` and now keep their SQLSTATE; a
+lost connection there is `Unavailable` (503), a missing row `NotFound` *(since 0.21.0, unreleased on main)*.
+
 **A denied model read is not a 403.** Read policy compiles into the `WHERE`
 clause, so a denied `find_unique` returns `Ok(None)` and the handler turns that
 into a **404**; a denied list read simply returns fewer rows and no error at all.

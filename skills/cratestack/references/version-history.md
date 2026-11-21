@@ -106,6 +106,15 @@ each step's breaking changes assume the one before:
 When something lands on `main` and not in a release, mark it *(unreleased on main)* and list it here; when the
 release is cut, move each item under its release heading.
 
+- **Database errors keep table, column and schema; log-safe accessors** (a24-context#745, cratestack#1429)
+  *(since 0.21.0, unreleased on main)*. New `CratestackError::db_table()`, `db_column()`, `db_schema()`,
+  `db_message()` beside `db_sqlstate()` / `db_constraint()`, reading `DatabaseTyped` and `ConflictTyped`.
+  `Display` is **unchanged** and can quote row values: log the accessors. **Source-breaking:** `DbErrorInfo` is
+  `#[non_exhaustive]`; build with `DbErrorInfo::new(detail).with_sqlstate(..)...`, read `table()` / `column()` /
+  `schema()`. sqlx `Configuration` / `Tls` errors map to fixed messages (cause to tracing). Migration runner,
+  idempotency store, audit bootstrap and view refresh now keep their SQLSTATE (a lost connection is
+  `Unavailable` 503). Owner: `cratestack-server` ("Reading a database error"), with
+  `cratestack-troubleshooting`.
 - **`Bytes`, `Geography` and `Geometry` are CBOR byte strings** (cratestack#1425) *(since 0.21.0, unreleased on main)*.
   **Breaking on the wire, CBOR only; upgrade readers first, no switch.** Generated models, `type` blocks,
   procedure `Args`, CRUD inputs and patch shapes (Rust client), `/rpc/batch` frames and CBOR socket items write
