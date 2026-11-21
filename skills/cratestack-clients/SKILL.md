@@ -671,6 +671,27 @@ string or wrong-length byte string is still a `400 invalid_argument`.
 (`unexpected type string ... expected bytes`): upgrade the server first. A new server against an old
 client accepts requests but mis-decodes responses: regenerate.
 
+### `Bytes`, `Geography` and `Geometry` are CBOR byte strings *(since 0.21.0, unreleased on main, cratestack#1425)*
+
+**Breaking on the wire, CBOR only: upgrade readers first.** From 0.21.0 a generated `Bytes`, `Geography` or
+`Geometry` (EWKB) field is written as a CBOR byte string (major type 2) instead of an array of integers:
+`{"data": [1,2,255]}` is `a1 64 64617461 43 01 02 ff` (was `a1 64 64617461 83 01 02 18 ff`), about half the bytes.
+It covers model responses (REST and RPC get/list/`Page` items, relations, `@computed`), `type` blocks, procedure
+`Args` and CRUD inputs (including patch shapes) sent by the **Rust** client, `/rpc/batch` frames and CBOR socket
+items. **JSON is byte-identical** (still an integer array). There is no switch to turn this off.
+
+| Client | Reads a byte string | Writes |
+| --- | --- | --- |
+| Rust | Projection views (`get_view`, `list_view`, `list_view_paged`, RPC `view`) decode through `RpcFrameValue` since 0.21.0; **a client up to 0.20.6 refuses a byte string there** | byte strings since 0.21.0 |
+| TypeScript | No change needed (`@cratestack/cbor` yields a `Uint8Array`, revival keeps it) | byte strings since 0.8.15 |
+| Dart | Needs `cratestack_cbor` **>= 0.19.6**; generated packages now require it (was `>=0.9.3`), which moves lock files | **still integer arrays** (the bridge takes JSON text, which has no byte type); servers accept them. A byte-string writer is a follow-up |
+
+Servers have accepted both forms since 0.8.15 (cratestack#783). **Not changed:** bare procedure returns
+(`returns Bytes`, `Bytes?`, `Bytes[]`, `@stream`) stay integer arrays, and `Uuid` inside a Rust projection view is
+out of scope. A hand-written decoder that accepts only an array breaks; a `Vec<u8>` field you write yourself keeps
+serde's default, so add `#[serde(serialize_with = "cratestack::serialize_bytes_shape")]` to write the new form and
+`#[serde(deserialize_with = "cratestack::deserialize_bytes")]` to read both.
+
 ### `BigInt` is a string on the wire *(since 0.15.4, ADR 0019 D2, D3)*
 
 A schema `BigInt` field never travels as a number: it is a canonical decimal string (`0`, or
